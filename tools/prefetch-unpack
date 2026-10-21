@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# usage: prefetch-unpack URL...   -> prints "<sri-hash> <url>" (hash as used by fetchzip/fetchFromGitHub)
+for u in "$@"; do
+  h=$(nix store prefetch-file --unpack --json "$u" 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["hash"])')
+  echo "$h $u"
+done

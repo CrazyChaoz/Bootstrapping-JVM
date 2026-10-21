@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# usage: prefetch URL...   -> prints "<sri-hash> <url>" (flat file hash as used by fetchurl)
+for u in "$@"; do
+  h=$(nix store prefetch-file --json "$u" 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["hash"])')
+  echo "$h $u"
+done
