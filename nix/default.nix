@@ -18,6 +18,7 @@ pkgs.lib.makeScope pkgs.newScope (self: {
   fetchKotlin = self.callPackage ./lib/fetch-kotlin.nix { };
   kotlinSources = self.callPackage ./kotlin/sources.nix { };
   kotlin = self.callPackage ./kotlin { };
+  kotlinLibs = self.callPackage ./kotlin/libs.nix { };
 
   jdkBootstrap = self.callPackage ./jdk/bootstrap.nix { };
   icedtea7 = self.callPackage ./jdk/icedtea7.nix { };
@@ -26,4 +27,5 @@ pkgs.lib.makeScope pkgs.newScope (self: {
   # Build tools
   ant = self.callPackage ./java/ant.nix { };
   java = self.callPackage ./java { };
+  antlr = self.callPackage ./java/antlr.nix { };
 })
