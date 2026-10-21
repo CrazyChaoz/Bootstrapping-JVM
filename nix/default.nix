@@ -28,4 +28,12 @@ pkgs.lib.makeScope pkgs.newScope (self: {
   ant = self.callPackage ./java/ant.nix { };
   java = self.callPackage ./java { };
   antlr = self.callPackage ./java/antlr.nix { };
+  # Groovy needs JDK >= 9 to build.
+  # TODO: use the JDK from nix/jdk once the chain is complete.
+  jdk11 = pkgs.openjdk11;
+  javaLib11 = self.callPackage ./lib/mk-jar.nix { jdk = self.jdk11; };
+  groovy = self.callPackage ./java/groovy.nix {
+    jdk = self.jdk11;
+    inherit (self.javaLib11) mkJar;
+  };
 })
