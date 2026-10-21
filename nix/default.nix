@@ -15,6 +15,10 @@ pkgs.lib.makeScope pkgs.newScope (self: {
   intellijSources = self.callPackage ./intellij/sources.nix { };
   intellij = self.callPackage ./intellij { };
 
+  fetchKotlin = self.callPackage ./lib/fetch-kotlin.nix { };
+  kotlinSources = self.callPackage ./kotlin/sources.nix { };
+  kotlin = self.callPackage ./kotlin { };
+
   # Build tools
   ant = self.callPackage ./java/ant.nix { };
   java = self.callPackage ./java { };

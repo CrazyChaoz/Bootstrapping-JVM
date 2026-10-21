@@ -424,6 +424,18 @@ lib.fix (self: {
       grep -rlE 'import (org\.apache\.bcel|org\.apache\.commons\.httpclient|org\.apache\.ivy|fr\.jayasoft|org\.apache\.xerces|org\.apache\.xml\.serialize)' src/java | xargs -r rm -v
       rm -rf src/java/net/sf/antcontrib/net/httpclient src/java/net/sf/antcontrib/design src/java/net/sf/antcontrib/antserver
     '';
+    # Drop the definitions of the removed tasks.
+    postBuild = ''
+      for f in build/classes/net/sf/antcontrib/antcontrib.properties build/classes/net/sf/antcontrib/antlib.xml; do
+        [ -f $f ] || continue
+        for c in $(grep -oE 'net\.sf\.antcontrib\.[A-Za-z0-9_.]+' $f | sort -u); do
+          if [ ! -f "build/classes/''${c//.//}.class" ]; then
+            echo "dropping $c from $f"
+            sed -i "/''${c//./\\.}\b/d" $f
+          fi
+        done
+      done
+    '';
     deps = [ ant ];
     javaRelease = "1.6";
   };

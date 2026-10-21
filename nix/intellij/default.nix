@@ -130,6 +130,7 @@ let
             self.util-rt
           ];
           javaRelease = newTarget;
+          passthru = { inherit asm; };
           preBuild = ''
             mkdir -p build/classes/messages build/classes/META-INF
             for m in java/java-psi-api/src/messages java/java-psi-impl/src/messages; do
