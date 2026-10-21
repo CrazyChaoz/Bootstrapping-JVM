@@ -19,6 +19,8 @@ pkgs.lib.makeScope pkgs.newScope (self: {
   kotlinSources = self.callPackage ./kotlin/sources.nix { };
   kotlin = self.callPackage ./kotlin { };
 
+  jdkBootstrap = self.callPackage ./jdk/bootstrap.nix { };
+
   # Build tools
   ant = self.callPackage ./java/ant.nix { };
   java = self.callPackage ./java { };
