@@ -405,7 +405,36 @@ lib.fix (self: {
       self.asm-6
       ant
     ];
+    # Like upstream (and Guix), bundle ASM: the classpath of the Kotlin build
+    # also has ASM 8, which lacks RemappingClassAdapter.
+    mergeJars = [ "${self.asm-6}/share/java/asm.jar" ];
     javaRelease = "1.6";
+  };
+
+  # Used by Kotlin >= 1.1.3.  src-gen is produced by a Scala generator, but
+  # committed to the repository.
+  javaslang-match = mkJar {
+    pname = "javaslang-match";
+    version = "2.0.6";
+    inherit (self.javaslang) src;
+    sourceDirs = [ "javaslang-match/src/main/java" ];
+    resourceDirs = [ "javaslang-match/src/main/resources" ];
+    javaRelease = "1.8";
+  };
+
+  javaslang = mkJar {
+    pname = "javaslang";
+    version = "2.0.6";
+    src = gh "vavr-io" "vavr" "javaslang-v2.0.6" "sha256-eetokjpRmePu9rSY7IAincqj47NoJuHZeYvR9LSmN4U=";
+    sourceDirs = [
+      "javaslang/src/main/java"
+      "javaslang/src-gen/main/java"
+    ];
+    # There is a λ.java
+    preBuild = "export LC_ALL=C.UTF-8";
+    # Annotation processor generating the pattern classes
+    buildDeps = [ self.javaslang-match ];
+    javaRelease = "1.8";
   };
 
   ant-contrib = mkJar {

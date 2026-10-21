@@ -20,6 +20,8 @@ pkgs.lib.makeScope pkgs.newScope (self: {
   kotlin = self.callPackage ./kotlin { };
 
   jdkBootstrap = self.callPackage ./jdk/bootstrap.nix { };
+  icedtea7 = self.callPackage ./jdk/icedtea7.nix { };
+  jdks = self.callPackage ./jdk { inherit pkgs; };
 
   # Build tools
   ant = self.callPackage ./java/ant.nix { };

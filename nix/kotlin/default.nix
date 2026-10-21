@@ -516,7 +516,36 @@ let
           (ops.delete "remove-js-compiler")
         ];
     };
+
+    # ---- Beyond TarCV/kotlin-guix ----
+
+    # From here on build.xml delegates the runtime (stdlib, reflect, ...) to
+    # Gradle; splice the Ant targets of 1.1.2 back in.
+    "1.1.3-dev-1317" = step k."1.1.2-5" "1.1.3-dev-1317" p1_1_2 {
+      steps =
+        s:
+        lib.pipe s [
+          (addLast "ant-runtime" (antRuntime { }))
+          (addLast "prepare-javaslang" ''
+            ln -s ${jar java.javaslang} dependencies/javaslang-2.0.6.jar
+          '')
+        ];
+    };
   });
+
+  # Replace the Gradle based "runtime" target by the Ant targets of 1.1.2.
+  antRuntime =
+    {
+      fragment ? ../../patches/own/runtime-targets-1.1.xml,
+      stdlibOptions ? "",
+    }:
+    ''
+      perl -0pi -e 's|<target name="runtime"\s+depends="gradle-runtime[^"]*"\s*/>||' build.xml
+      sed -e "s|@JUNIT_JAR@|${jar java.junit4}|" -e "s|@STDLIB_EXTRA_OPTIONS@|${stdlibOptions}|" \
+        ${fragment} > runtime-targets.xml
+      FRAG=runtime-targets.xml perl -0pi -e 'BEGIN { local $/; open F, "<", $ENV{FRAG}; $f = <F> } s|</project>\s*$|$f\n</project>\n|' build.xml
+      grep -q 'name="kotlin-test"' build.xml
+    '';
 in
 chain
 // {

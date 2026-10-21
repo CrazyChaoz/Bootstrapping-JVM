@@ -1,0 +1,60 @@
+# Notes / log
+
+## Prior art
+
+* ebourg/kotlin-bootstrapping: Kotlin 0.6.786 → 1.0.0 on Debian (Ant, prebuilt IntelliJ SDK jars).
+* guix-android (Julien Lepiller): the same in Guix, stuck right after 1.0.0
+  (https://debbugs.gnu.org/cgi/bugreport.cgi?bug=70886).
+* TarCV/kotlin-guix: Guix, everything from source, up to 1.1.2-5 (2025).
+  Only needs IntelliJ SDK 139/141/143/172.  Ships (unused) patches for
+  1.1.3-dev-1317 … 1.1.51, i.e. an attempt to go further with Ant.
+
+## What is built from source here
+
+### Java base (nix/java, nix/intellij)
+* Ant 1.9.16 via its bootstrap.sh.
+* ~30 libraries with `mkJar` (javac on the source tree): guava 20, asm 4/5/6/8
+  (+ JetBrains relocations), protobuf 2.5/2.6.1 (protoc built from C++),
+  jdom 1, trove4j, picocontainer 1, jna, xstream (core), jline 2/jansi 1,
+  log4j 1.2, jarjar, ant-contrib, junit 4.12 …
+  * jsr166e `SequenceLock`: the gee.cs.oswego.edu CVS web is gone; taken from
+    the 2011 git mirror dmlloyd/jsr166 (still in package `jsr166e` there,
+    moved to `jsr166e.extra`).
+  * hamcrest-core 1.3: from the Maven `-sources.jar` (the git tag lacks the
+    generated `CoreMatchers`).
+  * ant-contrib: tasks needing bcel/httpclient/ivy/xerces dropped, and their
+    entries removed from `antcontrib.properties` (otherwise `<taskdef>` fails).
+* IntelliJ SDK 139/141/143/172: annotations, util-rt, util, jps-model-api/impl,
+  "core" (fat jar like upstream intellij-core.jar), javac2.  Sources are
+  pruned to the needed modules on fetch.
+
+### Kotlin chain (nix/kotlin)
+Every step of TarCV's chain, same patches, same per-version tweaks.  JDK 8
+for all steps (TarCV uses icedtea-7 up to 0.12.470; JDK 8 works).
+
+### JDK (nix/jdk) — in progress
+Port of Guix' java-bootstrap.scm: jikes → GNU Classpath 0.93 → JamVM 1.5.1 →
+ant 1.8.4 → ECJ 3.2.2 → Classpath 0.99 → Classpath devel → JamVM 2.0 →
+ECJ 4.2.1 → IcedTea 2.6 (JDK 7).
+* nixpkgs' hardening (FORTIFY_SOURCE) makes JamVM abort ("buffer overflow
+  detected") → `hardeningDisable = [ "all" ]` for these old C packages.
+* Plan: feed IcedTea 7 as `jdk-bootstrap` into nixpkgs' own `openjdk8`
+  derivation (OpenJDK 8 accepts a JDK 7 boot JDK), then 9, 10 (Guix recipes),
+  11, …, 17, 21.
+
+## Plan beyond Kotlin 1.1.2-5
+
+* Kotlin's Ant build.xml survives until 1.2.31 (gone in 1.2.40), but from
+  1.1.60 on the runtime/stdlib are built by Gradle (`gradle-runtime` target).
+  → continue with Ant through 1.1.3/1.1.4/1.1.51 (TarCV's leftover patches),
+  then replace the `gradle-runtime` target by a direct kotlinc build of the
+  stdlib, up to ~1.2.31.
+* After that: write per-version Nix builds that compile the compiler modules
+  directly with the previous kotlinc + javac (no Gradle), stepping through
+  `build-*-dev-*` tags.  Needs newer IntelliJ SDK modules (173, 181, 183, …),
+  which themselves contain Kotlin code from some point on, so the IntelliJ and
+  Kotlin chains have to be interleaved.
+* Gradle: compile a recent Gradle's subprojects directly (javac/groovyc/
+  kotlinc) instead of bootstrapping Gradle-with-Gradle; needs Groovy (Guix
+  has a from-source Groovy recipe) and Kotlin ~2.x with scripting/embeddable
+  artifacts.
