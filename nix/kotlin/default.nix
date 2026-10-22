@@ -836,7 +836,17 @@ let
         };
     };
     "1.3.31" = step k."1.3.21" "1.3.31" [ ] {
-      steps = ops.replace "compiler-dirs" (compilerDirs [
+      steps = lib.flip lib.pipe [
+        (addLast "no-scripting-plugin" ''
+          # the daemon loads the scripting plugin (not in kotlin-compiler.jar) if present
+          f=compiler/daemon/src/org/jetbrains/kotlin/daemon/KotlinRemoteReplService.kt
+          sed -i '/^import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptingCompilerConfigurationComponentRegistrar$/d' $f
+          sed -i 's|ScriptingCompilerConfigurationComponentRegistrar()|Class.forName("org.jetbrains.kotlin.scripting.compiler.plugin.ScriptingCompilerConfigurationComponentRegistrar").newInstance() as ComponentRegistrar|' $f
+          # new inference of 1.3.21
+          sed -i 's|^\( *\)val serializer = JsAstSerializer(if (shouldValidateJsAst) ::validateJsAst else null)|\1var validator: ((JsProgramFragment, Set<JsName>) -> Unit)? = null\n\1if (shouldValidateJsAst) validator = { f, n -> validateJsAst(f, n) }\n\1val serializer = JsAstSerializer(validator)|' \
+            js/js.translator/src/org/jetbrains/kotlin/js/facade/K2JSTranslator.kt
+        '')
+        (ops.replace "compiler-dirs" (compilerDirs [
           "compiler/util/src"
           "compiler/container/src"
           "compiler/resolution/src"
@@ -876,7 +886,8 @@ let
           "core/descriptors.jvm/src"
           "core/deserialization/src"
           "core/util.runtime/src"
-      ]);
+        ]))
+      ];
     };
     "1.3.41" = step k."1.3.31" "1.3.41" [ ] {
       steps = lib.flip lib.pipe [
