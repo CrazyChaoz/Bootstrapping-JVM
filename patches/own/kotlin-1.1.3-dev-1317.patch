@@ -1,0 +1,161 @@
+--- a/ant/src/org/jetbrains/kotlin/ant/antlib.xml
++++ b/ant/src/org/jetbrains/kotlin/ant/antlib.xml
+@@ -1,5 +1,4 @@
+ <antlib>
+     <taskdef name="kotlinc" classname="org.jetbrains.kotlin.ant.Kotlin2JvmTask"/>
+-    <taskdef name="kotlin2js" classname="org.jetbrains.kotlin.ant.Kotlin2JsTask"/>
+     <typedef name="withKotlin" classname="org.jetbrains.kotlin.ant.KotlinCompilerAdapter"/>
+ </antlib>
+--- a/build.xml
++++ b/build.xml
+@@ -354,21 +354,22 @@
+                 </fileset>
+ 
+                 <zipgroupfileset dir="${basedir}/lib" includes="*.jar"/>
+-                <zipfileset src="${basedir}/ideaSDK/core/annotations.jar"/>
+-                <zipfileset src="${basedir}/ideaSDK/core/asm-all.jar"/>
+-                <zipfileset src="${basedir}/ideaSDK/core/guava-19.0.jar"/>
++                <zipfileset src="${basedir}/ideaSDK/core/intellij-annotations.jar"/>
++                <zipfileset src="${basedir}/ideaSDK/core/asm-6.0.jar"/>
++                <zipfileset src="${basedir}/ideaSDK/core/guava-20.0.jar"/>
+                 <zipfileset src="${basedir}/ideaSDK/core/intellij-core.jar"/>
+-                <zipfileset src="${basedir}/ideaSDK/core/jdom.jar"/>
++                <zipfileset src="${basedir}/ideaSDK/core/jdom-1.1.3.jar"/>
+                 <zipfileset src="${basedir}/ideaSDK/core/jna.jar"/>
+-                <zipfileset src="${basedir}/ideaSDK/core/log4j.jar"/>
++                <zipfileset src="${basedir}/ideaSDK/core/java-log4j-1.2-api.jar"/>
+                 <zipfileset src="${basedir}/ideaSDK/core/picocontainer.jar"/>
+-                <zipfileset src="${basedir}/ideaSDK/core/snappy-in-java-0.5.1.jar"/>
+-                <zipfileset src="${basedir}/ideaSDK/core/trove4j.jar"/>
+-                <zipfileset src="${basedir}/ideaSDK/core/xpp3-1.1.4-min.jar"/>
+-                <zipfileset src="${basedir}/ideaSDK/core/xstream-1.4.8.jar"/>
++                <zipfileset src="${basedir}/ideaSDK/core/snappy-0.4.jar"/>
++                <zipfileset src="${basedir}/ideaSDK/core/jetbrains-trove4j.jar"/>
++                <zipfileset src="${basedir}/ideaSDK/core/xpp3-1.1.4.jar"/>
++                <zipfileset src="${basedir}/ideaSDK/core/xstream.jar"/>
+                 <zipfileset src="${idea.sdk}/lib/jna-platform.jar"/>
+                 <zipfileset src="${idea.sdk}/lib/oromatcher.jar"/>
+                 <zipfileset src="${idea.sdk}/jps/jps-model.jar"/>
++                <zipfileset src="${dependencies}/jansi.jar"/>
+                 <zipfileset src="${dependencies}/jline.jar"/>
+                 <zipfileset src="${dependencies}/javaslang-2.0.6.jar"/>
+                 <zipfileset src="${protobuf.jar}"/>
+@@ -931,7 +932,7 @@
+             depends="android-extensions-compiler,allopen-compiler-plugin,noarg-compiler-plugin,sam-with-receiver-compiler-plugin,source-sections-compiler-plugin,annotation-processing,daemon-client,compiler-client-embeddable,kotlin-build-common-test" />
+ 
+     <target name="dist"
+-            depends="clean,init,prepare-dist,preloader,runner,serialize-builtins,compiler-fork,compiler-sources,ant-tools,runtime,other-artifacts"
++            depends="clean,init,prepare-dist,preloader,runner,serialize-builtins,compiler-fork,compiler-sources,ant-tools,runtime"
+             description="Builds redistributables from sources"/>
+ 
+     <target name="dist-no-fork"
+--- a/compiler/cli/src/org/jetbrains/kotlin/cli/common/messages/PlainTextMessageRenderer.java
++++ b/compiler/cli/src/org/jetbrains/kotlin/cli/common/messages/PlainTextMessageRenderer.java
+@@ -20,7 +20,6 @@
+ import com.intellij.util.LineSeparator;
+ import kotlin.text.StringsKt;
+ import org.fusesource.jansi.Ansi;
+-import org.fusesource.jansi.internal.CLibrary;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -30,22 +29,7 @@
+ import static org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.*;
+ 
+ public abstract class PlainTextMessageRenderer implements MessageRenderer {
+-    public static final boolean COLOR_ENABLED;
+-
+-    static {
+-        boolean colorEnabled = false;
+-        // TODO: investigate why ANSI escape codes on Windows only work in REPL for some reason
+-        if (!SystemInfo.isWindows && !"false".equals(System.getProperty("kotlin.colors.enabled"))) {
+-            try {
+-                // AnsiConsole doesn't check isatty() for stderr (see https://github.com/fusesource/jansi/pull/35).
+-                colorEnabled = CLibrary.isatty(CLibrary.STDERR_FILENO) != 0;
+-            }
+-            catch (UnsatisfiedLinkError e) {
+-                colorEnabled = false;
+-            }
+-        }
+-        COLOR_ENABLED = colorEnabled;
+-    }
++    public static final boolean COLOR_ENABLED = true;
+ 
+     private static final String LINE_SEPARATOR = LineSeparator.getSystemLineSeparator().getSeparatorString();
+ 
+--- a/compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/MockExternalAnnotationsManager.kt
++++ b/compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/MockExternalAnnotationsManager.kt
+@@ -29,6 +29,9 @@
+     override fun findExternalAnnotation(listOwner: PsiModifierListOwner, annotationFQN: String): PsiAnnotation? = null
+     override fun findExternalAnnotations(listOwner: PsiModifierListOwner): Array<out PsiAnnotation>? = null
+ 
++    override fun hasAnnotationRootsForFile(p0: com.intellij.openapi.vfs.VirtualFile): Boolean {
++        throw UnsupportedOperationException("not implemented")
++    }
+     override fun annotateExternally(listOwner: PsiModifierListOwner, annotationFQName: String, fromFile: PsiFile, value: Array<out PsiNameValuePair>?) {
+         throw UnsupportedOperationException("not implemented")
+     }
+--- a/compiler/daemon/src/org/jetbrains/kotlin/daemon/CompileServiceImpl.kt
++++ b/compiler/daemon/src/org/jetbrains/kotlin/daemon/CompileServiceImpl.kt
+@@ -36,7 +36,6 @@
+ import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
+ import org.jetbrains.kotlin.cli.common.repl.ReplCompileResult
+ import org.jetbrains.kotlin.cli.common.repl.ReplEvalResult
+-import org.jetbrains.kotlin.cli.js.K2JSCompiler
+ import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
+ import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
+ import org.jetbrains.kotlin.cli.metadata.K2MetadataCompiler
+@@ -338,7 +337,7 @@
+         val k2PlatformArgs = try {
+             when (targetPlatform) {
+                 CompileService.TargetPlatform.JVM -> K2JVMCompilerArguments().apply { K2JVMCompiler().parseArguments(compilerArguments, this) }
+-                CompileService.TargetPlatform.JS -> K2JSCompilerArguments().apply { K2JSCompiler().parseArguments(compilerArguments, this) }
++                CompileService.TargetPlatform.JS -> TODO()
+                 CompileService.TargetPlatform.METADATA -> K2MetadataCompilerArguments().apply { K2MetadataCompiler().parseArguments(compilerArguments, this) }
+             }
+         }
+@@ -392,9 +391,7 @@
+                 CompileService.TargetPlatform.JVM -> {
+                     K2JVMCompiler().exec(messageCollector, services, args as K2JVMCompilerArguments)
+                 }
+-                CompileService.TargetPlatform.JS -> {
+-                    K2JSCompiler().exec(messageCollector, services, args as K2JSCompilerArguments)
+-                }
++                CompileService.TargetPlatform.JS -> TODO()
+                 CompileService.TargetPlatform.METADATA -> {
+                     K2MetadataCompiler().exec(messageCollector, services, args as K2MetadataCompilerArguments)
+                 }
+--- a/compiler/daemon/src/org/jetbrains/kotlin/daemon/KotlinCompileDaemon.kt
++++ b/compiler/daemon/src/org/jetbrains/kotlin/daemon/KotlinCompileDaemon.kt
+@@ -18,7 +18,6 @@
+ 
+ import org.jetbrains.kotlin.cli.common.CLICompiler
+ import org.jetbrains.kotlin.cli.common.environment.setIdeaIoUseFallback
+-import org.jetbrains.kotlin.cli.js.K2JSCompiler
+ import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
+ import org.jetbrains.kotlin.cli.metadata.K2MetadataCompiler
+ import org.jetbrains.kotlin.daemon.common.*
+@@ -125,11 +124,10 @@
+ 
+             val compilerSelector = object : CompilerSelector {
+                 private val jvm by lazy { K2JVMCompiler() }
+-                private val js by lazy { K2JSCompiler() }
+                 private val metadata by lazy { K2MetadataCompiler() }
+                 override fun get(targetPlatform: CompileService.TargetPlatform): CLICompiler<*> = when (targetPlatform) {
+                     CompileService.TargetPlatform.JVM -> jvm
+-                    CompileService.TargetPlatform.JS -> js
++                    CompileService.TargetPlatform.JS -> TODO()
+                     CompileService.TargetPlatform.METADATA -> metadata
+                 }
+             }
+--- a/idea/src/META-INF/extensions/kotlin2jvm.xml
++++ b/idea/src/META-INF/extensions/kotlin2jvm.xml
+@@ -3,8 +3,6 @@
+ 
+     <extensions defaultExtensionNs="org.jetbrains.kotlin">
+         <defaultErrorMessages implementation="org.jetbrains.kotlin.resolve.jvm.diagnostics.DefaultErrorMessagesJvm"/>
+-        <!--temporary: JS diagnostics included to fix KT-10473 / EA-75782-->
+-        <defaultErrorMessages implementation="org.jetbrains.kotlin.js.resolve.diagnostics.DefaultErrorMessagesJs"/>
+ 
+         <classBuilderInterceptorExtension implementation="org.jetbrains.kotlin.annotation.AnnotationCollectorExtension"/>
+ 

@@ -194,6 +194,11 @@ let
 
   addLast = name: script: s: s ++ [ { inherit name script; } ];
 
+  # Like `step`, with extra config attributes.
+  buildWith =
+    extra: prev: version: patches: mods:
+    build (next prev version patches mods // extra);
+
   p786 = [ "kotlin-0.6.786-sdk-139.patch" ];
   p1932 = p786 ++ [ "kotlin-0.6.1932-remove-ant-k2js.patch" ];
   p2451 = p1932 ++ [
@@ -264,6 +269,8 @@ let
   ];
 
   same = prev: version: patches: step prev version patches { };
+
+  p113 = [ "../own/kotlin-1.1.3-dev-1317.patch" ];
 
   chain = lib.fix (k: {
     "0.6.786" = build base;
@@ -534,28 +541,32 @@ let
 
     # From here on build.xml delegates the runtime (stdlib, reflect, ...) to
     # Gradle; splice the Ant targets of 1.1.2 back in.
-    "1.1.3-dev-1317" = step k."1.1.2-5" "1.1.3-dev-1317" p1_1_2 {
+    "1.1.3-dev-1317" = buildWith { mainPatch = false; } k."1.1.2-5" "1.1.3-dev-1317" p113 {
       steps =
         s:
         lib.pipe s [
           (addLast "ant-runtime" (antRuntime { }))
+          # the forked Ant would not see our CLASSPATH
+          (addLast "no-compiler-fork" ''
+            sed -i '/<target name="dist"/,/description/ s/,compiler-fork,/,compiler,/' build.xml
+          '')
           (addLast "prepare-javaslang" ''
             ln -s ${jar java.javaslang} dependencies/javaslang-2.0.6.jar
           '')
         ];
     };
 
-    "1.1.3" = same k."1.1.3-dev-1317" "1.1.3" p1_1_2;
+    "1.1.3" = same k."1.1.3-dev-1317" "1.1.3" p113;
 
     # json-org and kotlinx.coroutines (compiled with the previous Kotlin).
-    "1.1.4" = step k."1.1.3" "1.1.4" p1_1_2 {
+    "1.1.4" = step k."1.1.3" "1.1.4" p113 {
       steps = addLast "prepare-deps-1.1.4" ''
         ln -s ${jar kotlinLibs.json-org} dependencies/json-org.jar
         ln -s ${jar (kotlinLibs.kotlinx-coroutines-core-0_14 k."1.1.3")} dependencies/kotlinx-coroutines-core.jar
       '';
     };
 
-    "1.1.51" = step k."1.1.4" "1.1.51" p1_1_2 {
+    "1.1.51" = step k."1.1.4" "1.1.51" p113 {
       steps = addLast "prepare-deps-1.1.51" ''
         ln -s ${jar kotlinLibs.jline3} dependencies/jline3.jar
       '';
