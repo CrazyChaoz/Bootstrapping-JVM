@@ -1,0 +1,170 @@
+    <!--
+      Runtime targets of Kotlin 1.1.2's build.xml, restored for later versions
+      whose build.xml delegates the runtime to Gradle ("gradle-runtime").
+      Spliced in place of the "runtime" target by the Nix build.
+    -->
+    <!-- Since 1.2.50 the JVM stdlib is one multiplatform module: builtins +
+         jvm runtime + jvm sources, with the common sources (expect declarations).
+         1.3.0: coroutines, unsigned types; common sources marked as such. -->
+    <target name="builtins">
+        <new-kotlinc output="${output}/classes/builtins" moduleName="kotlin-stdlib" additionalOptions="-Xmulti-platform -Xmultifile-parts-inherit -Xallow-result-return-type -Xnormalize-constructor-calls=enable -Xuse-experimental=kotlin.Experimental -Xuse-experimental=kotlin.ExperimentalMultiplatform -Xuse-experimental=kotlin.ExperimentalUnsignedTypes -Xuse-experimental=kotlin.contracts.ExperimentalContracts -XXLanguage:+InlineClasses -XXLanguage:+ReleaseCoroutines -Xcommon-sources=${basedir}/libraries/stdlib/common/src,${basedir}/libraries/stdlib/src,${basedir}/libraries/stdlib/unsigned/src,${basedir}/libraries/stdlib/coroutines/common/src,${basedir}/libraries/stdlib/coroutines/src @STDLIB_EXTRA_OPTIONS@">
+            <src>
+                <include name="core/builtins/src"/>
+                <include name="core/runtime.jvm/src"/>
+                <include name="libraries/stdlib/jvm/runtime"/>
+                <include name="libraries/stdlib/jvm/src"/>
+                <include name="libraries/stdlib/coroutines/jvm/src"/>
+                <include name="libraries/stdlib/common/src"/>
+                <include name="libraries/stdlib/src"/>
+                <include name="libraries/stdlib/unsigned/src"/>
+                <include name="libraries/stdlib/coroutines/common/src"/>
+                <include name="libraries/stdlib/coroutines/src"/>
+            </src>
+            <class-path>
+                <pathelement path="${output}/builtins"/>
+            </class-path>
+        </new-kotlinc>
+    </target>
+
+    <!-- Experimental (1.2) coroutines, still part of kotlin-stdlib.jar -->
+    <target name="stdlib">
+        <new-kotlinc output="${output}/classes/stdlib" moduleName="kotlin-stdlib-coroutines" additionalOptions="-Xmulti-platform -Xmultifile-parts-inherit -Xallow-result-return-type -Xuse-experimental=kotlin.Experimental -Xuse-experimental=kotlin.contracts.ExperimentalContracts -XXLanguage:-ReleaseCoroutines -Xcommon-sources=${basedir}/libraries/stdlib/coroutines-experimental/src">
+            <src>
+                <include name="libraries/stdlib/coroutines-experimental/jvm/src"/>
+                <include name="libraries/stdlib/coroutines-experimental/src"/>
+            </src>
+            <class-path>
+                <pathelement path="${output}/classes/builtins"/>
+                <pathelement path="${output}/builtins"/>
+            </class-path>
+        </new-kotlinc>
+    </target>
+
+    <target name="kotlin-test">
+        <path id="kotlin-test-compile-classpath">
+            <pathelement location="${output}/builtins"/>
+            <pathelement location="${output}/classes/builtins"/>
+            <pathelement location="${output}/classes/stdlib"/>
+            <pathelement location="@JUNIT_JAR@"/>
+        </path>
+
+        <java classname="org.jetbrains.kotlin.preloading.Preloader" failonerror="true" fork="true" maxmemory="${max.heap.size.for.forked.jvm}">
+            <classpath>
+                <pathelement location="${kotlin-home}/lib/kotlin-preloader.jar"/>
+            </classpath>
+            <assertions>
+                <enable/>
+            </assertions>
+            <arg value="-cp"/>
+            <arg value="${kotlin-home}/lib/kotlin-compiler.jar"/>
+            <arg value="org.jetbrains.kotlin.cli.jvm.K2JVMCompiler"/>
+            <arg value="-d"/>
+            <arg value="${output}/classes/kotlin-test"/>
+            <arg value="-version"/>
+            <arg value="-no-stdlib"/>
+            <arg value="-classpath"/>
+            <arg value="${toString:kotlin-test-compile-classpath}"/>
+            <arg value="-module-name"/>
+            <arg value="kotlin-test"/>
+            <arg value="-Xallow-kotlin-package"/>
+            <arg value="-Xmulti-platform"/>
+            <arg value="-Xuse-experimental=kotlin.contracts.ExperimentalContracts"/>
+            <arg value="libraries/kotlin.test/annotations-common/src/main/kotlin"/>
+            <arg value="libraries/kotlin.test/common/src/main/kotlin"/>
+            <arg value="libraries/kotlin.test/jvm/src/main/kotlin"/>
+            <arg value="libraries/kotlin.test/junit/src/main/kotlin"/>
+        </java>
+
+        <pack-runtime-jar jar-name="kotlin-test.jar" implementation-title="${manifest.impl.title.kotlin.test}">
+            <jar-content>
+                <fileset dir="${output}/classes/kotlin-test" includes="**/*" excludes="kotlin/internal/OnlyInputTypes*,kotlin/internal/InlineOnly*,kotlin/internal"/>
+            </jar-content>
+        </pack-runtime-jar>
+    </target>
+
+    <target name="core">
+        <new-kotlinc output="${output}/classes/core" moduleName="kotlin-core">
+            <src>
+                <include name="core/descriptors.jvm/src"/>
+                <include name="core/descriptors/src"/>
+                <include name="core/descriptors.runtime/src"/>
+                <include name="core/deserialization/src"/>
+                <include name="core/metadata/src"/>
+                <include name="core/metadata.jvm/src"/>
+                <include name="core/util.runtime/src"/>
+            </src>
+            <class-path>
+                <pathelement path="${output}/classes/builtins"/>
+                <pathelement path="${output}/classes/stdlib"/>
+                <pathelement path="${protobuf.jar}"/>
+                <pathelement path="${javax.inject.jar}"/>
+                <pathelement path="${output}/builtins"/>
+            </class-path>
+        </new-kotlinc>
+    </target>
+
+    <target name="reflection">
+        <new-kotlinc output="${output}/classes/reflection" moduleName="kotlin-reflection">
+            <src>
+                <include name="core/reflection.jvm/src"/>
+            </src>
+            <class-path>
+                <pathelement path="${output}/classes/builtins"/>
+                <pathelement path="${output}/classes/stdlib"/>
+                <pathelement path="${output}/classes/core"/>
+                <pathelement path="${protobuf.jar}"/>
+                <pathelement path="${output}/builtins"/>
+            </class-path>
+        </new-kotlinc>
+    </target>
+
+    <target name="pack-runtime">
+        <pack-runtime-jar jar-name="kotlin-stdlib.jar" implementation-title="${manifest.impl.title.kotlin.jvm.runtime}">
+            <jar-content>
+                <fileset dir="${output}/classes/builtins"/>
+                <fileset dir="${output}/classes/stdlib"/>
+                <zipfileset dir="${output}/builtins">
+                    <include name="kotlin/**"/>
+                </zipfileset>
+            </jar-content>
+        </pack-runtime-jar>
+        <copy file="${kotlin-home}/lib/kotlin-stdlib.jar" tofile="${kotlin-home}/lib/kotlin-runtime.jar"/>
+
+        <!-- Not obfuscated/jarjar'ed: compiler and reflect share the core classes as is. -->
+        <pack-runtime-jar jar-name="kotlin-reflect.jar" implementation-title="${manifest.impl.title.kotlin.jvm.reflect}">
+            <jar-content>
+                <fileset dir="${basedir}/core/descriptors.jvm/src" includes="META-INF/services/**"/>
+                <fileset dir="${basedir}/core/deserialization/src" includes="META-INF/services/**"/>
+                <fileset dir="${output}/classes/reflection"/>
+                <fileset dir="${output}/classes/core"/>
+                <zipfileset src="${protobuf.jar}"/>
+                <zipfileset src="${javax.inject.jar}"/>
+            </jar-content>
+        </pack-runtime-jar>
+        <jar destfile="${kotlin-home}/lib/kotlin-reflect.jar" update="true">
+            <manifest>
+                <attribute name="Class-Path" value="kotlin-stdlib.jar"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="script-runtime">
+        <new-kotlinc output="${output}/classes/script-runtime" moduleName="kotlin-script-runtime">
+            <src>
+                <include name="core/script.runtime/src"/>
+            </src>
+            <class-path>
+                <pathelement path="${output}/classes/builtins"/>
+                <pathelement path="${output}/classes/stdlib"/>
+                <pathelement path="${output}/builtins"/>
+            </class-path>
+        </new-kotlinc>
+        <pack-runtime-jar jar-name="kotlin-script-runtime.jar" implementation-title="${manifest.impl.title.kotlin.script.runtime}">
+            <jar-content>
+                <fileset dir="${output}/classes/script-runtime"/>
+            </jar-content>
+        </pack-runtime-jar>
+    </target>
+
+    <target name="runtime"
+            depends="builtins,stdlib,kotlin-test,core,reflection,pack-runtime,script-runtime"/>

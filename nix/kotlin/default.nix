@@ -701,7 +701,49 @@ let
         };
     };
     "1.2.71" = step k."1.2.70" "1.2.71" [ ] { };
-    "1.3.0" = step k."1.2.71" "1.3.0" [ ] { };
+    "1.3.0" = step k."1.2.71" "1.3.0" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "ant-runtime" (antRuntime { fragment = ../../patches/own/runtime-targets-1.3.0.xml; }))
+        (ops.replace "fresh-stdlib" freshStdlib13)
+        (addLast "no-coroutines-in-compiler" ''
+          # The fresh stdlib's coroutines do not match the real one (see
+          # freshStdlib13): no coroutines in the compiler built by 1.2.71.
+          sed -i 's|<compilerarg line="-Xread-deserialized-contracts|<compilerarg line="-Xskip-metadata-version-check -Xread-deserialized-contracts|' build.xml
+          sed -i '/SequenceScope<T>.yieldIfNotNull/d' core/util.runtime/src/org/jetbrains/kotlin/utils/collections.kt
+          sed -i '/^import org.jetbrains.kotlin.utils.yieldIfNotNull$/d' compiler/frontend/src/org/jetbrains/kotlin/types/expressions/DoubleColonExpressionResolver.kt
+          # unsigned types are 1.3 API (the compiler is compiled as Kotlin 1.2)
+          sed -i -e 's/-> UByte.MAX_VALUE.toLong()/-> 0xFFL/' -e 's/-> UShort.MAX_VALUE.toLong()/-> 0xFFFFL/' -e 's/-> UInt.MAX_VALUE.toLong()/-> 0xFFFFFFFFL/' \
+            core/descriptors/src/org/jetbrains/kotlin/resolve/constants/IntegerValueTypeConstructor.kt
+          perl -0pi -e 's/sequence \{(.*?)\}\.toList\(\)/my $b = $1; $b =~ s#\byield\(#add(#g; "mutableListOf<ModuleDescriptorImpl>().apply {$b}"/se' \
+            compiler/frontend/src/org/jetbrains/kotlin/analyzer/AnalyzerFacade.kt
+          f=compiler/frontend/src/org/jetbrains/kotlin/types/expressions/DoubleColonExpressionResolver.kt
+          perl -0pi -e 's/val resultSequence = sequence \{(.*?)(\n *\/\/ TODO: Maybe it makes sense)/my ($b, $t) = ($1, $2); $b =~ s#return\@sequence#return\@apply#g; $b =~ s#yieldIfNotNull(\((?:[^()]++|(?1))*\))#add { $1 }#g; "val resultSequence = mutableListOf<() -> ResolutionResultsAndTraceCommitCallback?>().apply {$b$t"/se; s/for \(result in resultSequence\) \{/for (thunk in resultSequence) {\n            val result = thunk() ?: continue/' $f
+          grep -q 'thunk()' $f
+          ! grep -n 'sequence {' compiler/frontend/src/org/jetbrains/kotlin/analyzer/AnalyzerFacade.kt $f
+          # no kotlinx.coroutines: block on the experimental coroutine
+          f=compiler/frontend.script/src/org/jetbrains/kotlin/script/AsyncDependencyResolverWrapper.kt
+          sed -i 's|^import kotlinx.coroutines.runBlocking|import kotlin.coroutines.experimental.*|' $f
+          perl -0pi -e 's/\)\: DependenciesResolver\.ResolveResult\s*= runBlocking \{ (delegate\.resolveAsync\(scriptContents, environment\)) \}/): DependenciesResolver.ResolveResult {
+                  val latch = java.util.concurrent.CountDownLatch(1)
+                  var res: DependenciesResolver.ResolveResult? = null
+                  var error: Throwable? = null
+                  val block: suspend () -> DependenciesResolver.ResolveResult = { $1 }
+                  block.startCoroutine(object : Continuation<DependenciesResolver.ResolveResult> {
+                      override val context: CoroutineContext get() = EmptyCoroutineContext
+                      override fun resume(value: DependenciesResolver.ResolveResult) { res = value; latch.countDown() }
+                      override fun resumeWithException(exception: Throwable) { error = exception; latch.countDown() }
+                  })
+                  latch.await()
+                  error?.let { throw it }
+                  return res!!
+              }/s' $f
+          ! grep -n runBlocking $f
+          # 1.3.0's effect system takes a local `fun equals(other: Any?)` for Any.equals (crash)
+          sed -i -e 's/    fun equals(other: Any?): Boolean =/    fun equalsImpl(other: Any?): Boolean =/' -e 's/-> equals(args.single())/-> equalsImpl(args.single())/' \
+            core/reflection.jvm/src/kotlin/reflect/jvm/internal/calls/AnnotationConstructorCaller.kt
+        '')
+      ];
+    };
   });
 
   # Version independent replacements for the per-version patches of TarCV
@@ -794,6 +836,58 @@ let
     (cd dependencies/fresh-stdlib && $JAVA_HOME/bin/jar cf ../kotlin-stdlib-fresh.jar .)
     antFlagsExtra+=" -Dbootstrap.runtime=$PWD/dependencies/kotlin-stdlib-fresh.jar"
   '';
+
+  # Kotlin 1.3.0's stdlib compiled with 1.2.71, which has the 1.3 language
+  # features as unstable ones and whose release coroutines codegen still
+  # targets kotlin.SuccessOrFailure (renamed to Result in 1.3-RC): only used to
+  # compile the compiler against (which then does not use coroutines).
+  freshStdlib13 =
+    let
+      common = [
+        "libraries/stdlib/common/src"
+        "libraries/stdlib/src"
+        "libraries/stdlib/unsigned/src"
+        "libraries/stdlib/coroutines/common/src"
+        "libraries/stdlib/coroutines/src"
+      ];
+      jvm = [
+        "core/builtins/src"
+        "libraries/stdlib/jvm/runtime"
+        "libraries/stdlib/jvm/src"
+        "libraries/stdlib/coroutines/jvm/src"
+        "core/runtime.jvm/src"
+      ];
+      kotlinc = ''$JAVA_HOME/bin/java -Xmx3g -cp "$BOOTSTRAP/lib/kotlin-compiler.jar" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler -no-stdlib -Xallow-kotlin-package -Xmultifile-parts-inherit -Xmulti-platform -language-version 1.3 -api-version 1.3 -Xuse-experimental=kotlin.Experimental'';
+    in
+    ''
+      cp -r libraries/stdlib fresh-stdlib-src
+      rm fresh-stdlib-src/coroutines/src/kotlin/SuccessOrFailure.kt
+      grep -rlw Result fresh-stdlib-src/coroutines fresh-stdlib-src/coroutines-experimental | xargs perl -pi -e 's/\bResult\b/SuccessOrFailure/g'
+      # 1.2.71 rejects `where C : Array<*>, C : R`
+      grep -rl 'UPPER_BOUND_CANNOT_BE_ARRAY")' fresh-stdlib-src | xargs sed -i 's/@Suppress("UPPER_BOUND_CANNOT_BE_ARRAY")/@Suppress("UPPER_BOUND_CANNOT_BE_ARRAY", "BOUNDS_NOT_ALLOWED_IF_BOUNDED_BY_TYPE_PARAMETER")/'
+      grep -rlE 'where \w+ : .*, \w+ : R =' fresh-stdlib-src/src | xargs perl -0pi -e 's/(?<!BOUNDS_NOT_ALLOWED_IF_BOUNDED_BY_TYPE_PARAMETER"\)\n)^(public inline fun [^\n]* where \w+ : [^\n]*, \w+ : R =)$/\@Suppress("BOUNDS_NOT_ALLOWED_IF_BOUNDED_BY_TYPE_PARAMETER")\n$1/mg'
+      # 1.2.71 crashes generating defaults (referring to the receiver) of expect functions
+      perl -pi -e 's/ = (?:0|size)(?=[,)])//g if /expect fun .*\.copyInto\(/' fresh-stdlib-src/common/src/generated/_Arrays.kt
+      mkdir -p dependencies/fresh-stdlib dependencies/prev-builtins
+      unzip -q "$BOOTSTRAP/lib/kotlin-stdlib.jar" 'kotlin/*.kotlin_builtins' -d dependencies/prev-builtins
+      ${kotlinc} -cp dependencies/prev-builtins -Xnormalize-constructor-calls=enable -module-name kotlin-stdlib \
+        -Xuse-experimental=kotlin.ExperimentalMultiplatform -Xuse-experimental=kotlin.ExperimentalUnsignedTypes \
+        -Xuse-experimental=kotlin.contracts.ExperimentalContracts -XXLanguage:+InlineClasses -XXLanguage:+ReleaseCoroutines \
+        -Xcommon-sources=${lib.concatMapStringsSep "," fresh common} \
+        -d dependencies/fresh-stdlib ${lib.concatMapStringsSep " " fresh (jvm ++ common)}
+      ${kotlinc} -cp dependencies/fresh-stdlib:dependencies/prev-builtins -Xskip-metadata-version-check -XXLanguage:-ReleaseCoroutines \
+        -module-name kotlin-stdlib-coroutines -Xcommon-sources=fresh-stdlib-src/coroutines-experimental/src \
+        -d dependencies/fresh-stdlib fresh-stdlib-src/coroutines-experimental/jvm/src fresh-stdlib-src/coroutines-experimental/src
+      find ${lib.concatMapStringsSep " " fresh jvm} fresh-stdlib-src/coroutines-experimental/jvm/src -name '*.java' > fresh-stdlib.txt
+      $JAVA_HOME/bin/javac -nowarn -d dependencies/fresh-stdlib -cp dependencies/fresh-stdlib @fresh-stdlib.txt
+      cp -r dependencies/prev-builtins/kotlin/. dependencies/fresh-stdlib/kotlin/
+      # 1.2.71 ignores @get:JvmName on annotation parameters (Metadata.k etc.)
+      unzip -qo "$BOOTSTRAP/lib/kotlin-stdlib.jar" 'kotlin/Metadata*.class' -d dependencies/fresh-stdlib
+      (cd dependencies/fresh-stdlib && $JAVA_HOME/bin/jar cf ../kotlin-stdlib-fresh.jar .)
+      rm -r fresh-stdlib-src
+      antFlagsExtra+=" -Dbootstrap.runtime=$PWD/dependencies/kotlin-stdlib-fresh.jar"
+    '';
+  fresh = d: if lib.hasPrefix "libraries/stdlib/" d then "fresh-stdlib-src/" + lib.removePrefix "libraries/stdlib/" d else d;
 
   # Relocate the compiler core classes in kotlin-reflect.jar and strip their
   # Kotlin metadata, as upstream does (otherwise compiling the next compiler

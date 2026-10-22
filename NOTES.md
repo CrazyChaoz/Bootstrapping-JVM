@@ -78,6 +78,33 @@ Built with Ant from source: 1.1.3-dev-1317 .. 1.1.4, 1.1.51, 1.1.60, 1.2.0,
 * JDK 12+: glibc >= 2.42 declares `uabs()` (renamed in hotspot), 14+ needs a
   stub `<sys/sysctl.h>` (jpackage).
 
+## Status: Kotlin 1.2.40 .. 1.2.71 (restored build.xml)
+
+* 1.2.40+: `build.xml` is gone upstream; 1.2.31's is reused (plus new module
+  dirs).  1.2.50+: "fresh stdlib" (the new stdlib compiled by the previous
+  compiler) as `bootstrap.runtime`, `-Xread-deserialized-contracts
+  -Xeffect-system`.
+* 1.2.60: stdlib needs `-Xuse-experimental=kotlin.Experimental`; 1.2.70 also
+  `kotlin.ExperimentalMultiplatform`, IntelliJ SDK 182, `-Xnew-inference`
+  (sources are written for it) with callable references to vararg
+  constructors / inline functions rewritten as lambdas (codegen crashes),
+  and `kotlin-annotations-jvm` compiled into `lib/`.
+* IntelliJ SDK 182/183/191/192/193 (`patches/own/sdk-NNN.patch`): JDOM 2
+  fork, ASM 7, lz4 replaced by a small `lz4-compat`, imgscalr, streamex, JNA
+  5, commons-compress (+ xz, brotli, zstd stub); SVG/batik, mac UI and form
+  instrumentation removed.
+* JDK chain reaches 21 (19+: jmod `--date` needs SOURCE_DATE_EPOCH >= 1980).
+
+### 1.3.0 (from 1.2.71)
+Upstream built 1.3.0 from 1.3 pre-releases only.  1.2.71 has the 1.3
+language features as unstable ones, but its release-coroutines codegen
+targets `kotlin.SuccessOrFailure` (renamed to `Result` in 1.3-RC).  So the
+fresh stdlib (only compiled against) has `Result` renamed back, and the
+compiler built by 1.2.71 must not use coroutines itself: two `sequence {}`
+blocks are rewritten, `runBlocking` replaced by a latch.  The stdlib's
+1.3-only binaries are "pre-release" for 1.2.71 →
+`-Xskip-metadata-version-check`.
+
 ## Plan beyond Kotlin 1.1.2-5
 
 * Kotlin's Ant build.xml survives until 1.2.31 (gone in 1.2.40), but from
