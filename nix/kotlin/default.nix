@@ -14,6 +14,7 @@
   intellij,
   kotlinSources,
   kotlinLibs,
+  javaLib,
 }:
 
 let
@@ -541,7 +542,10 @@ let
 
     # From here on build.xml delegates the runtime (stdlib, reflect, ...) to
     # Gradle; splice the Ant targets of 1.1.2 back in.
-    "1.1.3-dev-1317" = buildWith { mainPatch = false; } k."1.1.2-5" "1.1.3-dev-1317" p113 {
+    "1.1.3-dev-1317" = buildWith {
+      mainPatch = false;
+      install = relocateReflect;
+    } k."1.1.2-5" "1.1.3-dev-1317" p113 {
       steps =
         s:
         lib.pipe s [
@@ -556,7 +560,12 @@ let
         ];
     };
 
-    "1.1.3" = same k."1.1.3-dev-1317" "1.1.3" p113;
+    # Written against an ASM 6 snapshot; 6.0 final renamed V1_9 to V9.
+    "1.1.3" = step k."1.1.3-dev-1317" "1.1.3" p113 {
+      steps = addLast "asm-6-final" ''
+        grep -rlZ 'V1_9' --include=*.kt --include=*.java . | xargs -0 -r sed -i 's/\bV1_9\b/V9/g'
+      '';
+    };
 
     # json-org and kotlinx.coroutines (compiled with the previous Kotlin).
     "1.1.4" = step k."1.1.3" "1.1.4" p113 {
@@ -572,6 +581,22 @@ let
       '';
     };
   });
+
+  # Relocate the compiler core classes in kotlin-reflect.jar and strip their
+  # Kotlin metadata, as upstream does (otherwise compiling the next compiler
+  # against this runtime sees two versions of the same classes).
+  relocateReflect = ''
+    cd $out/lib
+    cat > rules.txt <<EOF
+    rule org.jetbrains.kotlin.** kotlin.reflect.jvm.internal.impl.@1
+    rule javax.inject.** kotlin.reflect.jvm.internal.impl.javax.inject.@1
+    EOF
+    java -cp ${javaLib.classpathOf [ java.jarjar ]} com.tonicsystems.jarjar.Main process rules.txt kotlin-reflect.jar reflect-jarjar.jar
+    java -cp ${javaLib.classpathOf [ kotlinLibs.strip-kotlin-metadata ]} StripKotlinMetadata \
+      'kotlin/reflect/jvm/internal/impl/.*' reflect-jarjar.jar kotlin-reflect.jar
+    rm rules.txt reflect-jarjar.jar
+    cd -
+  '';
 
   # Replace the Gradle based "runtime" target by the Ant targets of 1.1.2.
   antRuntime =

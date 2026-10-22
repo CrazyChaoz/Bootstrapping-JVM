@@ -79,6 +79,13 @@ in
 {
   inherit mkKotlinJar;
 
+  strip-kotlin-metadata = mkJar {
+    pname = "strip-kotlin-metadata";
+    version = "1";
+    src = ../../tools/strip-metadata;
+    deps = [ java.asm-6 ];
+  };
+
   jline3 = mkJar {
     pname = "jline3";
     version = "3.3.1";
