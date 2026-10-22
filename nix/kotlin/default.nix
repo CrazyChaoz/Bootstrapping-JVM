@@ -644,7 +644,31 @@ let
     };
 
     "1.2.41" = step k."1.2.40" "1.2.41" [ ] { };
-    "1.2.50" = step k."1.2.41" "1.2.50" [ ] { };
+    "1.2.50-eap-17" = step k."1.2.41" "1.2.50-eap-17" [ ] {
+      steps = lib.flip lib.pipe [
+        (addLast "read-deserialized-contracts" ''
+          sed -i 's|<compilerarg value="-version"/>|& <compilerarg line="-Xread-deserialized-contracts -Xeffect-system"/>|' build.xml
+        '')
+        (ops.replace "ant-runtime" (antRuntime { fragment = ../../patches/own/runtime-targets-1.2.50.xml; }))
+        (addLast "explicit-ir-function-type" ''
+          # the old inference gives IrElement for the common supertype
+          sed -i 's|val syntheticFunction = if (isConstructor)|val syntheticFunction: IrFunction = if (isConstructor)|' \
+            compiler/ir/backend.jvm/src/org/jetbrains/kotlin/backend/jvm/lower/SyntheticAccessorLowering.kt
+        '')
+        (addLast "fresh-stdlib" freshStdlib)
+      ];
+    };
+    "1.2.50-eap-62" = step k."1.2.50-eap-17" "1.2.50-eap-62" [ ] {
+      # Sources written for the new inference, which the (eap-17) bootstrap
+      # compiler cannot compile the compiler with (codegen errors).
+      steps = addLast "avoid-new-inference" ''
+        sed -i 's|nextChar()?.apply(sb::append)|nextChar()?.let { sb.append(it) }|' \
+          compiler/cli/cli-common/src/org/jetbrains/kotlin/cli/common/arguments/preprocessCommandLineArguments.kt
+        sed -i 's|flatMapTo(HashSet()) { modulesInfo|flatMapTo(HashSet<org.jetbrains.kotlin.daemon.common.IncrementalModuleEntry>()) { modulesInfo|; s|modules.mapTo(HashSet()) { it.buildHistoryFile }|modules.mapTo(HashSet<File>()) { it.buildHistoryFile }|' \
+          compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/multiproject/ModulesApiHistory.kt
+      '';
+    };
+    "1.2.50" = step k."1.2.50-eap-62" "1.2.50" [ ] { };
     "1.2.51" = step k."1.2.50" "1.2.51" [ ] { };
     "1.2.60" = step k."1.2.51" "1.2.60" [ ] { };
     "1.2.61" = step k."1.2.60" "1.2.61" [ ] { };
@@ -708,6 +732,27 @@ let
     fi
     (cd dependencies/fresh-${name} && $JAVA_HOME/bin/jar cf ../kotlin-${name}-fresh.jar .)
     antFlagsExtra+=" -Dbootstrap.${lib.replaceStrings [ "-" ] [ "." ] name}=$PWD/dependencies/kotlin-${name}-fresh.jar"
+  '';
+
+  # Stdlib of the version being built, compiled by the bootstrap compiler, to
+  # be the runtime that the new compiler is compiled against (1.2.50+ uses
+  # stdlib contracts, which only the stdlib of the same version declares).
+  freshStdlib = ''
+    mkdir -p dependencies/fresh-stdlib dependencies/prev-builtins
+    # Only the builtins metadata of the bootstrap runtime: the sources
+    # define everything else.
+    unzip -q "$BOOTSTRAP/lib/kotlin-stdlib.jar" 'kotlin/*.kotlin_builtins' -d dependencies/prev-builtins
+    $JAVA_HOME/bin/java -Xmx3g -cp "$BOOTSTRAP/lib/kotlin-compiler.jar" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+      -no-stdlib -cp dependencies/prev-builtins -Xallow-kotlin-package -Xmultifile-parts-inherit -Xmulti-platform \
+      -Xnormalize-constructor-calls=enable -module-name kotlin-stdlib \
+      -d dependencies/fresh-stdlib core/builtins/src libraries/stdlib/jvm/runtime libraries/stdlib/jvm/src \
+      libraries/stdlib/common/src libraries/stdlib/src core/runtime.jvm/src
+    find core/builtins/src libraries/stdlib/jvm/runtime libraries/stdlib/jvm/src core/runtime.jvm/src -name '*.java' > fresh-stdlib.txt
+    $JAVA_HOME/bin/javac -nowarn -d dependencies/fresh-stdlib \
+      -cp dependencies/fresh-stdlib @fresh-stdlib.txt
+    cp -r dependencies/prev-builtins/kotlin/. dependencies/fresh-stdlib/kotlin/
+    (cd dependencies/fresh-stdlib && $JAVA_HOME/bin/jar cf ../kotlin-stdlib-fresh.jar .)
+    antFlagsExtra+=" -Dbootstrap.runtime=$PWD/dependencies/kotlin-stdlib-fresh.jar"
   '';
 
   # Relocate the compiler core classes in kotlin-reflect.jar and strip their
