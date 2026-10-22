@@ -508,6 +508,16 @@ let
           java.xstream
         ]}
         ln -s ${jar java.jna} ideaSDK/core/jna.jar
+        # file names of Guix' jars, referenced by the pack-jar-2 patch
+        ln -sf ${jar java.jetbrains-asm-6} ideaSDK/core/asm-6.0.jar
+        ln -sf ${jar java.guava-20} ideaSDK/core/guava-20.0.jar
+        ln -sf ${jar java.jdom-1} ideaSDK/core/jdom-1.1.3.jar
+        ln -sf ${jar java.log4j-1} ideaSDK/core/java-log4j-1.2-api.jar
+        ln -sf ${jar java.iq80-snappy} ideaSDK/core/snappy-0.4.jar
+        ln -sf ${jar java.xpp3} ideaSDK/core/xpp3-1.1.4.jar
+        for f in intellij-annotations intellij-core picocontainer jetbrains-trove4j xstream jna; do
+          [ -e ideaSDK/core/$f.jar ] || { echo "missing ideaSDK/core/$f.jar"; exit 1; }
+        done
       '';
     };
 
