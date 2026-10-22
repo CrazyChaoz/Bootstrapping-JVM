@@ -901,6 +901,23 @@ let
           sed -i -e 's/    fun equals(other: Any?): Boolean =/    fun equalsImpl(other: Any?): Boolean =/' -e 's/-> equals(args.single())/-> equalsImpl(args.single())/' \
             core/reflection.jvm/src/kotlin/reflect/jvm/internal/calls/AnnotationConstructorCaller.kt
         '')
+        (addLast "inference-fixes" ''
+          # constructs the 1.3.31 compiler cannot infer
+          sed -i 's|capabilities + (multiTargetPlatform?.let { mapOf(MultiTargetPlatform.CAPABILITY to it) } ?: emptyMap())|capabilities + (multiTargetPlatform?.let { mapOf<ModuleDescriptor.Capability<*>, Any?>(MultiTargetPlatform.CAPABILITY to it) } ?: emptyMap<ModuleDescriptor.Capability<*>, Any?>())|' \
+            core/descriptors/src/org/jetbrains/kotlin/descriptors/impl/ModuleDescriptorImpl.kt
+          sed -i 's|types.reduce { left: SimpleType?, right -> fold(left, right, mode) }|types.reduce<SimpleType?, SimpleType> { left, right -> fold(left, right, mode) }|' \
+            core/descriptors/src/org/jetbrains/kotlin/resolve/constants/IntegerLiteralTypeConstructor.kt
+          grep -q 'reduce<SimpleType?' core/descriptors/src/org/jetbrains/kotlin/resolve/constants/IntegerLiteralTypeConstructor.kt
+        '')
+        (addLast "streamex-new" ''
+          # SDK 191 needs StreamEx.toArray(IntFunction), added after 0.6.2
+          for f in ideaSDK/core/streamex*.jar; do ln -sf ${jar java.streamex} $f; done
+        '')
+        (addLast "more-heap" ''export ANT_OPTS="$ANT_OPTS -Xmx5g"'')
+        (addLast "core-type-system" ''
+          sed -i '/<target name="core">/,/<\/target>/ s|^\( *\)<include name="core/descriptors.jvm/src"/>|&\n\1<include name="core/type-system/src"/>|' build.xml
+          grep -q 'core/type-system/src' build.xml
+        '')
         (ops.replace "sdk-asm" ''
           for f in ideaSDK/core/asm-6.0.jar ideaSDK/core/asm-all*.jar; do
             ln -sf ${jar intellij."191".core.passthru.asm} $f
