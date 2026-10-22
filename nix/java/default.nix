@@ -163,6 +163,7 @@ lib.fix (self: {
   asm-4-src = ow2asm "ASM_4_2" "sha256-Cgtp4LquNt3FE5fhnYRyOd9G2xVoMjB43mH2TZ66ikM=";
   asm-5-src = ow2asm "ASM_5_2" "sha256-sstam6OFgWOlbu0Znt37TGjc6cTwJ5uL47T1i/5kvZQ=";
   asm-6-src = ow2asm "ASM_6_0" "sha256-meARDWeBQ8WYNgoG9qIdOML2Mhpc/9S+xgehE0+URPs=";
+  asm-7-src = ow2asm "ASM_7_0" "sha256-CC0ns8JjPr/mBXNWIftAaZNIcifZ6Uh7ZeVOZpBM77I=";
   asm-8-src = ow2asm "ASM_8_0_1" "sha256-ybQpG4Kl7rA8KbLcj3i6Sw0WFiJP8JAQfObEwP4R0ug=";
 
   jetbrains-asm-4 = self.mkAsm {
@@ -187,6 +188,28 @@ lib.fix (self: {
     ];
     relocateTo = "org.jetbrains.org.objectweb.asm";
   };
+  # As intellij-deps-asm (IntelliJ >= 183): API_VERSION, no version check.
+  jetbrains-asm-7 =
+    (self.mkAsm {
+      version = "7.0";
+      src = self.asm-7-src;
+      sourceDirs = [
+        "asm/src/main/java"
+        "asm-tree/src/main/java"
+        "asm-analysis/src/main/java"
+        "asm-commons/src/main/java"
+        "asm-util/src/main/java"
+      ];
+      relocateTo = "org.jetbrains.org.objectweb.asm";
+      javaRelease = "1.8";
+    }).overrideAttrs
+      (o: {
+        postPatch = o.postPatch + ''
+          sed -i 's|^  int ASM7 = 7 << 16 \| 0 << 8;|&\n  int API_VERSION = ASM7; //[JB: convenience constant]|' asm/src/main/java/org/objectweb/asm/Opcodes.java
+          sed -i 's|if (checkClassVersion && readShort(classFileOffset + 6) > Opcodes.V12)|if (false)|' asm/src/main/java/org/objectweb/asm/ClassReader.java
+          grep -q API_VERSION asm/src/main/java/org/objectweb/asm/Opcodes.java
+        '';
+      });
   asm-6 = self.mkAsm {
     version = "6.0";
     src = self.asm-6-src;
@@ -235,6 +258,36 @@ lib.fix (self: {
     postPatch = ''
       grep -rl '^import org.apache.hadoop' src/main/java | xargs -r rm -v
     '';
+    javaRelease = "1.6";
+  };
+
+  # org.jetbrains:annotations; part of intellij-community before 182.
+  jetbrains-annotations-16 = mkJar {
+    # named like the jar of the intellij-community module
+    pname = "intellij-annotations";
+    version = "16.0.3";
+    src = gh "JetBrains" "java-annotations" "16.0.3" "sha256-RKdHIrax5lsZnep3HDj2ch9LkN+dPbwJLgPLRw0d/4E=";
+    sourceDirs = [
+      "common/src/main/java"
+      "java5/src/main/java"
+    ];
+    javaRelease = "1.5";
+  };
+
+  imgscalr = mkJar {
+    pname = "imgscalr";
+    version = "4.2";
+    src = gh "rkalla" "imgscalr" "4.2-release" "sha256-6V0iujPkqLL3yfwSNlu4up5KsCz+XfHqU1vRpLjobu0=";
+    sourceDirs = [ "src/main/java" ];
+    javaRelease = "1.6";
+  };
+
+  # API subset of lz4-java (IntelliJ >= 182), see nix/java/lz4-compat.
+  lz4-compat = mkJar {
+    pname = "lz4-compat";
+    version = "1";
+    src = ./lz4-compat;
+    sourceDirs = [ "." ];
     javaRelease = "1.6";
   };
 
@@ -293,6 +346,21 @@ lib.fix (self: {
     unpackPhase = "mkdir src; cd src; unzip -q $src; cd ..";
     postPatch = "rm -f src/org/jdom/xpath/JaxenXPath.java";
     sourceDirs = [ "src" ];
+    javaRelease = "1.6";
+  };
+
+  # JetBrains' JDOM 2 fork with the JDOM 1.1 API (IntelliJ >= 182).
+  jdom-ij-2 = mkJar {
+    pname = "jdom";
+    version = "2.0.6-ij";
+    src = gh "JetBrains" "intellij-deps-jdom" "da8644efbf3b50b1fd427953298c0a8cb330f54c" "sha256-LCPU1BfEZZWNwj2FKa+RZkFmSscxZrZkWtjYTB16n08=";
+    # XPath support needs Jaxen.
+    postPatch = ''
+      rm -rf core/src/java/org/jdom/xpath
+      sed -i '/^import org.jdom.xpath.XPathFactory;/d' core/src/java/org/jdom/JDOMConstants.java
+    '';
+    sourceDirs = [ "core/src/java" ];
+    copySourceResources = true;
     javaRelease = "1.6";
   };
 

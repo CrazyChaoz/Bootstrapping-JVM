@@ -25,4 +25,36 @@
     rev = "refs/heads/181";
     hash = "sha256-pLs+965MqIvn2uhqpzP+xBde8OUOmh+RNg+kyptN9Tg=";
   };
+  "182" = fetchIntellij {
+    rev = "refs/heads/182";
+    hash = "sha256-YeToGM3+Z7j1X/N+ItTKkqC73VQWkziUDDgHJIF5UT8=";
+  };
+  "183" = fetchIntellij {
+    rev = "refs/heads/183";
+    hash = "sha256-XubJchJl02Se+LVxpeb8rRjiYX6JANodDOXupCTGI0o=";
+  };
+  "191" = fetchIntellij {
+    rev = "refs/heads/191";
+    hash = "sha256-MAe4jvwXtoLxtkMl+8gFcM4Oiv2NW698euQA3XUiv9U=";
+  };
+  "192" = fetchIntellij {
+    rev = "refs/heads/192";
+    hash = "sha256-N34jnjSKpfU288n3B9w/fkygES0X2f/TtB5ZGk+ocAw=";
+  };
+  "193" = fetchIntellij {
+    rev = "refs/heads/193";
+    hash = "sha256-mRO7YAXgEySOV+Va5bDPsbsKrUHg1CaUiLcI7PrVHO0=";
+  };
+  "201" = fetchIntellij {
+    rev = "refs/heads/201";
+    hash = "sha256-FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA=";
+  };
+  "202" = fetchIntellij {
+    rev = "refs/heads/202";
+    hash = "sha256-GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGA=";
+  };
+  "203" = fetchIntellij {
+    rev = "refs/heads/203";
+    hash = "sha256-HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHA=";
+  };
 }

@@ -140,6 +140,12 @@ let
       configurePhase = ''
         runHook preConfigure
         export HOME=$TMPDIR
+      ''
+      + lib.optionalString (feature >= 19) ''
+        # jmod --date only accepts times from 1980-01-01T00:00:02Z on.
+        export SOURCE_DATE_EPOCH=$(( SOURCE_DATE_EPOCH < 315532802 ? 315532802 : SOURCE_DATE_EPOCH ))
+      ''
+      + ''
         bash ./configure \
           ${lib.optionalString (feature >= 12) ''--with-extra-cxxflags="-I$TMPDIR/stubinc"''} \
           --with-extra-cflags="${lib.optionalString (feature >= 12) "-I$TMPDIR/stubinc "}-fcommon -fno-delete-null-pointer-checks -fno-lifetime-dse -Wno-error=int-conversion" \

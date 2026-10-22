@@ -302,4 +302,52 @@ in
     newTarget = "1.8";
     asm = java.jetbrains-asm-6;
   };
+
+  "182" = mkSdk {
+    version = "182";
+    jdom = java.jdom-ij-2;
+    jpsApiNeedsUtil = true;
+    basePatches = [ ../../patches/own/sdk-182.patch ];
+    annotations = java.jetbrains-annotations-16;
+    utilRemove = macUi ++ [
+      "platform/util/src/com/intellij/util/SVGLoader.java"
+      "platform/util/src/com/intellij/util/io/TarUtil.java"
+      # Batik/Rhino shims for SVGLoader
+      "platform/util/src/org/apache/batik"
+      "platform/util/src/org/w3c"
+    ];
+    utilDeps = [ java.lz4-compat ];
+    coreDeps = [
+      java.cglib
+      java.guava-20
+    ];
+    target = "1.5";
+    newTarget = "1.8";
+    asm = java.jetbrains-asm-6;
+  };
+  "183" = mkSdk {
+    version = "183";
+    jdom = java.jdom-ij-2;
+    jpsApiNeedsUtil = true;
+    basePatches = [ ../../patches/own/sdk-183.patch ];
+    annotations = java.jetbrains-annotations-16;
+    utilRemove = macUi ++ [
+      "platform/util/src/com/intellij/util/SVGLoader.java"
+      "platform/util/src/com/intellij/util/io/TarUtil.java"
+      # Batik/Rhino shims for SVGLoader
+      "platform/util/src/org/apache/batik"
+      "platform/util/src/org/w3c"
+    ];
+    utilDeps = [
+      java.lz4-compat
+      java.imgscalr
+    ];
+    coreDeps = [
+      java.cglib
+      java.guava-20
+    ];
+    target = "1.5";
+    newTarget = "1.8";
+    asm = java.jetbrains-asm-7;
+  };
 }

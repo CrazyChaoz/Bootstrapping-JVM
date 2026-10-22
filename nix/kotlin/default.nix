@@ -670,9 +670,27 @@ let
     };
     "1.2.50" = step k."1.2.50-eap-62" "1.2.50" [ ] { };
     "1.2.51" = step k."1.2.50" "1.2.51" [ ] { };
-    "1.2.60" = step k."1.2.51" "1.2.60" [ ] { };
+    "1.2.60" = step k."1.2.51" "1.2.60" [ ] { steps = stdlibFlags "-Xuse-experimental=kotlin.Experimental"; };
     "1.2.61" = step k."1.2.60" "1.2.61" [ ] { };
-    "1.2.70" = step k."1.2.61" "1.2.70" [ ] { };
+    "1.2.70" = step k."1.2.61" "1.2.70" [ ] {
+      steps = lib.flip lib.pipe [
+        # no V1_9 left (grep fails under pipefail)
+        (ops.delete "asm-6-final")
+        (stdlibFlags "-Xuse-experimental=kotlin.Experimental -Xuse-experimental=kotlin.ExperimentalMultiplatform")
+        (addLast "new-inference" ''
+          sed -i 's|<compilerarg line="-Xread-deserialized-contracts -Xeffect-system"/>|<compilerarg line="-Xread-deserialized-contracts -Xeffect-system -Xnew-inference"/>|' build.xml
+          # callable references to vararg constructors
+          sed -i -E 's/\?\.let\(::(Js|Jvm)MetadataVersion\)/?.let { \1MetadataVersion(*it) }/' \
+            build-common/src/org/jetbrains/kotlin/build/JsBuildMetaInfo.kt build-common/src/org/jetbrains/kotlin/build/JvmBuildMetaInfo.kt
+        '')
+      ];
+      inputs =
+        i:
+        i
+        // {
+          inherit (intellij."182") annotations javac2 core jps-model-impl;
+        };
+    };
     "1.2.71" = step k."1.2.70" "1.2.71" [ ] { };
     "1.3.0" = step k."1.2.71" "1.3.0" [ ] { };
   });
@@ -737,6 +755,19 @@ let
   # Stdlib of the version being built, compiled by the bootstrap compiler, to
   # be the runtime that the new compiler is compiled against (1.2.50+ uses
   # stdlib contracts, which only the stdlib of the same version declares).
+  # Extra compiler options for the stdlib (runtime fragment and fresh stdlib).
+  stdlibFlags =
+    flags:
+    lib.flip lib.pipe [
+      (ops.replace "ant-runtime" (antRuntime {
+        fragment = ../../patches/own/runtime-targets-1.2.50.xml;
+        stdlibOptions = flags;
+      }))
+      (ops.replace "fresh-stdlib" (
+        lib.replaceStrings [ "-Xmulti-platform" ] [ "-Xmulti-platform ${flags}" ] freshStdlib
+      ))
+    ];
+
   freshStdlib = ''
     mkdir -p dependencies/fresh-stdlib dependencies/prev-builtins
     # Only the builtins metadata of the bootstrap runtime: the sources

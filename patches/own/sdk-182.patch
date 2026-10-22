@@ -1,0 +1,478 @@
+--- a/java/compiler/javac2/src/com/intellij/ant/Javac2.java
++++ b/java/compiler/javac2/src/com/intellij/ant/Javac2.java
+@@ -19,9 +19,6 @@
+ import com.intellij.compiler.instrumentation.InstrumentationClassFinder;
+ import com.intellij.compiler.instrumentation.InstrumenterClassWriter;
+ import com.intellij.compiler.notNullVerification.NotNullVerifyingInstrumenter;
+-import com.intellij.uiDesigner.compiler.*;
+-import com.intellij.uiDesigner.lw.CompiledClassPropertiesProvider;
+-import com.intellij.uiDesigner.lw.LwRootContainer;
+ import org.apache.tools.ant.BuildException;
+ import org.apache.tools.ant.Project;
+ import org.apache.tools.ant.taskdefs.Javac;
+@@ -274,86 +271,7 @@
+       log("No forms to instrument found", Project.MSG_VERBOSE);
+       return;
+     }
+-
+-    final HashMap class2form = new HashMap();
+-
+-    for (int i = 0; i < formsToInstrument.size(); i++) {
+-      final File formFile = (File)formsToInstrument.get(i);
+-
+-      log("compiling form " + formFile.getAbsolutePath(), Project.MSG_VERBOSE);
+-      final LwRootContainer rootContainer;
+-      try {
+-        rootContainer = Utils.getRootContainer(formFile.toURI().toURL(), new CompiledClassPropertiesProvider(finder.getLoader()));
+-      }
+-      catch (AlienFormFileException e) {
+-        // ignore non-IDEA forms
+-        continue;
+-      }
+-      catch (Exception e) {
+-        fireError("Cannot process form file " + formFile.getAbsolutePath() + ". Reason: " + e);
+-        continue;
+-      }
+-
+-      final String classToBind = rootContainer.getClassToBind();
+-      if (classToBind == null) {
+-        continue;
+-      }
+-
+-      String name = classToBind.replace('.', '/');
+-      File classFile = getClassFile(name);
+-      if (classFile == null) {
+-        log(formFile.getAbsolutePath() + ": Class to bind does not exist: " + classToBind, Project.MSG_WARN);
+-        continue;
+-      }
+-
+-      final File alreadyProcessedForm = (File)class2form.get(classToBind);
+-      if (alreadyProcessedForm != null) {
+-        fireError(formFile.getAbsolutePath() +
+-                  ": " +
+-                  "The form is bound to the class " +
+-                  classToBind +
+-                  ".\n" +
+-                  "Another form " +
+-                  alreadyProcessedForm.getAbsolutePath() +
+-                  " is also bound to this class.");
+-        continue;
+-      }
+-      class2form.put(classToBind, formFile);
+-
+-      try {
+-        int version;
+-        InputStream stream = new FileInputStream(classFile);
+-        try {
+-          version = getClassFileVersion(new ClassReader(stream));
+-        }
+-        finally {
+-          stream.close();
+-        }
+-        AntNestedFormLoader formLoader = new AntNestedFormLoader(finder.getLoader(), myNestedFormPathList);
+-        InstrumenterClassWriter classWriter = new InstrumenterClassWriter(getAsmClassWriterFlags(version), finder);
+-        final AsmCodeGenerator codeGenerator = new AsmCodeGenerator(rootContainer, finder, formLoader, false, classWriter);
+-        codeGenerator.patchFile(classFile);
+-        final FormErrorInfo[] warnings = codeGenerator.getWarnings();
+-
+-        for (int j = 0; j < warnings.length; j++) {
+-          log(formFile.getAbsolutePath() + ": " + warnings[j].getErrorMessage(), Project.MSG_WARN);
+-        }
+-        final FormErrorInfo[] errors = codeGenerator.getErrors();
+-        if (errors.length > 0) {
+-          StringBuffer message = new StringBuffer();
+-          for (int j = 0; j < errors.length; j++) {
+-            if (message.length() > 0) {
+-              message.append("\n");
+-            }
+-            message.append(formFile.getAbsolutePath()).append(": ").append(errors[j].getErrorMessage());
+-          }
+-          fireError(message.toString());
+-        }
+-      }
+-      catch (Exception e) {
+-        fireError("Forms instrumentation failed for " + formFile.getAbsolutePath() + ": " + e.toString());
+-      }
+-    }
++    fireError("Form instrumentation is not supported. Found forms: " + formsToInstrument);
+   }
+ 
+   /**
+@@ -588,59 +506,4 @@
+     return new InstrumentationClassFinder(urlsArr);
+   }
+ 
+-  private class AntNestedFormLoader implements NestedFormLoader {
+-    private final ClassLoader myLoader;
+-    private final List myNestedFormPathList;
+-    private final HashMap myFormCache = new HashMap();
+-
+-    public AntNestedFormLoader(final ClassLoader loader, List nestedFormPathList) {
+-      myLoader = loader;
+-      myNestedFormPathList = nestedFormPathList;
+-    }
+-
+-    public LwRootContainer loadForm(String formFilePath) throws Exception {
+-      if (myFormCache.containsKey(formFilePath)) {
+-        return (LwRootContainer)myFormCache.get(formFilePath);
+-      }
+-
+-      String lowerFormFilePath = formFilePath.toLowerCase();
+-      log("Searching for form " + lowerFormFilePath, Project.MSG_VERBOSE);
+-      for (Iterator iterator = myFormFiles.iterator(); iterator.hasNext();) {
+-        File file = (File)iterator.next();
+-        String name = file.getAbsolutePath().replace(File.separatorChar, '/').toLowerCase();
+-        log("Comparing with " + name, Project.MSG_VERBOSE);
+-        if (name.endsWith(lowerFormFilePath)) {
+-          return loadForm(formFilePath, new FileInputStream(file));
+-        }
+-      }
+-
+-      if (myNestedFormPathList != null) {
+-        for (int i = 0; i < myNestedFormPathList.size(); i++) {
+-          PrefixedPath path = (PrefixedPath)myNestedFormPathList.get(i);
+-          File formFile = path.findFile(formFilePath);
+-          if (formFile != null) {
+-            return loadForm(formFilePath, new FileInputStream(formFile));
+-          }
+-        }
+-      }
+-      InputStream resourceStream = myLoader.getResourceAsStream(formFilePath);
+-      if (resourceStream != null) {
+-        return loadForm(formFilePath, resourceStream);
+-      }
+-      throw new Exception("Cannot find nested form file " + formFilePath);
+-    }
+-
+-    private LwRootContainer loadForm(String formFileName, InputStream resourceStream) throws Exception {
+-      final LwRootContainer container = Utils.getRootContainer(resourceStream, null);
+-      myFormCache.put(formFileName, container);
+-      return container;
+-    }
+-
+-    public String getClassToBindName(LwRootContainer container) {
+-      final String className = container.getClassToBind();
+-      String result = getClassOrInnerName(className.replace('.', '/'));
+-      if (result != null) return result.replace('/', '.');
+-      return className;
+-    }
+-  }
+ }
+--- a/java/java-psi-impl/src/com/intellij/codeInsight/ExceptionUtil.java
++++ b/java/java-psi-impl/src/com/intellij/codeInsight/ExceptionUtil.java
+@@ -18,7 +18,6 @@
+ import com.intellij.util.SmartList;
+ import com.intellij.util.containers.ContainerUtil;
+ import gnu.trove.THashSet;
+-import one.util.streamex.StreamEx;
+ import org.jetbrains.annotations.NonNls;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+@@ -105,7 +104,7 @@
+       public void visitThrowStatement(PsiThrowStatement statement) {
+         final PsiExpression expr = statement.getException();
+         if (expr != null) {
+-          addExceptions(result, StreamEx.of(getPreciseThrowTypes(expr)).select(PsiClassType.class).toList());
++          addExceptions(result, getPreciseThrowTypes(expr).stream().filter(e -> e instanceof PsiClassType).map(e -> (PsiClassType) e).collect(java.util.stream.Collectors.toList()));
+         }
+         super.visitThrowStatement(statement);
+       }
+--- a/java/java-psi-impl/src/com/intellij/core/JavaCoreApplicationEnvironment.java
++++ b/java/java-psi-impl/src/com/intellij/core/JavaCoreApplicationEnvironment.java
+@@ -77,6 +77,12 @@
+     addExplicitExtension(LanguageParserDefinitions.INSTANCE, JavaLanguage.INSTANCE, new JavaParserDefinition());
+     addExplicitExtension(LanguageConstantExpressionEvaluator.INSTANCE, JavaLanguage.INSTANCE, new PsiExpressionEvaluator());
+ 
++    registerApplicationExtensionPoint(ContainerProvider.EP_NAME, com.intellij.codeInsight.ContainerProvider.class);
++    registerApplicationExtensionPoint(com.intellij.psi.compiled.ClassFileDecompilers.EP_NAME, com.intellij.psi.compiled.ClassFileDecompilers.Decompiler.class);
++    registerApplicationExtensionPoint(com.intellij.psi.impl.compiled.ClsStubBuilderFactory.EP_NAME, com.intellij.psi.impl.compiled.ClsStubBuilderFactory.class);
++    registerApplicationExtensionPoint(com.intellij.psi.augment.PsiAugmentProvider.EP_NAME, com.intellij.psi.augment.PsiAugmentProvider.class);
++    registerApplicationExtensionPoint(com.intellij.psi.impl.compiled.ClsCustomNavigationPolicy.EP_NAME, com.intellij.psi.impl.compiled.ClsCustomNavigationPolicy.class);
++    registerApplicationExtensionPoint(com.intellij.lang.MetaLanguage.EP_NAME, com.intellij.lang.MetaLanguage.class);
+     addExtension(ContainerProvider.EP_NAME, new JavaContainerProvider());
+ 
+     myApplication.registerService(PsiPackageImplementationHelper.class, new CorePsiPackageImplementationHelper());
+--- a/java/java-psi-impl/src/com/intellij/core/JavaCoreProjectEnvironment.java
++++ b/java/java-psi-impl/src/com/intellij/core/JavaCoreProjectEnvironment.java
+@@ -53,6 +53,7 @@
+ 
+     myFileManager = createCoreFileManager();
+     myProject.registerService(JavaFileManager.class, myFileManager);
++    addProjectExtension(com.intellij.psi.PsiElementFinder.EP_NAME, new com.intellij.psi.impl.PsiElementFinderImpl(myProject, myFileManager));
+ 
+     myProject.registerService(JvmPsiConversionHelper.class, new JvmPsiConversionHelperImpl());
+     registerJavaPsiFacade();
+--- a/platform/core-impl/src/com/intellij/core/CoreProjectEnvironment.java
++++ b/platform/core-impl/src/com/intellij/core/CoreProjectEnvironment.java
+@@ -66,7 +66,8 @@
+     myProject.registerService(PsiModificationTracker.class, modificationTracker);
+     myProject.registerService(FileIndexFacade.class, myFileIndexFacade);
+     myProject.registerService(ResolveCache.class, new ResolveCache(myMessageBus));
+-
++    registerProjectExtensionPoint(com.intellij.psi.impl.PsiTreeChangePreprocessor.EP_NAME, com.intellij.psi.impl.PsiTreeChangePreprocessor.class);
++    registerProjectExtensionPoint(com.intellij.psi.PsiElementFinder.EP_NAME, com.intellij.psi.PsiElementFinder.class);
+     myPsiManager = new PsiManagerImpl(myProject, null, null, myFileIndexFacade, myMessageBus, modificationTracker);
+     registerProjectComponent(PsiManager.class, myPsiManager);
+     myProject.registerService(SmartPointerManager.class, SmartPointerManagerImpl.class);
+--- a/platform/core-impl/src/com/intellij/openapi/progress/util/AbstractProgressIndicatorBase.java
++++ b/platform/core-impl/src/com/intellij/openapi/progress/util/AbstractProgressIndicatorBase.java
+@@ -29,7 +29,6 @@
+ import com.intellij.openapi.util.Disposer;
+ import com.intellij.openapi.util.UserDataHolderBase;
+ import com.intellij.openapi.util.registry.Registry;
+-import com.intellij.ui.mac.foundation.MacUtil;
+ import com.intellij.util.ObjectUtils;
+ import com.intellij.util.containers.ContainerUtil;
+ import com.intellij.util.containers.DoubleArrayList;
+@@ -98,17 +97,10 @@
+   }
+ 
+   private void startSystemActivity() {
+-    myMacActivity = myShouldStartActivity ? MacUtil.wakeUpNeo(toString()) : null;
++    myMacActivity = null;
+   }
+ 
+   void stopSystemActivity() {
+-    Object macActivity = myMacActivity;
+-    if (macActivity != null) {
+-      synchronized (macActivity) {
+-        MacUtil.matrixHasYou(macActivity);
+-        myMacActivity = null;
+-      }
+-    }
+   }
+ 
+   @Override
+--- a/platform/util/src/com/intellij/openapi/util/JDOMExternalizableStringList.java
++++ b/platform/util/src/com/intellij/openapi/util/JDOMExternalizableStringList.java
+@@ -45,13 +45,15 @@
+     strings.clear();
+ 
+     Class callerClass = null;
+-    for (Element listElement : element.getChildren(ATTR_LIST)) {
++    for (Object listElementTmp : element.getChildren(ATTR_LIST)) {
++      Element listElement = (Element) listElementTmp;
+       if (callerClass == null) {
+         callerClass = ReflectionUtil.findCallerClass(2);
+         assert callerClass != null;
+       }
+       final ClassLoader classLoader = callerClass.getClassLoader();
+-      for (Element listItemElement : listElement.getChildren(ATTR_ITEM)) {
++      for (Object listItemElementTmp : listElement.getChildren(ATTR_ITEM)) {
++        Element listItemElement = (Element) listItemElementTmp;
+         if (!ATTR_ITEM.equals(listItemElement.getName())) {
+           throw new IllegalDataException("Unable to read list item. Unknown element found: " + listItemElement.getName());
+         }
+--- a/platform/util/src/com/intellij/util/ImageLoader.java
++++ b/platform/util/src/com/intellij/util/ImageLoader.java
+@@ -26,7 +26,6 @@
+ import com.intellij.util.ui.JBUI;
+ import com.intellij.util.ui.JBUI.ScaleContext;
+ import com.intellij.util.ui.UIUtil;
+-import org.imgscalr.Scalr;
+ import org.jetbrains.annotations.NonNls;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+@@ -128,7 +127,7 @@
+         public Image load(@Nullable LoadFunction delegate, @NotNull Type type) throws IOException {
+           switch (type) {
+             case SVG:
+-              return SVGLoader.load(url, stream, ImageDesc.this.scale);
++              return null; // SVG loading unavailable (bootstrap build)
+             case IMG:
+               return ImageLoader.load(stream, scale);
+           }
+@@ -394,7 +393,7 @@
+     // Using "QUALITY" instead of "ULTRA_QUALITY" results in images that are less blurry
+     // because ultra quality performs a few more passes when scaling, which introduces blurriness
+     // when the scaling factor is relatively small (i.e. <= 3.0f) -- which is the case here.
+-    return Scalr.resize(ImageUtil.toBufferedImage(image), Scalr.Method.QUALITY, Scalr.Mode.FIT_EXACT, width, height, (BufferedImageOp[])null);
++    return image;
+   }
+ 
+   @Nullable
+--- a/platform/util/src/com/intellij/util/io/Decompressor.java
++++ b/platform/util/src/com/intellij/util/io/Decompressor.java
+@@ -4,9 +4,6 @@
+ import com.intellij.openapi.util.Condition;
+ import com.intellij.openapi.util.io.FileUtil;
+ import com.intellij.util.Consumer;
+-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -16,48 +13,6 @@
+ import java.util.zip.ZipFile;
+ 
+ public abstract class Decompressor<Stream> {
+-  public static class Tar extends Decompressor<TarArchiveInputStream> {
+-    public Tar(@NotNull File file) {
+-      mySource = file;
+-    }
+-
+-    public Tar(@NotNull TarArchiveInputStream stream) {
+-      mySource = stream;
+-    }
+-
+-    //<editor-fold desc="Implementation">
+-    private final Object mySource;
+-
+-    @Override
+-    protected TarArchiveInputStream openStream() throws IOException {
+-      return mySource instanceof TarArchiveInputStream
+-             ? (TarArchiveInputStream)mySource
+-             : new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(((File)mySource))));
+-    }
+-
+-    @Override
+-    protected Entry nextEntry(TarArchiveInputStream tar) throws IOException {
+-      TarArchiveEntry tarEntry = tar.getNextTarEntry();
+-      return tarEntry == null ? null : new Entry(tarEntry.getName(), tarEntry.isDirectory());
+-    }
+-
+-    @Override
+-    protected InputStream openEntryStream(TarArchiveInputStream stream, Entry entry) {
+-      return stream;
+-    }
+-
+-    @Override
+-    protected void closeEntryStream(InputStream stream) { }
+-
+-    @Override
+-    protected void closeStream(TarArchiveInputStream tar) throws IOException {
+-      if (mySource instanceof File) {
+-        tar.close();
+-      }
+-    }
+-    //</editor-fold>
+-  }
+-
+   public static class Zip extends Decompressor<ZipFile> {
+     public Zip(@NotNull File file) {
+       mySource = file;
+--- a/platform/util/src/com/intellij/util/JBHiDPIScaledImage.java
++++ b/platform/util/src/com/intellij/util/JBHiDPIScaledImage.java
+@@ -18,7 +18,6 @@
+ import com.intellij.ui.paint.PaintUtil.RoundingMode;
+ import com.intellij.util.ui.ImageUtil;
+ import com.intellij.util.ui.JBUI;
+-import org.imgscalr.Scalr;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -165,7 +164,8 @@
+     int h = (int)(scaleFactor * getRealHeight(null));
+     if (w <= 0 || h <= 0) return this;
+ 
+-    Image scaled = Scalr.resize(ImageUtil.toBufferedImage(img), Scalr.Method.QUALITY, w, h);
++    // imgscalr is not available: do not actually scale (bootstrap build)
++    Image scaled = img;
+ 
+     double newUserWidth = w / myScale;
+     double newUserHeight = h / myScale;
+--- a/platform/util/src/com/intellij/util/text/DateFormatUtil.java
++++ b/platform/util/src/com/intellij/util/text/DateFormatUtil.java
+@@ -7,8 +7,6 @@
+ import com.intellij.openapi.util.Clock;
+ import com.intellij.openapi.util.SystemInfo;
+ import com.intellij.openapi.util.text.StringUtil;
+-import com.intellij.ui.mac.foundation.Foundation;
+-import com.intellij.ui.mac.foundation.ID;
+ import com.sun.jna.Memory;
+ import com.sun.jna.Native;
+ import com.sun.jna.Pointer;
+@@ -359,34 +357,7 @@
+   }
+ 
+   private static boolean getMacFormats(DateFormat[] formats) {
+-    final int MacFormatterNoStyle = 0;
+-    final int MacFormatterShortStyle = 1;
+-    final int MacFormatterMediumStyle = 2;
+-    final int MacFormatterBehavior_10_4 = 1040;
+-
+-    ID autoReleasePool = Foundation.invoke("NSAutoreleasePool", "new");
+-    try {
+-      ID dateFormatter = Foundation.invoke("NSDateFormatter", "new");
+-      Foundation.invoke(dateFormatter, Foundation.createSelector("setFormatterBehavior:"), MacFormatterBehavior_10_4);
+-
+-      formats[0] = invokeFormatter(dateFormatter, MacFormatterNoStyle, MacFormatterShortStyle);  // short date
+-      formats[1] = invokeFormatter(dateFormatter, MacFormatterShortStyle, MacFormatterNoStyle);  // short time
+-      formats[2] = invokeFormatter(dateFormatter, MacFormatterMediumStyle, MacFormatterNoStyle);  // medium time
+-      formats[3] = invokeFormatter(dateFormatter, MacFormatterShortStyle, MacFormatterShortStyle);  // short date/time
+-
+-      return true;
+-    }
+-    finally {
+-      Foundation.invoke(autoReleasePool, Foundation.createSelector("release"));
+-    }
+-  }
+-
+-  private static DateFormat invokeFormatter(ID dateFormatter, int timeStyle, int dateStyle) {
+-    Foundation.invoke(dateFormatter, Foundation.createSelector("setTimeStyle:"), timeStyle);
+-    Foundation.invoke(dateFormatter, Foundation.createSelector("setDateStyle:"), dateStyle);
+-    String format = Foundation.toStringViaUTF8(Foundation.invoke(dateFormatter, Foundation.createSelector("dateFormat")));
+-    assert format != null;
+-    return formatFromString(format);
++    throw new UnsupportedOperationException();
+   }
+ 
+   private static boolean getUnixFormats(DateFormat[] formats) {
+--- a/platform/util/src/com/intellij/util/ui/IsRetina.java
++++ b/platform/util/src/com/intellij/util/ui/IsRetina.java
+@@ -15,25 +15,11 @@
+  */
+ package com.intellij.util.ui;
+ 
+-import apple.awt.CImage;
+ 
+ import java.awt.image.BufferedImage;
+ 
+ class IsRetina {
+   public static boolean isRetina() {
+-    try {
+-      final boolean[] isRetina = new boolean[1];
+-      new CImage.HiDPIScaledImage(1, 1, BufferedImage.TYPE_INT_ARGB) {
+-        @Override
+-        public void drawIntoImage(BufferedImage image, float v) {
+-          isRetina[0] = v > 1;
+-        }
+-      };
+-      return isRetina[0];
+-    }
+-    catch (Throwable e) {
+-      e.printStackTrace();
+       return false;
+-    }
+   }
+ }
+--- a/platform/util/src/com/intellij/util/ui/UIUtil.java
++++ b/platform/util/src/com/intellij/util/ui/UIUtil.java
+@@ -11,7 +11,6 @@
+ import com.intellij.openapi.util.text.StringUtil;
+ import com.intellij.openapi.vfs.CharsetToolkit;
+ import com.intellij.ui.*;
+-import com.intellij.ui.mac.foundation.Foundation;
+ import com.intellij.ui.paint.LinePainter2D;
+ import com.intellij.ui.paint.PaintUtil.RoundingMode;
+ import com.intellij.util.*;
+@@ -197,8 +196,7 @@
+   }
+ 
+   public static Cursor getTextCursor(final Color backgroundColor) {
+-    return SystemInfo.isMac && ColorUtil.isDark(backgroundColor) ?
+-           MacUIUtil.getInvertedTextCursor() : Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR);
++    return Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR);
+   }
+ 
+   /**
+@@ -1659,7 +1657,7 @@
+     try {
+       // https://developer.apple.com/library/mac/documentation/Cocoa/Reference/ApplicationKit/Classes/NSCell_Class/index.html#//apple_ref/doc/c_ref/NSGraphiteControlTint
+       // NSGraphiteControlTint = 6
+-      return Foundation.invoke("NSColor", "currentControlTint").intValue() == 6;
++      return false;
+     } catch (Exception e) {
+       return false;
+     }
