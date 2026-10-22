@@ -1222,6 +1222,16 @@ let
           sed -i 's|org.jetbrains.kotlin.daemon.common.IncrementalModuleEntry|org.jetbrains.kotlin.incremental.IncrementalModuleEntry|' \
             compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/multiproject/ModulesApiHistory.kt
         '')
+        (addLast "builtins-reflect" ''
+          # the kotlin.reflect interfaces moved from core/builtins to the stdlib sources; the builtins
+          # serializer still gets them (reflect.kotlin_builtins)
+          mkdir -p builtins-cherry
+          for f in libraries/stdlib/src/kotlin/reflect/*.kt; do
+            case $f in */typeOf.kt|*/KClasses.kt) ;; *) cp $f builtins-cherry/ ;; esac
+          done
+          sed -i '/<target name="serialize-builtins">/,/<\/target>/ s|^\( *\)<arg value="core/builtins/src"/>|&\n\1<arg value="builtins-cherry"/>|' build.xml
+          grep -q 'builtins-cherry' build.xml
+        '')
         (addLast "no-fir" noFir)
         (ops.replace "compiler-dirs" (compilerDirs [
           "compiler/util/src"
@@ -1273,6 +1283,21 @@ let
           "native/frontend/src"
         ]))
       ];
+    };
+    "1.4.0-M2" = step k."1.4.0-M1" "1.4.0-M2" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "compiler-dirs" (compilerDirs dirs14))
+        (addLast "compiler-version" ''
+          # META-INF/compiler.version, read by KotlinCompilerVersion
+          mkdir -p compiler/compiler.version/resources/META-INF
+          echo -n "1.4.0-bootstrap" > compiler/compiler.version/resources/META-INF/compiler.version
+          perl -0pi -e 's|(\n(\s*)<fileset dir="\$\{basedir\}/[^"]*" includes="META-INF/services/\*\*"[^>]*/>)|\n$2<fileset dir="\$\{basedir\}/compiler/compiler.version/resources" includes="META-INF/compiler.version"/>$1|' build.xml
+          grep -q 'compiler.version/resources' build.xml
+        '')
+      ];
+    };
+    "1.4.0-M3" = step k."1.4.0-M2" "1.4.0-M3" [ ] {
+      steps = ops.replace "compiler-dirs" (compilerDirs dirs14);
     };
     "1.4.0" = step k."1.3.72" "1.4.0" [ ] {
       steps = lib.flip lib.pipe [
@@ -1597,6 +1622,62 @@ let
     ! grep -q 'kotlin\.fir\.' $f
     sed -i '/org\.jetbrains\.kotlin\.fir\./d' compiler/cli/resources/META-INF/services/org.jetbrains.kotlin.diagnostics.rendering.DefaultErrorMessages\$Extension
   '';
+
+  # compilerModules of Kotlin 1.4-M2 .. 1.4.0 without FIR
+  dirs14 = [
+    "build-common/src"
+    "compiler/backend-common/src"
+    "compiler/backend/src"
+    "compiler/builtins-serializer/src"
+    "compiler/cli/cli-common/src"
+    "compiler/cli/cli-js/src"
+    "compiler/cli/src"
+    "compiler/compiler.version/src"
+    "compiler/config.jvm/src"
+    "compiler/config/src"
+    "compiler/container/src"
+    "compiler/frontend.common/src"
+    "compiler/frontend.java/src"
+    "compiler/frontend/src"
+    "compiler/incremental-compilation-impl/src"
+    "compiler/ir/backend.common/src"
+    "compiler/ir/backend.js/src"
+    "compiler/ir/backend.jvm/src"
+    "compiler/ir/backend.wasm/src"
+    "compiler/ir/ir.psi2ir/src"
+    "compiler/ir/ir.tree/src"
+    "compiler/ir/serialization.common/src"
+    "compiler/ir/serialization.js/src"
+    "compiler/ir/serialization.jvm/src"
+    "compiler/javac-wrapper/src"
+    "compiler/light-classes/src"
+    "compiler/plugin-api/src"
+    "compiler/psi/src"
+    "compiler/resolution/src"
+    "compiler/serialization/src"
+    "compiler/util-io/src"
+    "compiler/util-klib-metadata/src"
+    "compiler/util-klib/src"
+    "compiler/util/src"
+    "core/descriptors.jvm/src"
+    "core/descriptors.runtime/src"
+    "core/descriptors/src"
+    "core/deserialization/src"
+    "core/metadata.jvm/src"
+    "core/metadata/src"
+    "core/type-system/src"
+    "core/util.runtime/src"
+    "js/js.ast/src"
+    "js/js.config/src"
+    "js/js.dce/src"
+    "js/js.frontend/src"
+    "js/js.inliner/src"
+    "js/js.parser/src"
+    "js/js.serializer/src"
+    "js/js.translator/src"
+    "native/frontend/src"
+    "native/utils/src"
+  ];
 
   # Relocate the compiler core classes in kotlin-reflect.jar and strip their
   # Kotlin metadata, as upstream does (otherwise compiling the next compiler
