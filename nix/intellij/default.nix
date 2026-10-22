@@ -4,6 +4,7 @@
 {
   lib,
   mkJar,
+  javaLib11,
   ant,
   java,
   intellijSources,
@@ -37,6 +38,9 @@ let
       jna-platform ? java.jna-platform,
       javac2ExtraSrc ? [ ],
       javac2Target ? target,
+      # javac 8 crashes on newer platform sources
+      newJdk ? false,
+      corePostPatch ? "",
     }:
     let
       src = intellijSources.${version};
@@ -106,7 +110,8 @@ let
 
         # "intellij-core" as Kotlin expects it: the core modules plus the jars
         # that the upstream intellij-core.jar bundles.
-        core = mkJar {
+        core = (if newJdk then javaLib11.mkJar else mkJar) (
+          {
           pname = "intellij-core";
           inherit version src;
           patches = basePatches ++ corePatches;
@@ -152,7 +157,9 @@ let
               [ -d $d ] && cp -r $d/. build/classes/META-INF/ || true
             done
           '';
-        };
+          }
+          // lib.optionalAttrs (corePostPatch != "") { postPatch = corePostPatch; }
+        );
 
         javac2 = mkJar {
           pname = "intellij-compiler-javac2";
@@ -429,6 +436,46 @@ in
     jpsApiNeedsUtil = true;
     basePatches = [ ../../patches/own/sdk-193.patch ];
     annotations = java.jetbrains-annotations-16;
+    utilRemove = [
+      "platform/util/ui/src/com/intellij/util/SVGLoader.java"
+      "platform/util/ui/src/com/intellij/ui/svg"
+      "platform/util/ui/src/org/w3c"
+    ];
+    utilDeps = [
+      java.lz4-compat
+      java.imgscalr
+      java.commons-compress-1_18
+      java.jetbrains-java-compatibility
+    ];
+    coreDeps = [
+      java.cglib
+      java.guava-20
+      java.streamex
+    ];
+    utilExtraSrc = [
+      "platform/util-class-loader/src"
+      "platform/util/ui/src"
+    ];
+    coreExtraSrc = [ "platform/core-ui/src" ];
+    javac2ExtraSrc = [ "java/compiler/instrumentation-util-8/src" ];
+    target = "1.5";
+    javac2Target = "1.8";
+    newTarget = "1.8";
+    asm = java.jetbrains-asm-7;
+    jna = java.jna-5;
+    jna-platform = java.jna-platform-5;
+  };
+  "201" = mkSdk {
+    version = "201";
+    jdom = java.jdom-ij-2;
+    jpsApiNeedsUtil = true;
+    basePatches = [ ../../patches/own/sdk-193.patch ];
+    annotations = java.jetbrains-annotations-18;
+    newJdk = true;
+    # sun.misc.Contended moved to jdk.internal in JDK 9
+    corePostPatch = ''
+      sed -i 's/@sun.misc.Contended //' platform/core-impl/src/com/intellij/concurrency/ConcurrentHashMap.java
+    '';
     utilRemove = [
       "platform/util/ui/src/com/intellij/util/SVGLoader.java"
       "platform/util/ui/src/com/intellij/ui/svg"

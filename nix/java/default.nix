@@ -277,6 +277,18 @@ lib.fix (self: {
     javaRelease = "1.5";
   };
 
+  # IntelliJ >= 201 (ApiStatus, Debug; type-use annotations)
+  jetbrains-annotations-18 = mkJar {
+    pname = "intellij-annotations";
+    version = "18.0.0";
+    src = gh "JetBrains" "java-annotations" "18.0.0" "sha256-QbRqxFYp09R58QtHwvmmT6GMkqzzBGN+8BMgi3e//IA=";
+    sourceDirs = [
+      "common/src/main/java"
+      "java8/src/main/java"
+    ];
+    javaRelease = "1.8";
+  };
+
   imgscalr = mkJar {
     pname = "imgscalr";
     version = "4.2";

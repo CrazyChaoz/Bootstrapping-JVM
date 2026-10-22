@@ -837,6 +837,10 @@ let
     };
     "1.3.31" = step k."1.3.21" "1.3.31" [ ] {
       steps = lib.flip lib.pipe [
+        (addLast "ant-resources" ''
+          sed -i 's|<fileset dir="''${basedir}/ant/src" includes="\*\*/\*.xml"/>|<fileset dir="''${basedir}/ant/resources" includes="**/*.xml"/>|' build.xml
+          grep -q 'ant/resources' build.xml
+        '')
         (addLast "no-scripting-plugin" ''
           # the daemon loads the scripting plugin (not in kotlin-compiler.jar) if present
           f=compiler/daemon/src/org/jetbrains/kotlin/daemon/KotlinRemoteReplService.kt
@@ -891,6 +895,12 @@ let
     };
     "1.3.41" = step k."1.3.31" "1.3.41" [ ] {
       steps = lib.flip lib.pipe [
+        # frontend.script is no longer part of the compiler
+        (ops.replace "no-coroutines-in-compiler" ''
+          # the effect system takes a local `fun equals(other: Any?)` for Any.equals (crash)
+          sed -i -e 's/    fun equals(other: Any?): Boolean =/    fun equalsImpl(other: Any?): Boolean =/' -e 's/-> equals(args.single())/-> equalsImpl(args.single())/' \
+            core/reflection.jvm/src/kotlin/reflect/jvm/internal/calls/AnnotationConstructorCaller.kt
+        '')
         (ops.replace "sdk-asm" ''
           for f in ideaSDK/core/asm-6.0.jar ideaSDK/core/asm-all*.jar; do
             ln -sf ${jar intellij."191".core.passthru.asm} $f
