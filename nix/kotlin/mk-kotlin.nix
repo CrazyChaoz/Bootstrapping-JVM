@@ -43,7 +43,10 @@ let
       src = cfg.src or kotlinSources.${cfg.version};
 
       patches = map (n: patchDir + "/${n}") (
-        lib.optional (cfg.mainPatch or true) "kotlin-${cfg.version}.patch" ++ cfg.patches
+        lib.optional (
+          (cfg.mainPatch or true) && builtins.pathExists (patchDir + "/kotlin-${cfg.version}.patch")
+        ) "kotlin-${cfg.version}.patch"
+        ++ cfg.patches
       );
 
       nativeBuildInputs = [

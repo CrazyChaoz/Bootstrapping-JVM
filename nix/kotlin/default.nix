@@ -13,6 +13,7 @@
   java,
   intellij,
   kotlinSources,
+  kotlinLibs,
 }:
 
 let
@@ -532,6 +533,22 @@ let
             ln -s ${jar java.javaslang} dependencies/javaslang-2.0.6.jar
           '')
         ];
+    };
+
+    "1.1.3" = same k."1.1.3-dev-1317" "1.1.3" p1_1_2;
+
+    # json-org and kotlinx.coroutines (compiled with the previous Kotlin).
+    "1.1.4" = step k."1.1.3" "1.1.4" p1_1_2 {
+      steps = addLast "prepare-deps-1.1.4" ''
+        ln -s ${jar kotlinLibs.json-org} dependencies/json-org.jar
+        ln -s ${jar (kotlinLibs.kotlinx-coroutines-core-0_14 k."1.1.3")} dependencies/kotlinx-coroutines-core.jar
+      '';
+    };
+
+    "1.1.51" = step k."1.1.4" "1.1.51" p1_1_2 {
+      steps = addLast "prepare-deps-1.1.51" ''
+        ln -s ${jar kotlinLibs.jline3} dependencies/jline3.jar
+      '';
     };
   });
 

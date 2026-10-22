@@ -77,3 +77,26 @@ ECJ 4.2.1 → IcedTea 2.6 (JDK 7).
   kotlinc) instead of bootstrapping Gradle-with-Gradle; needs Groovy (Guix
   has a from-source Groovy recipe) and Kotlin ~2.x with scripting/embeddable
   artifacts.
+
+## Gradle 8.14.3 survey
+
+~190 modules in `platforms/` + `subprojects/`: ~10k Java, ~680 Kotlin, ~80
+Groovy main sources.  Third party jars of the distribution's `lib/` (core):
+ant 1.10.15 (+launcher, junit, antlr), asm 9.7.1 (+commons, tree),
+commons-compress 1.26.1, commons-codec, commons-io 2.15.1, commons-lang 2.6,
+commons-lang3, httpclient/httpcore 4.x, error_prone_annotations, fastutil
+8.5.2-min, guava 33.4.6 + failureaccess, groovy 3.0.24 (+ant, console,
+groovydoc, docgenerator, templates, xml, json, astbuilder, dateutil, datetime,
+nio, sql, test, swing), gson 2.10, junit 4.13.2, hamcrest-core 1.3,
+javax.inject, jackson 2.16.1 (core, databind, annotations, jdk8, jsr310),
+jansi 1.18, jcifs, slf4j 1.7.36 (+jcl/jul/log4j bridges), Kotlin 2.0.21
+(stdlib, reflect, compiler-embeddable, daemon-embeddable, script-runtime,
+scripting-common/jvm/jvm-host/compiler(-impl)-embeddable,
+sam-with-receiver, assignment), kotlinx-serialization 1.6.2,
+kotlinx-coroutines 1.6.4, kotlinx-metadata-jvm 0.5.0, jetbrains annotations
+24, jsoup, tomlj 1.0.0 (+antlr4-runtime 4.7.2), jsr305, kryo 2.24 + minlog +
+objenesis, native-platform 0.22-milestone-28 (JNI), trove4j, xml-apis,
+javaparser-core 3.17.0, qdox 1.12.1.
+`lib/plugins` adds optional ones (AWS, GCS, BouncyCastle, JGit, sshd, Maven
+model/settings, Ivy, TestNG, JUnit Platform, bsh, snakeyaml, ...), many of
+which can be dropped for a first minimal distribution.
