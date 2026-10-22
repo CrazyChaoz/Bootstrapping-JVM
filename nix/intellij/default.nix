@@ -279,4 +279,27 @@ in
     newTarget = "1.8";
     asm = java.jetbrains-asm-6;
   };
+
+  # Needed by Kotlin 1.2.31 (JavaModuleSystem, JvmElementProvider).
+  "181" = mkSdk {
+    version = "181";
+    jdom = java.jdom-ij;
+    jpsApiNeedsUtil = true;
+    basePatches = [ ../../patches/own/sdk-181.patch ];
+    annotations = mkAnnotations "181";
+    utilPatches = [ ];
+    corePatches = [ ];
+    utilRemove = macUi ++ [
+      "platform/util/src/com/intellij/util/SVGLoader.java"
+      "platform/util/src/com/intellij/util/io/TarUtil.java"
+    ];
+    utilDeps = [ java.iq80-snappy ];
+    coreDeps = [
+      java.cglib
+      java.guava-20
+    ];
+    target = "1.5";
+    newTarget = "1.8";
+    asm = java.jetbrains-asm-6;
+  };
 }

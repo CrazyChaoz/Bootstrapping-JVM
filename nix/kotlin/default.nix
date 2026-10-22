@@ -604,7 +604,21 @@ let
     "1.2.21" = step k."1.2.10" "1.2.21" [ ] {
       steps = ops.replace "ant-runtime" (antRuntime { fragment = ../../patches/own/runtime-targets-1.2.21.xml; });
     };
-    "1.2.31" = step k."1.2.21" "1.2.31" [ ] { };
+    "1.2.31" = step k."1.2.21" "1.2.31" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "ant-runtime" (antRuntime { fragment = ../../patches/own/runtime-targets-1.2.31.xml; }))
+        (addLast "compiler-xml-location" ''
+          # compiler.xml moved from idea/src to compiler/cli/src
+          sed -i 's|<fileset dir="idea/src">|<fileset dir="compiler/cli/src">|' build.xml
+        '')
+      ];
+      inputs =
+        i:
+        i
+        // {
+          inherit (intellij."181") annotations javac2 core jps-model-impl;
+        };
+    };
   });
 
   # Version independent replacements for the per-version patches of TarCV
