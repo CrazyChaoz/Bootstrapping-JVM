@@ -70,7 +70,12 @@ let
         runHook postConfigure
       '';
 
-      preBuild = lib.concatMapStringsSep "\n" (s: ''
+      preBuild =
+        lib.optionalString (cfg.dynamicFlags or false) ''
+          BOOTSTRAP=${cfg.bootstrap}
+          antFlagsExtra=
+        ''
+        + lib.concatMapStringsSep "\n" (s: ''
         echo "## step: ${s.name}"
         ${s.script}
       '') cfg.steps;
@@ -80,7 +85,7 @@ let
         ant ${cfg.target or "dist"} \
           -Dkotlin-home=$out \
           ${lib.escapeShellArgs cfg.antFlags} \
-          ${lib.optionalString (cfg.bootstrap != null) "-Dbootstrap.compiler.home=${cfg.bootstrap}"}
+          ${lib.optionalString (cfg.bootstrap != null) "-Dbootstrap.compiler.home=${cfg.bootstrap}"}${lib.optionalString (cfg.dynamicFlags or false) " $antFlagsExtra"}
         runHook postBuild
       '';
 

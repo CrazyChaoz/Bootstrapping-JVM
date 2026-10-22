@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# usage: port-patch SRC_STORE_PATH WORKDIR PATCH...
+# Copies SRC to WORKDIR, applies the patches with fuzz and prints rejects.
+# Fix the rejects in WORKDIR, then run: tools/make-patch SRC WORKDIR OUT.patch
+set -u
+src=$1 work=$2; shift 2
+rm -rf "$work"; cp -r "$src" "$work"; chmod -R u+w "$work"
+cd "$work"
+for p in "$@"; do patch -p1 -f -s < "$p" | grep -v '^$' ; done
+find . -name '*.orig' -delete
+for f in $(find . -name '*.rej'); do echo "===== $f"; cat "$f"; done

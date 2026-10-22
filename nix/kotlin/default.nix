@@ -567,20 +567,87 @@ let
       '';
     };
 
+    # From here on: no per-version patch, scripted edits instead (see
+    # `scriptedEdits`), and the JS compiler is kept.
     # json-org and kotlinx.coroutines (compiled with the previous Kotlin).
-    "1.1.4" = step k."1.1.3" "1.1.4" p113 {
-      steps = addLast "prepare-deps-1.1.4" ''
-        ln -s ${jar kotlinLibs.json-org} dependencies/json-org.jar
-        ln -s ${jar (kotlinLibs.kotlinx-coroutines-core-0_14 k."1.1.3")} dependencies/kotlinx-coroutines-core.jar
-      '';
+    "1.1.4" = buildWith { dynamicFlags = true; } k."1.1.3" "1.1.4" [ ] {
+      steps =
+        s:
+        lib.pipe s [
+          (ops.delete "remove-js-compiler-cli")
+          (ops.delete "remove-k2js")
+          (ops.replace "ant-runtime" (antRuntime { fragment = ../../patches/own/runtime-targets-1.1.4.xml; }))
+          (addLast "scripted-edits" scriptedEdits)
+          (addLast "fresh-script-runtime" (freshRuntime "script-runtime" [ "core/script.runtime/src" ]))
+          (addLast "prepare-deps-1.1.4" ''
+            ln -s ${jar kotlinLibs.json-org} dependencies/json-org.jar
+            ln -s ${jar (kotlinLibs.kotlinx-coroutines-core-0_14 k."1.1.3")} dependencies/kotlinx-coroutines-core.jar
+          '')
+        ];
     };
 
-    "1.1.51" = step k."1.1.4" "1.1.51" p113 {
+    "1.1.51" = step k."1.1.4" "1.1.51" [ ] {
       steps = addLast "prepare-deps-1.1.51" ''
         ln -s ${jar kotlinLibs.jline3} dependencies/jline3.jar
       '';
     };
   });
+
+  # Version independent replacements for the per-version patches of TarCV
+  # (for Kotlin >= 1.1.4).
+  scriptedEdits = ''
+    export JDK_16=$JAVA_HOME JDK_17=$JAVA_HOME JDK_18=$JAVA_HOME
+    # Jars packed into kotlin-compiler.jar: provide them under the names
+    # build.xml uses.
+    for n in $(grep -oE 'ideaSDK/core/[^"/]+\.jar' build.xml | sed 's|ideaSDK/core/||' | sort -u); do
+      [ -e ideaSDK/core/$n ] && continue
+      case $n in
+        annotations*) t=$(ls ideaSDK/core/intellij-annotations.jar) ;;
+        asm-all*|asm-[0-9]*) t=$(ls ideaSDK/core/asm-6.0.jar ideaSDK/core/asm-org-jetbrains-org-objectweb-asm.jar 2>/dev/null | head -1) ;;
+        guava*) t=ideaSDK/core/guava.jar ;;
+        jdom*) t=ideaSDK/core/jdom.jar ;;
+        log4j*) t=ideaSDK/core/log4j.jar ;;
+        snappy*) t=ideaSDK/core/iq80-snappy.jar ;;
+        trove4j*) t=ideaSDK/core/jetbrains-trove4j.jar ;;
+        xpp3*) t=ideaSDK/core/xpp3.jar ;;
+        xstream*) t=ideaSDK/core/xstream.jar ;;
+        *) echo "scripted-edits: do not know which jar provides ideaSDK/core/$n"; exit 1 ;;
+      esac
+      [ -e "$t" ] || { echo "scripted-edits: $t missing (for $n)"; exit 1; }
+      ln -s "$(readlink -f $t)" ideaSDK/core/$n
+    done
+    # jansi is used by the compiler (TarCV adds it to the compiler jar)
+    grep -q 'dependencies}/jansi.jar' build.xml || \
+      sed -i 's|\( *\)<zipfileset src="''${dependencies}/jline.jar"/>|\1<zipfileset src="''${dependencies}/jansi.jar"/>\n&|' build.xml
+    # dist: no extra artifacts, and no forked Ant (it would not see CLASSPATH)
+    sed -i '/<target name="dist"/,/description/ { s/,other-artifacts//; s/,compiler-fork,/,compiler,/ }' build.xml
+    # IntelliJ 172 API (Kotlin 1.1.x was built against 171)
+    f=compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/MockExternalAnnotationsManager.kt
+    if [ -f $f ] && ! grep -q hasAnnotationRootsForFile $f; then
+      sed -i 's|^\( *\)override fun annotateExternally|\1override fun hasAnnotationRootsForFile(p0: com.intellij.openapi.vfs.VirtualFile): Boolean = false\n&|' $f
+    fi
+    # Coloured output needs jansi's native library; always enable it.
+    f=compiler/cli/src/org/jetbrains/kotlin/cli/common/messages/PlainTextMessageRenderer.java
+    perl -0pi -e 's/public static final boolean COLOR_ENABLED;\s*static \{.*?COLOR_ENABLED = colorEnabled;\s*\}/public static final boolean COLOR_ENABLED = true;/s; s/import org\.fusesource\.jansi\.internal\.CLibrary;\n//' $f
+  '';
+
+  # Compile a runtime library of the version being built with the bootstrap
+  # compiler and use it instead of the bootstrap's, for when the new compiler
+  # needs new runtime API (upstream bootstraps from a dev build of the same
+  # version instead).
+  freshRuntime = name: dirs: ''
+    mkdir -p dependencies/fresh-${name}
+    $JAVA_HOME/bin/java -Xmx2g -cp "$BOOTSTRAP/lib/kotlin-compiler.jar" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+      -no-stdlib -cp "$BOOTSTRAP/lib/kotlin-stdlib.jar" -Xallow-kotlin-package -module-name kotlin-${name} \
+      -d dependencies/fresh-${name} ${lib.concatStringsSep " " dirs}
+    find ${lib.concatStringsSep " " dirs} -name '*.java' > fresh-${name}.txt
+    if [ -s fresh-${name}.txt ]; then
+      $JAVA_HOME/bin/javac -nowarn -d dependencies/fresh-${name} \
+        -cp "dependencies/fresh-${name}:$BOOTSTRAP/lib/kotlin-stdlib.jar" @fresh-${name}.txt
+    fi
+    (cd dependencies/fresh-${name} && $JAVA_HOME/bin/jar cf ../kotlin-${name}-fresh.jar .)
+    antFlagsExtra+=" -Dbootstrap.${lib.replaceStrings [ "-" ] [ "." ] name}=$PWD/dependencies/kotlin-${name}-fresh.jar"
+  '';
 
   # Relocate the compiler core classes in kotlin-reflect.jar and strip their
   # Kotlin metadata, as upstream does (otherwise compiling the next compiler
