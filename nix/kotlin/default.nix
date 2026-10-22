@@ -1117,6 +1117,101 @@ let
           inherit (intellij."192") annotations javac2 core jps-model-impl;
         };
     };
+    "1.3.72" = step k."1.3.61" "1.3.72" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "inference-fixes" ''
+          sed -i 's|types.reduce { left: SimpleType?, right: SimpleType? -> fold(left, right, mode) }|types.reduce<SimpleType?, SimpleType> { left, right -> fold(left, right, mode) }|' \
+            core/descriptors/src/org/jetbrains/kotlin/resolve/constants/IntegerLiteralTypeConstructor.kt
+          grep -q 'reduce<SimpleType?' core/descriptors/src/org/jetbrains/kotlin/resolve/constants/IntegerLiteralTypeConstructor.kt
+        '')
+        (addLast "mixed-named-args" ''
+          # 1.4 language feature "named arguments in their own position" is not known to the 1.3.61 compiler: drop the names
+          d() { perl -0pi -e "$1" "$2"; }
+          d 's/shouldCheckExpectActual = false,(\s+dependenciesContainer)/false,$1/' compiler/cli/cli-common/src/org/jetbrains/kotlin/analyzer/common/CommonResolverForModuleFactory.kt
+          f=compiler/fir/lightTree/src/org/jetbrains/kotlin/fir/lightTree/converter/DeclarationsConverter.kt
+          d 's/source = null,(\s+ConeClassLikeTypeImpl\()/null,$1/; s/member = (false|parentNode\?\.tokenType != KT_FILE), stubMode/$1, stubMode/g' $f
+          f=compiler/fir/psi2fir/src/org/jetbrains/kotlin/fir/builder/RawFirBuilder.kt
+          d 's/member = (false|!property\.isTopLevel), stubMode/$1, stubMode/g' $f
+          f=compiler/fir/resolve/src/org/jetbrains/kotlin/fir/FirCallResolver.kt
+          d 's/explicitReceiver = null,(\s+delegatedConstructorCall\.arguments,\s+)isSafeCall = false,(\s+)typeArguments = typeArguments,/null,$1false,$2typeArguments,/; s/dispatchReceiverValue = null,(\s+)implicitExtensionReceiverValue = null,(\s+ExplicitReceiverKind)/null,$1null,$2/' $f
+          f=compiler/fir/resolve/src/org/jetbrains/kotlin/fir/scopes/impl/FirIntegerLiteralTypeScope.kt
+          d 's/source = null,(\s+session,)/null,$1/g; s/receiverTypeRef = null,(\s+ALL_OPERATORS)/null,$1/' $f
+          d 's/isErrorTypeEqualsToAnything = false, isStubTypeEqualsToAnything = false, /false, false, /' compiler/fir/resolve/src/org/jetbrains/kotlin/fir/scopes/impl/FirSuperTypeScope.kt
+          d 's/isErrorTypeEqualsToAnything = false, isStubTypeEqualsToAnything = false, /false, false, /' compiler/fir/resolve/src/org/jetbrains/kotlin/fir/SessionUtils.kt
+          d 's/argumentName = null,(\s+outerCallContext)/null,$1/' compiler/frontend/src/org/jetbrains/kotlin/resolve/calls/tower/KotlinResolutionCallbacksImpl.kt
+          d 's/forceToSkipNullabilityAnnotation = false,(\s+methodIndex\n    \))/false,$1/' compiler/light-classes/src/org/jetbrains/kotlin/asJava/classes/ultraLightMethods.kt
+          d 's/hasBoundExtensionReceiver = (candidate\.extensionReceiver != null,)/$1/' compiler/resolution/src/org/jetbrains/kotlin/resolve/calls/components/CallableReferenceResolver.kt
+          d 's/topLevelType = null, context/null, context/' compiler/resolution/src/org/jetbrains/kotlin/resolve/calls/inference/components/VariableFixationFinder.kt
+        '')
+        (ops.replace "sdk-asm" ''
+          for f in ideaSDK/core/asm-6.0.jar ideaSDK/core/asm-all*.jar; do
+            ln -sf ${jar intellij."193".core.passthru.asm} $f
+          done
+        '')
+        (ops.replace "compiler-dirs" (compilerDirs [
+          "compiler/util/src"
+          "compiler/container/src"
+          "compiler/resolution/src"
+          "compiler/serialization/src"
+          "compiler/psi/src"
+          "compiler/frontend/src"
+          "compiler/frontend.common/src"
+          "compiler/frontend.java/src"
+          "compiler/cli/cli-common/src"
+          "compiler/ir/ir.tree/src"
+          "compiler/ir/ir.psi2ir/src"
+          "compiler/ir/backend.common/src"
+          "compiler/ir/backend.jvm/src"
+          "compiler/ir/backend.js/src"
+          "compiler/ir/serialization.common/src"
+          "compiler/ir/serialization.js/src"
+          "compiler/backend-common/src"
+          "compiler/backend/src"
+          "compiler/plugin-api/src"
+          "compiler/light-classes/src"
+          "compiler/cli/src"
+          "compiler/builtins-serializer/src"
+          "compiler/javac-wrapper/src"
+          "compiler/incremental-compilation-impl/src"
+          "js/js.ast/src"
+          "js/js.serializer/src"
+          "js/js.parser/src"
+          "js/js.frontend/src"
+          "js/js.translator/src"
+          "js/js.inliner/src"
+          "js/js.dce/src"
+          "build-common/src"
+          "core/metadata/src"
+          "core/metadata.jvm/src"
+          "core/descriptors/src"
+          "core/descriptors.jvm/src"
+          "core/deserialization/src"
+          "core/util.runtime/src"
+          "core/type-system/src"
+          "compiler/fir/cones/src"
+          "compiler/fir/resolve/src"
+          "compiler/fir/tree/src"
+          "compiler/fir/psi2fir/src"
+          "compiler/fir/fir2ir/src"
+          "compiler/cli/cli-js/src"
+          "compiler/fir/java/src"
+          "compiler/fir/lightTree/src"
+          "compiler/fir/tree/gen"
+          "compiler/ir/serialization.jvm/src"
+          "compiler/util-io/src"
+          "compiler/util-klib/src"
+          "compiler/util-klib-metadata/src"
+          "compiler/ir/backend.wasm/src"
+          "core/descriptors.runtime/src"
+        ]))
+      ];
+      inputs =
+        i:
+        i
+        // {
+          inherit (intellij."193") annotations javac2 core jps-model-impl;
+        };
+    };
   });
 
   # Version independent replacements for the per-version patches of TarCV
