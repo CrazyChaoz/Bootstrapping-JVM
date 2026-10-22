@@ -1,4 +1,11 @@
 { fetchIntellij }:
+let
+  newModules = [
+    "platform/util-class-loader"
+    "java/compiler/instrumentation-util-8"
+  ];
+  newModules192 = newModules ++ [ "platform/core-ui" ];
+in
 {
   # TarCV uses this commit for "139"
   "139" = fetchIntellij {
@@ -35,26 +42,32 @@
   };
   "191" = fetchIntellij {
     rev = "refs/heads/191";
-    hash = "sha256-MAe4jvwXtoLxtkMl+8gFcM4Oiv2NW698euQA3XUiv9U=";
+    hash = "sha256-CXxgAzE+6yTkSfDmVTpa7yxRoyooXdz9iNvOSVAZUZI=";
+    extraKeep = newModules;
   };
   "192" = fetchIntellij {
     rev = "refs/heads/192";
-    hash = "sha256-N34jnjSKpfU288n3B9w/fkygES0X2f/TtB5ZGk+ocAw=";
+    hash = "sha256-sUvX5BEeP4vg/Z3+pzuuDKrPb2N5LamAboNO9NFX/j4=";
+    extraKeep = newModules192;
   };
   "193" = fetchIntellij {
     rev = "refs/heads/193";
-    hash = "sha256-mRO7YAXgEySOV+Va5bDPsbsKrUHg1CaUiLcI7PrVHO0=";
+    hash = "sha256-0P9w5RfV39s4cVXV523pHSB5Fv1L2gJasv8srSDNXrk=";
+    extraKeep = newModules192;
   };
   "201" = fetchIntellij {
     rev = "refs/heads/201";
-    hash = "sha256-FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA=";
+    hash = "sha256-59aVQR7aJAvGhR2IG4lKnm0jokEvKHQKiKqM2ik6Ec0=";
+    extraKeep = newModules192;
   };
   "202" = fetchIntellij {
     rev = "refs/heads/202";
-    hash = "sha256-GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGA=";
+    hash = "sha256-ZWZLxPiwOaVeAIPkrQHgwGF6X+gfnhK3jgDj0TP1vJQ=";
+    extraKeep = newModules192;
   };
   "203" = fetchIntellij {
     rev = "refs/heads/203";
-    hash = "sha256-HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHA=";
+    hash = "sha256-yN5ZvqAh1by5ZNBJ+itLp5WTJGzo3xeRcAVhx2i2xPE=";
+    extraKeep = newModules192;
   };
 }

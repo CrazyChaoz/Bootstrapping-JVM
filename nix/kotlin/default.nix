@@ -680,8 +680,17 @@ let
         (addLast "new-inference" ''
           sed -i 's|<compilerarg line="-Xread-deserialized-contracts -Xeffect-system"/>|<compilerarg line="-Xread-deserialized-contracts -Xeffect-system -Xnew-inference"/>|' build.xml
           # callable references to vararg constructors
-          sed -i -E 's/\?\.let\(::(Js|Jvm)MetadataVersion\)/?.let { \1MetadataVersion(*it) }/' \
-            build-common/src/org/jetbrains/kotlin/build/JsBuildMetaInfo.kt build-common/src/org/jetbrains/kotlin/build/JvmBuildMetaInfo.kt
+          grep -rlE '::(Js|Jvm)MetadataVersion\)' build-common/src | xargs sed -i -E 's/\?\.let\(::(Js|Jvm)MetadataVersion\)/?.let { \1MetadataVersion(*it) }/'
+          # references to inline library functions crash codegen with -Xnew-inference
+          grep -rlE '\((Collection|List|Map|Array|Iterable|CharSequence|String)(<[^>()]*>)?::\w+\)' core compiler build-common js --include=*.kt \
+            | xargs perl -pi -e 's/\.(takeIf|takeUnless|filter|filterNot|dropLastWhile|use)\((?:Collection|List|Map|Array|Iterable|CharSequence|String)(?:<[^>()]*>)?::(\w+)\)/.$1 { it.$2() }/g'
+        '')
+        (addLast "kotlin-annotations-jvm" ''
+          mkdir -p build/annotations-jvm lib
+          $JAVA_HOME/bin/javac -nowarn -d build/annotations-jvm $(find libraries/tools/kotlin-annotations-jvm/src -name '*.java')
+          $JAVA_HOME/bin/jar cf lib/kotlin-annotations-jvm.jar -C build/annotations-jvm .
+          sed -i '/<target name="\(core\|reflection\)">/,/<\/target>/ s|<pathelement path="''${protobuf.jar}"/>|&\n<pathelement path="''${basedir}/lib/kotlin-annotations-jvm.jar"/>|' build.xml
+          grep -c 'lib/kotlin-annotations-jvm.jar' build.xml
         '')
       ];
       inputs =

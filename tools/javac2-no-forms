@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+# usage: javac2-no-forms Javac2.java
+# Removes the GUI form instrumentation (needs the uiDesigner modules) from
+# IntelliJ's Javac2 ant task: instrumentForms() only fails if forms exist.
+import re, sys
+
+f = sys.argv[1]
+s = open(f).read()
+
+def method_end(s, start):
+    i = s.index('{', start)
+    depth = 0
+    while True:
+        c = s[i]
+        if c == '{': depth += 1
+        elif c == '}':
+            depth -= 1
+            if depth == 0: return i
+        i += 1
+
+m = re.search(r'private void instrumentForms\(', s)
+body_start = s.index('log("No forms to instrument found", Project.MSG_VERBOSE);', m.start())
+after_if = s.index('}', s.index('return;', body_start)) + 1
+end = method_end(s, m.start())
+s = s[:after_if] + '\n    fireError("Form instrumentation is not supported. Found forms: " + formsToInstrument);\n  ' + s[end:]
+
+m = re.search(r'\n  private class AntNestedFormLoader implements NestedFormLoader', s)
+if m:
+    end = method_end(s, m.start())
+    s = s[:m.start()] + s[end + 1:]
+
+s = re.sub(r'import com\.intellij\.uiDesigner\.[^\n]*\n', '', s)
+open(f, 'w').write(s)

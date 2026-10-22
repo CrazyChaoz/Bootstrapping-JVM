@@ -30,6 +30,13 @@ let
       jdom ? java.jdom-1,
       # From 173 on jps-model-api uses util (xmlb annotations)
       jpsApiNeedsUtil ? false,
+      # modules split off from util / javac2 (191+)
+      utilExtraSrc ? [ ],
+      coreExtraSrc ? [ ],
+      jna ? java.jna,
+      jna-platform ? java.jna-platform,
+      javac2ExtraSrc ? [ ],
+      javac2Target ? target,
     }:
     let
       src = intellijSources.${version};
@@ -52,7 +59,7 @@ let
           postPatch = ''
             rm -rf ${lib.escapeShellArgs utilRemove}
           '';
-          sourceDirs = [ "platform/util/src" ];
+          sourceDirs = [ "platform/util/src" ] ++ utilExtraSrc;
           resourceDirs = [ "platform/util/resources" ];
           buildDeps = [ annotations ];
           deps = [
@@ -60,8 +67,8 @@ let
             java.jakarta-oro
             jdom
             java.log4j-1
-            java.jna
-            java.jna-platform
+            jna
+            jna-platform
             java.jsr166e-seqlock
             java.picocontainer-1
             self.util-rt
@@ -111,7 +118,8 @@ let
             "platform/core-api/src"
             "platform/core-impl/src"
             "platform/extensions/src"
-          ];
+          ]
+          ++ coreExtraSrc;
           buildDeps = [ annotations ];
           deps = [
             java.automaton
@@ -153,12 +161,13 @@ let
           sourceDirs = [
             "java/compiler/javac2/src"
             "java/compiler/instrumentation-util/src"
-          ];
+          ]
+          ++ javac2ExtraSrc;
           buildDeps = [ ant ];
           deps = [ asm ];
           # com.sun.istack.internal annotations are hidden by ct.sym
           javacFlags = [ "-XDignore.symbol.file" ];
-          javaRelease = target;
+          javaRelease = javac2Target;
         };
       };
     in
@@ -349,5 +358,104 @@ in
     target = "1.5";
     newTarget = "1.8";
     asm = java.jetbrains-asm-7;
+  };
+  "191" = mkSdk {
+    version = "191";
+    jdom = java.jdom-ij-2;
+    jpsApiNeedsUtil = true;
+    basePatches = [ ../../patches/own/sdk-191.patch ];
+    annotations = java.jetbrains-annotations-16;
+    utilRemove = macUi ++ [
+      "platform/util/src/com/intellij/util/SVGLoader.java"
+      "platform/util/src/com/intellij/util/io/TarUtil.java"
+      # Batik/Rhino shims for SVGLoader
+      "platform/util/src/org/apache/batik"
+      "platform/util/src/org/w3c"
+    ];
+    utilDeps = [
+      java.lz4-compat
+      java.imgscalr
+    ];
+    coreDeps = [
+      java.cglib
+      java.guava-20
+      java.streamex
+    ];
+    utilExtraSrc = [ "platform/util-class-loader/src" ];
+    javac2ExtraSrc = [ "java/compiler/instrumentation-util-8/src" ];
+    target = "1.5";
+    javac2Target = "1.8";
+    newTarget = "1.8";
+    asm = java.jetbrains-asm-7;
+  };
+  "192" = mkSdk {
+    version = "192";
+    jdom = java.jdom-ij-2;
+    jpsApiNeedsUtil = true;
+    basePatches = [ ../../patches/own/sdk-192.patch ];
+    annotations = java.jetbrains-annotations-16;
+    utilRemove = [
+      "platform/util/ui/src/com/intellij/util/SVGLoader.java"
+      "platform/util/ui/src/com/intellij/ui/svg"
+      "platform/util/ui/src/org/w3c"
+    ];
+    utilDeps = [
+      java.lz4-compat
+      java.imgscalr
+      java.commons-compress-1_18
+      java.jetbrains-java-compatibility
+    ];
+    coreDeps = [
+      java.cglib
+      java.guava-20
+      java.streamex
+    ];
+    utilExtraSrc = [
+      "platform/util-class-loader/src"
+      "platform/util/ui/src"
+    ];
+    coreExtraSrc = [ "platform/core-ui/src" ];
+    javac2ExtraSrc = [ "java/compiler/instrumentation-util-8/src" ];
+    target = "1.5";
+    javac2Target = "1.8";
+    newTarget = "1.8";
+    asm = java.jetbrains-asm-7;
+    jna = java.jna-5;
+    jna-platform = java.jna-platform-5;
+  };
+  "193" = mkSdk {
+    version = "193";
+    jdom = java.jdom-ij-2;
+    jpsApiNeedsUtil = true;
+    basePatches = [ ../../patches/own/sdk-193.patch ];
+    annotations = java.jetbrains-annotations-16;
+    utilRemove = [
+      "platform/util/ui/src/com/intellij/util/SVGLoader.java"
+      "platform/util/ui/src/com/intellij/ui/svg"
+      "platform/util/ui/src/org/w3c"
+    ];
+    utilDeps = [
+      java.lz4-compat
+      java.imgscalr
+      java.commons-compress-1_18
+      java.jetbrains-java-compatibility
+    ];
+    coreDeps = [
+      java.cglib
+      java.guava-20
+      java.streamex
+    ];
+    utilExtraSrc = [
+      "platform/util-class-loader/src"
+      "platform/util/ui/src"
+    ];
+    coreExtraSrc = [ "platform/core-ui/src" ];
+    javac2ExtraSrc = [ "java/compiler/instrumentation-util-8/src" ];
+    target = "1.5";
+    javac2Target = "1.8";
+    newTarget = "1.8";
+    asm = java.jetbrains-asm-7;
+    jna = java.jna-5;
+    jna-platform = java.jna-platform-5;
   };
 }

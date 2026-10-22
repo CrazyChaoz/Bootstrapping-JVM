@@ -1,0 +1,346 @@
+--- a/java/compiler/javac2/src/com/intellij/ant/Javac2.java
++++ b/java/compiler/javac2/src/com/intellij/ant/Javac2.java
+@@ -5,9 +5,6 @@
+ import com.intellij.compiler.instrumentation.InstrumentationClassFinder;
+ import com.intellij.compiler.instrumentation.InstrumenterClassWriter;
+ import com.intellij.compiler.notNullVerification.NotNullVerifyingInstrumenter;
+-import com.intellij.uiDesigner.compiler.*;
+-import com.intellij.uiDesigner.lw.CompiledClassPropertiesProvider;
+-import com.intellij.uiDesigner.lw.LwRootContainer;
+ import org.apache.tools.ant.BuildException;
+ import org.apache.tools.ant.Project;
+ import org.apache.tools.ant.taskdefs.Javac;
+@@ -271,85 +268,7 @@
+       log("No forms to instrument found", Project.MSG_VERBOSE);
+       return;
+     }
+-
+-    final HashMap<String, File> class2form = new HashMap<String, File>();
+-
+-    for (File formFile : formsToInstrument) {
+-
+-      log("compiling form " + formFile.getAbsolutePath(), Project.MSG_VERBOSE);
+-      final LwRootContainer rootContainer;
+-      try {
+-        rootContainer = Utils.getRootContainer(formFile.toURI().toURL(), new CompiledClassPropertiesProvider(finder.getLoader()));
+-      }
+-      catch (AlienFormFileException e) {
+-        // ignore non-IDEA forms
+-        continue;
+-      }
+-      catch (Exception e) {
+-        fireError("Cannot process form file " + formFile.getAbsolutePath() + ". Reason: " + e);
+-        continue;
+-      }
+-
+-      final String classToBind = rootContainer.getClassToBind();
+-      if (classToBind == null) {
+-        continue;
+-      }
+-
+-      String name = classToBind.replace('.', '/');
+-      File classFile = getClassFile(name);
+-      if (classFile == null) {
+-        log(formFile.getAbsolutePath() + ": Class to bind does not exist: " + classToBind, Project.MSG_WARN);
+-        continue;
+-      }
+-
+-      final File alreadyProcessedForm = class2form.get(classToBind);
+-      if (alreadyProcessedForm != null) {
+-        fireError(formFile.getAbsolutePath() +
+-                  ": " +
+-                  "The form is bound to the class " +
+-                  classToBind +
+-                  ".\n" +
+-                  "Another form " +
+-                  alreadyProcessedForm.getAbsolutePath() +
+-                  " is also bound to this class.");
+-        continue;
+-      }
+-      class2form.put(classToBind, formFile);
+-
+-      try {
+-        int version;
+-        InputStream stream = new FileInputStream(classFile);
+-        try {
+-          version = InstrumenterClassWriter.getClassFileVersion(new ClassReader(stream));
+-        }
+-        finally {
+-          stream.close();
+-        }
+-        AntNestedFormLoader formLoader = new AntNestedFormLoader(finder.getLoader(), myNestedFormPathList);
+-        InstrumenterClassWriter classWriter = new InstrumenterClassWriter(InstrumenterClassWriter.getAsmClassWriterFlags(version), finder);
+-        final AsmCodeGenerator codeGenerator = new AsmCodeGenerator(rootContainer, finder, formLoader, false, classWriter);
+-        codeGenerator.patchFile(classFile);
+-        final FormErrorInfo[] warnings = codeGenerator.getWarnings();
+-
+-        for (FormErrorInfo warning : warnings) {
+-          log(formFile.getAbsolutePath() + ": " + warning.getErrorMessage(), Project.MSG_WARN);
+-        }
+-        final FormErrorInfo[] errors = codeGenerator.getErrors();
+-        if (errors.length > 0) {
+-          StringBuilder message = new StringBuilder();
+-          for (FormErrorInfo error : errors) {
+-            if (message.length() > 0) {
+-              message.append("\n");
+-            }
+-            message.append(formFile.getAbsolutePath()).append(": ").append(error.getErrorMessage());
+-          }
+-          fireError(message.toString());
+-        }
+-      }
+-      catch (Exception e) {
+-        fireError("Forms instrumentation failed for " + formFile.getAbsolutePath() + ": " + e.toString());
+-      }
+-    }
++    fireError("Form instrumentation is not supported. Found forms: " + formsToInstrument);
+   }
+ 
+   /**
+@@ -566,59 +485,4 @@
+     return new InstrumentationClassFinder(urlsArr);
+   }
+ 
+-  private class AntNestedFormLoader implements NestedFormLoader {
+-    private final ClassLoader myLoader;
+-    private final List<PrefixedPath> myNestedFormPathList;
+-    private final HashMap<String, LwRootContainer> myFormCache = new HashMap<String, LwRootContainer>();
+-
+-    AntNestedFormLoader(final ClassLoader loader, List nestedFormPathList) {
+-      myLoader = loader;
+-      myNestedFormPathList = nestedFormPathList;
+-    }
+-
+-    @Override
+-    public LwRootContainer loadForm(String formFilePath) throws Exception {
+-      if (myFormCache.containsKey(formFilePath)) {
+-        return myFormCache.get(formFilePath);
+-      }
+-
+-      String lowerFormFilePath = formFilePath.toLowerCase(Locale.ENGLISH);
+-      log("Searching for form " + lowerFormFilePath, Project.MSG_VERBOSE);
+-      for (File file : myFormFiles) {
+-        String name = file.getAbsolutePath().replace(File.separatorChar, '/').toLowerCase(Locale.ENGLISH);
+-        log("Comparing with " + name, Project.MSG_VERBOSE);
+-        if (name.endsWith(lowerFormFilePath)) {
+-          return loadForm(formFilePath, new FileInputStream(file));
+-        }
+-      }
+-
+-      if (myNestedFormPathList != null) {
+-        for (PrefixedPath path : myNestedFormPathList) {
+-          File formFile = path.findFile(formFilePath);
+-          if (formFile != null) {
+-            return loadForm(formFilePath, new FileInputStream(formFile));
+-          }
+-        }
+-      }
+-      InputStream resourceStream = myLoader.getResourceAsStream(formFilePath);
+-      if (resourceStream != null) {
+-        return loadForm(formFilePath, resourceStream);
+-      }
+-      throw new Exception("Cannot find nested form file " + formFilePath);
+-    }
+-
+-    private LwRootContainer loadForm(String formFileName, InputStream resourceStream) throws Exception {
+-      final LwRootContainer container = Utils.getRootContainer(resourceStream, null);
+-      myFormCache.put(formFileName, container);
+-      return container;
+-    }
+-
+-    @Override
+-    public String getClassToBindName(LwRootContainer container) {
+-      final String className = container.getClassToBind();
+-      String result = getClassOrInnerName(className.replace('.', '/'));
+-      if (result != null) return result.replace('/', '.');
+-      return className;
+-    }
+-  }
+ }
+--- a/java/java-psi-impl/src/com/intellij/codeInsight/ExceptionUtil.java
++++ b/java/java-psi-impl/src/com/intellij/codeInsight/ExceptionUtil.java
+@@ -17,7 +17,6 @@
+ import com.intellij.util.SmartList;
+ import com.intellij.util.containers.ContainerUtil;
+ import gnu.trove.THashSet;
+-import one.util.streamex.StreamEx;
+ import org.jetbrains.annotations.NonNls;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+@@ -115,7 +114,7 @@
+       public void visitThrowStatement(PsiThrowStatement statement) {
+         final PsiExpression expr = statement.getException();
+         if (expr != null) {
+-          addExceptions(result, StreamEx.of(getPreciseThrowTypes(expr)).select(PsiClassType.class).toList());
++          addExceptions(result, getPreciseThrowTypes(expr).stream().filter(e -> e instanceof PsiClassType).map(e -> (PsiClassType) e).collect(java.util.stream.Collectors.toList()));
+         }
+         super.visitThrowStatement(statement);
+       }
+--- a/java/java-psi-impl/src/com/intellij/core/JavaCoreApplicationEnvironment.java
++++ b/java/java-psi-impl/src/com/intellij/core/JavaCoreApplicationEnvironment.java
+@@ -62,6 +62,11 @@
+     addExplicitExtension(LanguageParserDefinitions.INSTANCE, JavaLanguage.INSTANCE, new JavaParserDefinition());
+     addExplicitExtension(LanguageConstantExpressionEvaluator.INSTANCE, JavaLanguage.INSTANCE, new PsiExpressionEvaluator());
+ 
++    registerApplicationExtensionPoint(ContainerProvider.EP_NAME, com.intellij.codeInsight.ContainerProvider.class);
++    registerApplicationExtensionPoint(com.intellij.psi.compiled.ClassFileDecompilers.EP_NAME, com.intellij.psi.compiled.ClassFileDecompilers.Decompiler.class);
++    registerApplicationExtensionPoint(com.intellij.psi.augment.PsiAugmentProvider.EP_NAME, com.intellij.psi.augment.PsiAugmentProvider.class);
++    registerApplicationExtensionPoint(com.intellij.psi.impl.compiled.ClsCustomNavigationPolicy.EP_NAME, com.intellij.psi.impl.compiled.ClsCustomNavigationPolicy.class);
++    registerApplicationExtensionPoint(com.intellij.lang.MetaLanguage.EP_NAME, com.intellij.lang.MetaLanguage.class);
+     addExtension(ContainerProvider.EP_NAME, new JavaContainerProvider());
+ 
+     myApplication.registerService(PsiPackageImplementationHelper.class, new CorePsiPackageImplementationHelper());
+--- a/java/java-psi-impl/src/com/intellij/core/JavaCoreProjectEnvironment.java
++++ b/java/java-psi-impl/src/com/intellij/core/JavaCoreProjectEnvironment.java
+@@ -50,6 +50,7 @@
+ 
+     myFileManager = createCoreFileManager();
+     myProject.registerService(JavaFileManager.class, myFileManager);
++    addProjectExtension(com.intellij.psi.PsiElementFinder.EP_NAME, new com.intellij.psi.impl.PsiElementFinderImpl(myProject, myFileManager));
+ 
+     myProject.registerService(JvmPsiConversionHelper.class, new JvmPsiConversionHelperImpl());
+     registerJavaPsiFacade();
+--- a/platform/core-impl/src/com/intellij/core/CoreProjectEnvironment.java
++++ b/platform/core-impl/src/com/intellij/core/CoreProjectEnvironment.java
+@@ -52,7 +52,8 @@
+     myProject.registerService(PsiModificationTracker.class, modificationTracker);
+     myProject.registerService(FileIndexFacade.class, myFileIndexFacade);
+     myProject.registerService(ResolveCache.class, new ResolveCache(myMessageBus));
+-
++    registerProjectExtensionPoint(com.intellij.psi.impl.PsiTreeChangePreprocessor.EP_NAME, com.intellij.psi.impl.PsiTreeChangePreprocessor.class);
++    registerProjectExtensionPoint(com.intellij.psi.PsiElementFinder.EP_NAME, com.intellij.psi.PsiElementFinder.class);
+     myPsiManager = new PsiManagerImpl(myProject, null, null, myFileIndexFacade, myMessageBus, modificationTracker);
+     registerProjectComponent(PsiManager.class, myPsiManager);
+     myProject.registerService(SmartPointerManager.class, SmartPointerManagerImpl.class);
+--- a/platform/core-impl/src/com/intellij/openapi/progress/util/AbstractProgressIndicatorBase.java
++++ b/platform/core-impl/src/com/intellij/openapi/progress/util/AbstractProgressIndicatorBase.java
+@@ -15,7 +15,6 @@
+ import com.intellij.openapi.util.Disposer;
+ import com.intellij.openapi.util.UserDataHolderBase;
+ import com.intellij.openapi.util.registry.Registry;
+-import com.intellij.ui.mac.foundation.MacUtil;
+ import com.intellij.util.ObjectUtils;
+ import com.intellij.util.containers.ContainerUtil;
+ import com.intellij.util.containers.Stack;
+@@ -40,7 +39,7 @@
+   private volatile boolean myFinished;
+ 
+   private volatile boolean myIndeterminate = Registry.is("ide.progress.indeterminate.by.default", true);
+-  private volatile MacUtil.Activity myMacActivity;
++  private volatile Object myMacActivity;
+   private volatile boolean myShouldStartActivity = true;
+ 
+   private Stack<String> myTextStack; // guarded by this
+@@ -91,15 +90,10 @@
+   }
+ 
+   private void startSystemActivity() {
+-    myMacActivity = myShouldStartActivity ? MacUtil.wakeUpNeo(this) : null;
++    myMacActivity = null;
+   }
+ 
+   void stopSystemActivity() {
+-    MacUtil.Activity macActivity = myMacActivity;
+-    if (macActivity != null) {
+-      macActivity.matrixHasYou();
+-      myMacActivity = null;
+-    }
+   }
+ 
+   @Override
+--- a/platform/util/src/com/intellij/openapi/util/JDOMExternalizableStringList.java
++++ b/platform/util/src/com/intellij/openapi/util/JDOMExternalizableStringList.java
+@@ -45,13 +45,15 @@
+     strings.clear();
+ 
+     Class callerClass = null;
+-    for (Element listElement : element.getChildren(ATTR_LIST)) {
++    for (Object listElementTmp : element.getChildren(ATTR_LIST)) {
++      Element listElement = (Element) listElementTmp;
+       if (callerClass == null) {
+         callerClass = ReflectionUtil.findCallerClass(2);
+         assert callerClass != null;
+       }
+       final ClassLoader classLoader = callerClass.getClassLoader();
+-      for (Element listItemElement : listElement.getChildren(ATTR_ITEM)) {
++      for (Object listItemElementTmp : listElement.getChildren(ATTR_ITEM)) {
++        Element listItemElement = (Element) listItemElementTmp;
+         if (!ATTR_ITEM.equals(listItemElement.getName())) {
+           throw new IllegalDataException("Unable to read list item. Unknown element found: " + listItemElement.getName());
+         }
+--- a/platform/util/ui/src/com/intellij/ui/icons/ImageDescriptor.java
++++ b/platform/util/ui/src/com/intellij/ui/icons/ImageDescriptor.java
+@@ -9,7 +9,6 @@
+ import com.intellij.openapi.util.io.FileUtilRt;
+ import com.intellij.openapi.util.text.StringUtilRt;
+ import com.intellij.util.ImageLoader;
+-import com.intellij.util.SVGLoader;
+ import com.intellij.util.containers.ContainerUtil;
+ import org.jetbrains.annotations.ApiStatus;
+ import org.jetbrains.annotations.NotNull;
+@@ -131,7 +130,7 @@
+     Image image;
+     switch (type) {
+       case SVG: {
+-        image = SVGLoader.load(url, stream, scale, origUsrSize);
++        image = null; // SVG loading unavailable (bootstrap build)
+       }
+       break;
+ 
+--- a/platform/util/ui/src/com/intellij/util/ui/IsRetina.java
++++ b/platform/util/ui/src/com/intellij/util/ui/IsRetina.java
+@@ -1,25 +1,11 @@
+ // Copyright 2000-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+ package com.intellij.util.ui;
+ 
+-import apple.awt.CImage;
+ 
+ import java.awt.image.BufferedImage;
+ 
+ class IsRetina {
+   public static boolean isRetina() {
+-    try {
+-      final boolean[] isRetina = new boolean[1];
+-      new CImage.HiDPIScaledImage(1, 1, BufferedImage.TYPE_INT_ARGB) {
+-        @Override
+-        public void drawIntoImage(BufferedImage image, float v) {
+-          isRetina[0] = v > 1;
+-        }
+-      };
+-      return isRetina[0];
+-    }
+-    catch (Throwable e) {
+-      e.printStackTrace();
+       return false;
+-    }
+   }
+ }
+--- a/platform/util/ui/src/com/intellij/util/ui/UIUtil.java
++++ b/platform/util/ui/src/com/intellij/util/ui/UIUtil.java
+@@ -10,7 +10,6 @@
+ import com.intellij.openapi.util.registry.Registry;
+ import com.intellij.openapi.util.text.StringUtil;
+ import com.intellij.ui.*;
+-import com.intellij.ui.mac.foundation.Foundation;
+ import com.intellij.ui.paint.LinePainter2D;
+ import com.intellij.ui.paint.PaintUtil.RoundingMode;
+ import com.intellij.ui.scale.JBUIScale;
+@@ -169,8 +168,7 @@
+ 
+   @NotNull
+   public static Cursor getTextCursor(@NotNull Color backgroundColor) {
+-    return SystemInfo.isMac && ColorUtil.isDark(backgroundColor) ?
+-           MacUIUtil.getInvertedTextCursor() : Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR);
++    return Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR);
+   }
+ 
+   @Nullable
+@@ -1314,7 +1312,7 @@
+     try {
+       // https://developer.apple.com/library/mac/documentation/Cocoa/Reference/ApplicationKit/Classes/NSCell_Class/index.html#//apple_ref/doc/c_ref/NSGraphiteControlTint
+       // NSGraphiteControlTint = 6
+-      return Foundation.invoke("NSColor", "currentControlTint").intValue() == 6;
++      return false;
+     } catch (Exception e) {
+       return false;
+     }

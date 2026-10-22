@@ -25,6 +25,8 @@
     "jps/model-api"
     "jps/model-impl"
   ],
+  # modules split off later
+  extraKeep ? [ ],
 }:
 
 fetchzip {
@@ -35,7 +37,7 @@ fetchzip {
     mv $out $TMPDIR/full
     mkdir -p $out
     cd $TMPDIR/full
-    for p in ${lib.escapeShellArgs keep}; do
+    for p in ${lib.escapeShellArgs (keep ++ extraKeep)}; do
       if [ -e "$p" ]; then
         cp -r --parents "$p" $out/
       fi

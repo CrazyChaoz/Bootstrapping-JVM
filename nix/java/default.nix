@@ -282,6 +282,61 @@ lib.fix (self: {
     javaRelease = "1.6";
   };
 
+  streamex = mkJar {
+    pname = "streamex";
+    version = "0.6.7";
+    src = gh "amaembo" "streamex" "streamex-0.6.7" "sha256-q+pHRTbg6ebMZjPcEPDC4hfPzFxpxEdrc4PbUcUnP+Q=";
+    sourceDirs = [ "src/main/java" ];
+  };
+
+  xz-java = mkJar {
+    pname = "xz";
+    version = "1.8";
+    src = gh "tukaani-project" "xz-java" "v1.8" "sha256-3xlBfhl82MLm15FMGiiY5d/vFu3lcDmiZO+Zfvh1+hE=";
+    sourceDirs = [ "src/org" ];
+    postPatch = "mkdir -p src/org && find src -maxdepth 1 -name '*.java' -delete";
+    javaRelease = "1.6";
+  };
+
+  brotli-dec = mkJar {
+    pname = "brotli-dec";
+    version = "0.1.2";
+    src = gh "google" "brotli" "v1.0.7" "sha256-fO/rWhGarpofjSe5uK9EITw0EpsBPib1muS5xktZIaA=";
+    postPatch = "find java/org/brotli/dec -name '*Test.java' -delete";
+    sourceDirs = [ "java/org/brotli/dec" ];
+    javaRelease = "1.6";
+  };
+
+  # Compile-time only (zstd-jni is a JNI library), see nix/java/zstd-stub.
+  zstd-stub = mkJar {
+    pname = "zstd-stub";
+    src = ./zstd-stub;
+    sourceDirs = [ "." ];
+  };
+
+  commons-compress-1_18 = mkJar {
+    pname = "commons-compress";
+    version = "1.18";
+    src = gh "apache" "commons-compress" "rel/1.18" "sha256-sDaIxpOpq1loicFBI+YwLeGTA8lmeYIvM0zpOa0ueEk=";
+    sourceDirs = [ "src/main/java" ];
+    # Pack200 is part of the JDK up to 13.
+    deps = [
+      self.xz-java
+      self.brotli-dec
+    ];
+    buildDeps = [ self.zstd-stub ];
+    javaRelease = "1.7";
+  };
+
+  # JDK 8 classes removed in JDK 9, as used by IntelliJ >= 191.
+  jetbrains-java-compatibility = mkJar {
+    pname = "java-compatibility";
+    version = "1.0.1";
+    src = gh "JetBrains" "intellij-deps-java-compatibility" "f259bb64676003b94398546ca3cf47b97ce5481f" "sha256-+H2cYxwB8pAU8/cxc2BzE+DxrvfMsgug96xPl+N6uUI=";
+    sourceDirs = [ "src/main/java" ];
+    javacFlags = [ "-XDignore.symbol.file" ];
+  };
+
   # API subset of lz4-java (IntelliJ >= 182), see nix/java/lz4-compat.
   lz4-compat = mkJar {
     pname = "lz4-compat";
@@ -387,6 +442,23 @@ lib.fix (self: {
     version = "4.5.1";
     src = gh "java-native-access" "jna" "4.5.1" "sha256-kP36wyRWPxjstso6vEqCfa/8e9nwpHxCuGmBviNs3m0=";
     sourceDirs = [ "src" ];
+    javaRelease = "1.6";
+  };
+
+  jna-5 = mkJar {
+    pname = "jna";
+    version = "5.3.1";
+    src = gh "java-native-access" "jna" "5.3.1" "sha256-I4e84OCUiX2XZrRbAmnXFNq1PMtqqiYeiG5f/MPdDiA=";
+    sourceDirs = [ "src" ];
+    javaRelease = "1.6";
+  };
+
+  jna-platform-5 = mkJar {
+    pname = "jna-platform";
+    version = "5.3.1";
+    inherit (self.jna-5) src;
+    sourceDirs = [ "contrib/platform/src" ];
+    deps = [ self.jna-5 ];
     javaRelease = "1.6";
   };
 
