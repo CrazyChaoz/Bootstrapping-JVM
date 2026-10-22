@@ -1,0 +1,462 @@
+diff --git a/java/compiler/javac2/src/com/intellij/ant/Javac2.java b/java/compiler/javac2/src/com/intellij/ant/Javac2.java
+index 8c2ced9..cd80043 100644
+--- a/java/compiler/javac2/src/com/intellij/ant/Javac2.java
++++ b/java/compiler/javac2/src/com/intellij/ant/Javac2.java
+@@ -19,9 +19,6 @@ import com.intellij.compiler.instrumentation.FailSafeClassReader;
+ import com.intellij.compiler.instrumentation.InstrumentationClassFinder;
+ import com.intellij.compiler.instrumentation.InstrumenterClassWriter;
+ import com.intellij.compiler.notNullVerification.NotNullVerifyingInstrumenter;
+-import com.intellij.uiDesigner.compiler.*;
+-import com.intellij.uiDesigner.lw.CompiledClassPropertiesProvider;
+-import com.intellij.uiDesigner.lw.LwRootContainer;
+ import org.apache.tools.ant.BuildException;
+ import org.apache.tools.ant.Project;
+ import org.apache.tools.ant.taskdefs.Javac;
+@@ -274,86 +271,7 @@ public class Javac2 extends Javac {
+       log("No forms to instrument found", Project.MSG_VERBOSE);
+       return;
+     }
+-
+-    final HashMap class2form = new HashMap();
+-
+-    for (int i = 0; i < formsToInstrument.size(); i++) {
+-      final File formFile = (File)formsToInstrument.get(i);
+-
+-      log("compiling form " + formFile.getAbsolutePath(), Project.MSG_VERBOSE);
+-      final LwRootContainer rootContainer;
+-      try {
+-        rootContainer = Utils.getRootContainer(formFile.toURI().toURL(), new CompiledClassPropertiesProvider(finder.getLoader()));
+-      }
+-      catch (AlienFormFileException e) {
+-        // ignore non-IDEA forms
+-        continue;
+-      }
+-      catch (Exception e) {
+-        fireError("Cannot process form file " + formFile.getAbsolutePath() + ". Reason: " + e);
+-        continue;
+-      }
+-
+-      final String classToBind = rootContainer.getClassToBind();
+-      if (classToBind == null) {
+-        continue;
+-      }
+-
+-      String name = classToBind.replace('.', '/');
+-      File classFile = getClassFile(name);
+-      if (classFile == null) {
+-        log(formFile.getAbsolutePath() + ": Class to bind does not exist: " + classToBind, Project.MSG_WARN);
+-        continue;
+-      }
+-
+-      final File alreadyProcessedForm = (File)class2form.get(classToBind);
+-      if (alreadyProcessedForm != null) {
+-        fireError(formFile.getAbsolutePath() +
+-                  ": " +
+-                  "The form is bound to the class " +
+-                  classToBind +
+-                  ".\n" +
+-                  "Another form " +
+-                  alreadyProcessedForm.getAbsolutePath() +
+-                  " is also bound to this class.");
+-        continue;
+-      }
+-      class2form.put(classToBind, formFile);
+-
+-      try {
+-        int version;
+-        InputStream stream = new FileInputStream(classFile);
+-        try {
+-          version = getClassFileVersion(new ClassReader(stream));
+-        }
+-        finally {
+-          stream.close();
+-        }
+-        AntNestedFormLoader formLoader = new AntNestedFormLoader(finder.getLoader(), myNestedFormPathList);
+-        InstrumenterClassWriter classWriter = new InstrumenterClassWriter(getAsmClassWriterFlags(version), finder);
+-        final AsmCodeGenerator codeGenerator = new AsmCodeGenerator(rootContainer, finder, formLoader, false, classWriter);
+-        codeGenerator.patchFile(classFile);
+-        final FormErrorInfo[] warnings = codeGenerator.getWarnings();
+-
+-        for (int j = 0; j < warnings.length; j++) {
+-          log(formFile.getAbsolutePath() + ": " + warnings[j].getErrorMessage(), Project.MSG_WARN);
+-        }
+-        final FormErrorInfo[] errors = codeGenerator.getErrors();
+-        if (errors.length > 0) {
+-          StringBuffer message = new StringBuffer();
+-          for (int j = 0; j < errors.length; j++) {
+-            if (message.length() > 0) {
+-              message.append("\n");
+-            }
+-            message.append(formFile.getAbsolutePath()).append(": ").append(errors[j].getErrorMessage());
+-          }
+-          fireError(message.toString());
+-        }
+-      }
+-      catch (Exception e) {
+-        fireError("Forms instrumentation failed for " + formFile.getAbsolutePath() + ": " + e.toString());
+-      }
+-    }
++    fireError("Form instrumentation is not supported. Found forms: " + formsToInstrument);
+   }
+ 
+   /**
+@@ -568,59 +486,4 @@ public class Javac2 extends Javac {
+     return new InstrumentationClassFinder(urlsArr);
+   }
+ 
+-  private class AntNestedFormLoader implements NestedFormLoader {
+-    private final ClassLoader myLoader;
+-    private final List myNestedFormPathList;
+-    private final HashMap myFormCache = new HashMap();
+-
+-    public AntNestedFormLoader(final ClassLoader loader, List nestedFormPathList) {
+-      myLoader = loader;
+-      myNestedFormPathList = nestedFormPathList;
+-    }
+-
+-    public LwRootContainer loadForm(String formFilePath) throws Exception {
+-      if (myFormCache.containsKey(formFilePath)) {
+-        return (LwRootContainer)myFormCache.get(formFilePath);
+-      }
+-
+-      String lowerFormFilePath = formFilePath.toLowerCase();
+-      log("Searching for form " + lowerFormFilePath, Project.MSG_VERBOSE);
+-      for (Iterator iterator = myFormFiles.iterator(); iterator.hasNext();) {
+-        File file = (File)iterator.next();
+-        String name = file.getAbsolutePath().replace(File.separatorChar, '/').toLowerCase();
+-        log("Comparing with " + name, Project.MSG_VERBOSE);
+-        if (name.endsWith(lowerFormFilePath)) {
+-          return loadForm(formFilePath, new FileInputStream(file));
+-        }
+-      }
+-
+-      if (myNestedFormPathList != null) {
+-        for (int i = 0; i < myNestedFormPathList.size(); i++) {
+-          PrefixedPath path = (PrefixedPath)myNestedFormPathList.get(i);
+-          File formFile = path.findFile(formFilePath);
+-          if (formFile != null) {
+-            return loadForm(formFilePath, new FileInputStream(formFile));
+-          }
+-        }
+-      }
+-      InputStream resourceStream = myLoader.getResourceAsStream(formFilePath);
+-      if (resourceStream != null) {
+-        return loadForm(formFilePath, resourceStream);
+-      }
+-      throw new Exception("Cannot find nested form file " + formFilePath);
+-    }
+-
+-    private LwRootContainer loadForm(String formFileName, InputStream resourceStream) throws Exception {
+-      final LwRootContainer container = Utils.getRootContainer(resourceStream, null);
+-      myFormCache.put(formFileName, container);
+-      return container;
+-    }
+-
+-    public String getClassToBindName(LwRootContainer container) {
+-      final String className = container.getClassToBind();
+-      String result = getClassOrInnerName(className.replace('.', '/'));
+-      if (result != null) return result.replace('/', '.');
+-      return className;
+-    }
+-  }
+ }
+diff --git a/java/java-psi-impl/src/com/intellij/codeInsight/ExceptionUtil.java b/java/java-psi-impl/src/com/intellij/codeInsight/ExceptionUtil.java
+index 19baedc..5486a42 100644
+--- a/java/java-psi-impl/src/com/intellij/codeInsight/ExceptionUtil.java
++++ b/java/java-psi-impl/src/com/intellij/codeInsight/ExceptionUtil.java
+@@ -32,7 +32,6 @@ import com.intellij.util.BitUtil;
+ import com.intellij.util.SmartList;
+ import com.intellij.util.containers.ContainerUtil;
+ import gnu.trove.THashSet;
+-import one.util.streamex.StreamEx;
+ import org.jetbrains.annotations.NonNls;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+@@ -118,7 +117,7 @@ public class ExceptionUtil {
+       public void visitThrowStatement(PsiThrowStatement statement) {
+         final PsiExpression expr = statement.getException();
+         if (expr != null) {
+-          addExceptions(result, StreamEx.of(getPreciseThrowTypes(expr)).select(PsiClassType.class).toList());
++          addExceptions(result, getPreciseThrowTypes(expr).stream().filter(e -> e instanceof PsiClassType).map(e -> (PsiClassType) e).collect(java.util.stream.Collectors.toList()));
+         }
+         super.visitThrowStatement(statement);
+       }
+diff --git a/java/java-psi-impl/src/com/intellij/core/JavaCoreApplicationEnvironment.java b/java/java-psi-impl/src/com/intellij/core/JavaCoreApplicationEnvironment.java
+index a5682cf..1e9d699 100644
+--- a/java/java-psi-impl/src/com/intellij/core/JavaCoreApplicationEnvironment.java
++++ b/java/java-psi-impl/src/com/intellij/core/JavaCoreApplicationEnvironment.java
+@@ -77,6 +77,12 @@ public class JavaCoreApplicationEnvironment extends CoreApplicationEnvironment {
+     addExplicitExtension(LanguageParserDefinitions.INSTANCE, JavaLanguage.INSTANCE, new JavaParserDefinition());
+     addExplicitExtension(LanguageConstantExpressionEvaluator.INSTANCE, JavaLanguage.INSTANCE, new PsiExpressionEvaluator());
+ 
++    registerApplicationExtensionPoint(ContainerProvider.EP_NAME, com.intellij.codeInsight.ContainerProvider.class);
++    registerApplicationExtensionPoint(com.intellij.psi.compiled.ClassFileDecompilers.EP_NAME, com.intellij.psi.compiled.ClassFileDecompilers.Decompiler.class);
++    registerApplicationExtensionPoint(com.intellij.psi.impl.compiled.ClsStubBuilderFactory.EP_NAME, com.intellij.psi.impl.compiled.ClsStubBuilderFactory.class);
++    registerApplicationExtensionPoint(com.intellij.psi.augment.PsiAugmentProvider.EP_NAME, com.intellij.psi.augment.PsiAugmentProvider.class);
++    registerApplicationExtensionPoint(com.intellij.psi.impl.compiled.ClsCustomNavigationPolicy.EP_NAME, com.intellij.psi.impl.compiled.ClsCustomNavigationPolicy.class);
++    registerApplicationExtensionPoint(com.intellij.lang.MetaLanguage.EP_NAME, com.intellij.lang.MetaLanguage.class);
+     addExtension(ContainerProvider.EP_NAME, new JavaContainerProvider());
+ 
+     myApplication.registerService(PsiPackageImplementationHelper.class, new CorePsiPackageImplementationHelper());
+diff --git a/java/java-psi-impl/src/com/intellij/core/JavaCoreProjectEnvironment.java b/java/java-psi-impl/src/com/intellij/core/JavaCoreProjectEnvironment.java
+index 79b1520..dfc999a 100644
+--- a/java/java-psi-impl/src/com/intellij/core/JavaCoreProjectEnvironment.java
++++ b/java/java-psi-impl/src/com/intellij/core/JavaCoreProjectEnvironment.java
+@@ -53,6 +53,7 @@ public class JavaCoreProjectEnvironment extends CoreProjectEnvironment {
+ 
+     myFileManager = createCoreFileManager();
+     myProject.registerService(JavaFileManager.class, myFileManager);
++    addProjectExtension(com.intellij.psi.PsiElementFinder.EP_NAME, new com.intellij.psi.impl.PsiElementFinderImpl(myProject, myFileManager));
+ 
+     myProject.registerService(JvmPsiConversionHelper.class, new JvmPsiConversionHelperImpl());
+     registerJavaPsiFacade();
+diff --git a/platform/core-api/src/net/sf/cglib/core/AbstractClassGenerator.java b/platform/core-api/src/net/sf/cglib/core/AbstractClassGenerator.java
+index fa4c7c3..5b387ad 100644
+--- a/platform/core-api/src/net/sf/cglib/core/AbstractClassGenerator.java
++++ b/platform/core-api/src/net/sf/cglib/core/AbstractClassGenerator.java
+@@ -16,7 +16,7 @@
+ package net.sf.cglib.core;
+ 
+ import com.intellij.reference.SoftReference;
+-import net.sf.cglib.asm.$ClassReader;
++import org.objectweb.asm.ClassReader;
+ 
+ import java.lang.ref.Reference;
+ import java.lang.ref.WeakReference;
+@@ -217,7 +217,7 @@ implements ClassGenerator
+                         }
+                         if (gen == null) {
+                             byte[] b = strategy.generate(this);
+-                            String className = ClassNameReader.getClassName(new $ClassReader(b));
++                            String className = ClassNameReader.getClassName(new ClassReader(b));
+                             getClassNameCache(loader).add(className);
+                             gen = ReflectUtils.defineClass(className, b, loader);
+                         }
+diff --git a/platform/core-impl/src/com/intellij/core/CoreProjectEnvironment.java b/platform/core-impl/src/com/intellij/core/CoreProjectEnvironment.java
+index 6ed6817..4d6e89f 100644
+--- a/platform/core-impl/src/com/intellij/core/CoreProjectEnvironment.java
++++ b/platform/core-impl/src/com/intellij/core/CoreProjectEnvironment.java
+@@ -67,7 +67,8 @@ public class CoreProjectEnvironment {
+     myProject.registerService(PsiModificationTracker.class, modificationTracker);
+     myProject.registerService(FileIndexFacade.class, myFileIndexFacade);
+     myProject.registerService(ResolveCache.class, new ResolveCache(myMessageBus));
+-
++    registerProjectExtensionPoint(com.intellij.psi.impl.PsiTreeChangePreprocessor.EP_NAME, com.intellij.psi.impl.PsiTreeChangePreprocessor.class);
++    registerProjectExtensionPoint(com.intellij.psi.PsiElementFinder.EP_NAME, com.intellij.psi.PsiElementFinder.class);
+     myPsiManager = new PsiManagerImpl(myProject, null, null, myFileIndexFacade, myMessageBus, modificationTracker);
+     ((FileManagerImpl) myPsiManager.getFileManager()).markInitialized();
+     registerProjectComponent(PsiManager.class, myPsiManager);
+diff --git a/platform/core-impl/src/com/intellij/openapi/progress/util/AbstractProgressIndicatorBase.java b/platform/core-impl/src/com/intellij/openapi/progress/util/AbstractProgressIndicatorBase.java
+index dd48ba2..fccfd17 100644
+--- a/platform/core-impl/src/com/intellij/openapi/progress/util/AbstractProgressIndicatorBase.java
++++ b/platform/core-impl/src/com/intellij/openapi/progress/util/AbstractProgressIndicatorBase.java
+@@ -28,7 +28,6 @@ import com.intellij.openapi.progress.ProgressManager;
+ import com.intellij.openapi.progress.impl.CoreProgressManager;
+ import com.intellij.openapi.util.Disposer;
+ import com.intellij.openapi.util.UserDataHolderBase;
+-import com.intellij.ui.mac.foundation.MacUtil;
+ import com.intellij.util.ObjectUtils;
+ import com.intellij.util.containers.ContainerUtil;
+ import com.intellij.util.containers.DoubleArrayList;
+@@ -97,16 +96,10 @@ public class AbstractProgressIndicatorBase extends UserDataHolderBase implements
+   }
+ 
+   protected void startSystemActivity() {
+-    myMacActivity = myShouldStartActivity ? MacUtil.wakeUpNeo(toString()) : null;
++    myMacActivity = null;
+   }
+ 
+   protected void stopSystemActivity() {
+-    if (myMacActivity != null) {
+-      synchronized (myMacActivity) {
+-        MacUtil.matrixHasYou(myMacActivity);
+-        myMacActivity = null;
+-      }
+-    }
+   }
+ 
+   @Override
+diff --git a/platform/util/src/com/intellij/openapi/util/JDOMExternalizableStringList.java b/platform/util/src/com/intellij/openapi/util/JDOMExternalizableStringList.java
+index 6ca1206..bd026ab 100644
+--- a/platform/util/src/com/intellij/openapi/util/JDOMExternalizableStringList.java
++++ b/platform/util/src/com/intellij/openapi/util/JDOMExternalizableStringList.java
+@@ -55,13 +55,15 @@ public class JDOMExternalizableStringList extends ArrayList<String> implements J
+     strings.clear();
+ 
+     Class callerClass = null;
+-    for (Element listElement : element.getChildren(ATTR_LIST)) {
++    for (Object listElementTmp : element.getChildren(ATTR_LIST)) {
++      Element listElement = (Element) listElementTmp;
+       if (callerClass == null) {
+         callerClass = ReflectionUtil.findCallerClass(2);
+         assert callerClass != null;
+       }
+       final ClassLoader classLoader = callerClass.getClassLoader();
+-      for (Element listItemElement : listElement.getChildren(ATTR_ITEM)) {
++      for (Object listItemElementTmp : listElement.getChildren(ATTR_ITEM)) {
++        Element listItemElement = (Element) listItemElementTmp;
+         if (!ATTR_ITEM.equals(listItemElement.getName())) {
+           throw new IllegalDataException("Unable to read list item. Unknown element found: " + listItemElement.getName());
+         }
+diff --git a/platform/util/src/com/intellij/util/ImageLoader.java b/platform/util/src/com/intellij/util/ImageLoader.java
+index dfece24..af13ba2 100644
+--- a/platform/util/src/com/intellij/util/ImageLoader.java
++++ b/platform/util/src/com/intellij/util/ImageLoader.java
+@@ -27,7 +27,6 @@ import com.intellij.util.ui.ImageUtil;
+ import com.intellij.util.ui.JBUI;
+ import com.intellij.util.ui.JBUI.ScaleContext;
+ import com.intellij.util.ui.UIUtil;
+-import org.imgscalr.Scalr;
+ import org.jetbrains.annotations.NonNls;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+@@ -57,12 +56,7 @@ public class ImageLoader implements Serializable {
+     public enum Type {
+       PNG,
+ 
+-      SVG {
+-        @Override
+-        public Image load(URL url, InputStream is, double scale) throws IOException {
+-          return SVGLoader.load(url, is, scale);
+-        }
+-      },
++      SVG,
+ 
+       UNDEFINED;
+ 
+@@ -338,7 +332,7 @@ public class ImageLoader implements Serializable {
+     // Using "QUALITY" instead of "ULTRA_QUALITY" results in images that are less blurry
+     // because ultra quality performs a few more passes when scaling, which introduces blurriness
+     // when the scaling factor is relatively small (i.e. <= 3.0f) -- which is the case here.
+-    return Scalr.resize(ImageUtil.toBufferedImage(image), Scalr.Method.QUALITY, width, height);
++    return image;
+   }
+ 
+   @Nullable
+diff --git a/platform/util/src/com/intellij/util/JBHiDPIScaledImage.java b/platform/util/src/com/intellij/util/JBHiDPIScaledImage.java
+index b118382..c155643 100644
+--- a/platform/util/src/com/intellij/util/JBHiDPIScaledImage.java
++++ b/platform/util/src/com/intellij/util/JBHiDPIScaledImage.java
+@@ -17,7 +17,6 @@ package com.intellij.util;
+ 
+ import com.intellij.util.ui.ImageUtil;
+ import com.intellij.util.ui.JBUI;
+-import org.imgscalr.Scalr;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -142,7 +141,8 @@ public class JBHiDPIScaledImage extends BufferedImage {
+     int h = (int)(scaleFactor * getRealHeight(null));
+     if (w <= 0 || h <= 0) return this;
+ 
+-    Image scaled = Scalr.resize(ImageUtil.toBufferedImage(img), Scalr.Method.QUALITY, w, h);
++    // imgscalr is not available: do not actually scale (bootstrap build)
++    Image scaled = img;
+ 
+     double newUserWidth = w / this.myScale;
+     double newUserHeight = h / this.myScale;
+diff --git a/platform/util/src/com/intellij/util/RetinaImage.java b/platform/util/src/com/intellij/util/RetinaImage.java
+index 3c73aa2..b6e99bb 100644
+--- a/platform/util/src/com/intellij/util/RetinaImage.java
++++ b/platform/util/src/com/intellij/util/RetinaImage.java
+@@ -92,6 +92,6 @@ public class RetinaImage { // [tav] todo: create HiDPIImage class
+   }
+ 
+   public static boolean isAppleHiDPIScaledImage(Image image) {
+-    return UIUtil.isAppleRetina() && AppleHiDPIScaledImage.is(image);
++    return false;
+   }
+ }
+diff --git a/platform/util/src/com/intellij/util/text/DateFormatUtil.java b/platform/util/src/com/intellij/util/text/DateFormatUtil.java
+index b67a1d0..0a86a4f 100644
+--- a/platform/util/src/com/intellij/util/text/DateFormatUtil.java
++++ b/platform/util/src/com/intellij/util/text/DateFormatUtil.java
+@@ -21,8 +21,6 @@ import com.intellij.openapi.diagnostic.Logger;
+ import com.intellij.openapi.util.Clock;
+ import com.intellij.openapi.util.SystemInfo;
+ import com.intellij.openapi.util.text.StringUtil;
+-import com.intellij.ui.mac.foundation.Foundation;
+-import com.intellij.ui.mac.foundation.ID;
+ import com.sun.jna.Memory;
+ import com.sun.jna.Native;
+ import com.sun.jna.Pointer;
+@@ -366,34 +364,7 @@ public class DateFormatUtil {
+   }
+ 
+   private static boolean getMacFormats(DateFormat[] formats) {
+-    final int MacFormatterNoStyle = 0;
+-    final int MacFormatterShortStyle = 1;
+-    final int MacFormatterMediumStyle = 2;
+-    final int MacFormatterBehavior_10_4 = 1040;
+-
+-    ID autoReleasePool = Foundation.invoke("NSAutoreleasePool", "new");
+-    try {
+-      ID dateFormatter = Foundation.invoke("NSDateFormatter", "new");
+-      Foundation.invoke(dateFormatter, Foundation.createSelector("setFormatterBehavior:"), MacFormatterBehavior_10_4);
+-
+-      formats[0] = invokeFormatter(dateFormatter, MacFormatterNoStyle, MacFormatterShortStyle);  // short date
+-      formats[1] = invokeFormatter(dateFormatter, MacFormatterShortStyle, MacFormatterNoStyle);  // short time
+-      formats[2] = invokeFormatter(dateFormatter, MacFormatterMediumStyle, MacFormatterNoStyle);  // medium time
+-      formats[3] = invokeFormatter(dateFormatter, MacFormatterShortStyle, MacFormatterShortStyle);  // short date/time
+-
+-      return true;
+-    }
+-    finally {
+-      Foundation.invoke(autoReleasePool, Foundation.createSelector("release"));
+-    }
+-  }
+-
+-  private static DateFormat invokeFormatter(ID dateFormatter, int timeStyle, int dateStyle) {
+-    Foundation.invoke(dateFormatter, Foundation.createSelector("setTimeStyle:"), timeStyle);
+-    Foundation.invoke(dateFormatter, Foundation.createSelector("setDateStyle:"), dateStyle);
+-    String format = Foundation.toStringViaUTF8(Foundation.invoke(dateFormatter, Foundation.createSelector("dateFormat")));
+-    assert format != null;
+-    return new SimpleDateFormat(format.trim());
++    throw new UnsupportedOperationException();
+   }
+ 
+   private static boolean getUnixFormats(DateFormat[] formats) {
+diff --git a/platform/util/src/com/intellij/util/ui/IsRetina.java b/platform/util/src/com/intellij/util/ui/IsRetina.java
+index ec7d80a..6fa1667 100644
+--- a/platform/util/src/com/intellij/util/ui/IsRetina.java
++++ b/platform/util/src/com/intellij/util/ui/IsRetina.java
+@@ -15,25 +15,11 @@
+  */
+ package com.intellij.util.ui;
+ 
+-import apple.awt.CImage;
+ 
+ import java.awt.image.BufferedImage;
+ 
+ class IsRetina {
+   public static boolean isRetina() {
+-    try {
+-      final boolean[] isRetina = new boolean[1];
+-      new CImage.HiDPIScaledImage(1, 1, BufferedImage.TYPE_INT_ARGB) {
+-        @Override
+-        public void drawIntoImage(BufferedImage image, float v) {
+-          isRetina[0] = v > 1;
+-        }
+-      };
+-      return isRetina[0];
+-    }
+-    catch (Throwable e) {
+-      e.printStackTrace();
+       return false;
+-    }
+   }
+ }
+diff --git a/platform/util/src/com/intellij/util/ui/UIUtil.java b/platform/util/src/com/intellij/util/ui/UIUtil.java
+index 48459d2..a42a0ab 100644
+--- a/platform/util/src/com/intellij/util/ui/UIUtil.java
++++ b/platform/util/src/com/intellij/util/ui/UIUtil.java
+@@ -178,8 +178,7 @@ public class UIUtil {
+   }
+ 
+   public static Cursor getTextCursor(final Color backgroundColor) {
+-    return SystemInfo.isMac && ColorUtil.isDark(backgroundColor) ?
+-           MacUIUtil.getInvertedTextCursor() : Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR);
++    return Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR);
+   }
+ 
+   /**

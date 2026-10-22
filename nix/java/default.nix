@@ -281,6 +281,21 @@ lib.fix (self: {
     javaRelease = "1.6";
   };
 
+  # JetBrains' generified JDOM 1, as used by IntelliJ (source shipped in
+  # intellij-community as lib/src/jdom.zip).  Used for IntelliJ >= 173.
+  jdom-ij = mkJar {
+    pname = "jdom";
+    version = "1.1-ij";
+    src = fetchurl {
+      url = "https://raw.githubusercontent.com/JetBrains/intellij-community/bbdf7628cceffbbe21523f4a7e120ab7b18cca3a/lib/src/jdom.zip";
+      hash = "sha256-ylhp/1IcaSL4R/pwPN5bOOhrawgRNrjtCkHd1fsKens=";
+    };
+    unpackPhase = "mkdir src; cd src; unzip -q $src; cd ..";
+    postPatch = "rm -f src/org/jdom/xpath/JaxenXPath.java";
+    sourceDirs = [ "src" ];
+    javaRelease = "1.6";
+  };
+
   log4j-1 = mkJar {
     pname = "log4j";
     version = "1.2.17";

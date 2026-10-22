@@ -453,7 +453,9 @@ let
     "1.0.0-beta-5604" = same k."1.0.0-beta-5010" "1.0.0-beta-5604" p5604;
     "1.0.0-dev-162" = same k."1.0.0-beta-5604" "1.0.0-dev-162" p5604;
     "1.0.0" = same k."1.0.0-dev-162" "1.0.0" p5604;
-    "1.0.3-dev-184" = same k."1.0.0" "1.0.3-dev-184" p5604;
+    # Sources contain non-ASCII characters from here on (Guix builds in a
+    # UTF-8 locale).
+    "1.0.3-dev-184" = build (next k."1.0.0" "1.0.3-dev-184" p5604 { } // { utf8 = true; });
     "1.0.3-dev-371" = same k."1.0.3-dev-184" "1.0.3-dev-371" p5604;
 
     "1.1.0-dev-1023" =

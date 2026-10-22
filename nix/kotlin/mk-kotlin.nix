@@ -64,6 +64,11 @@ let
         done
         export CLASSPATH="$CLASSPATH$JAVA_HOME/lib/tools.jar"
         export ANT_OPTS="${cfg.antOpts or "-Xmx2g"}"
+        ${lib.optionalString (cfg.utf8 or false) ''
+          export LC_ALL=C.UTF-8
+          export ANT_OPTS="$ANT_OPTS -Dfile.encoding=UTF-8"
+          export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8"
+        ''}
         runHook postConfigure
       '';
 

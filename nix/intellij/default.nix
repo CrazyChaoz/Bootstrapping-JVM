@@ -27,6 +27,9 @@ let
       asm ? java.jetbrains-asm-5,
       coreDeps ? [ ],
       utilDeps ? [ ],
+      jdom ? java.jdom-1,
+      # From 173 on jps-model-api uses util (xmlb annotations)
+      jpsApiNeedsUtil ? false,
     }:
     let
       src = intellijSources.${version};
@@ -55,7 +58,7 @@ let
           deps = [
             java.cglib
             java.jakarta-oro
-            java.jdom-1
+            jdom
             java.log4j-1
             java.jna
             java.jna-platform
@@ -74,7 +77,7 @@ let
           patches = basePatches;
           sourceDirs = [ "jps/model-api/src" ];
           buildDeps = [ annotations ];
-          deps = [ self.util-rt ];
+          deps = [ self.util-rt ] ++ lib.optional jpsApiNeedsUtil self.util;
           javaRelease = newTarget;
         };
 
@@ -122,7 +125,7 @@ let
           ]
           ++ coreDeps;
           mergeJars = map (d: "${d}/share/java/${d.pname}.jar") [
-            java.jdom-1
+            jdom
             java.javax-inject
             self.jps-model-api
             self.jps-model-impl
@@ -244,6 +247,29 @@ in
       (p "sdk-core-172-remove-streamex.patch")
     ];
     utilRemove = macUi ++ [ "platform/util/src/com/intellij/util/SVGLoader.java" ];
+    utilDeps = [ java.iq80-snappy ];
+    coreDeps = [
+      java.cglib
+      java.guava-20
+    ];
+    target = "1.5";
+    newTarget = "1.8";
+    asm = java.jetbrains-asm-6;
+  };
+
+  # Not in TarCV: needed by Kotlin 1.2.31.  Starts from the 172 patch set.
+  "173" = mkSdk {
+    version = "173";
+    jdom = java.jdom-ij;
+    jpsApiNeedsUtil = true;
+    basePatches = [ ../../patches/own/sdk-173.patch ];
+    annotations = mkAnnotations "173";
+    utilPatches = [ ];
+    corePatches = [ ];
+    utilRemove = macUi ++ [
+      "platform/util/src/com/intellij/util/SVGLoader.java"
+      "platform/util/src/com/intellij/util/io/TarUtil.java"
+    ];
     utilDeps = [ java.iq80-snappy ];
     coreDeps = [
       java.cglib

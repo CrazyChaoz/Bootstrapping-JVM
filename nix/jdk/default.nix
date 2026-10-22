@@ -21,7 +21,7 @@ let
       override = _: asBootJdk jdk home;
     };
 
-  old = callPackage ./openjdk-9-10.nix { };
+  old = callPackage ./openjdk-own.nix { };
 
   mkOpenjdk =
     featureVersion: boot:
@@ -40,4 +40,14 @@ lib.fix (self: {
   openjdk9 = old.openjdk9 self.openjdk8;
   openjdk10 = old.openjdk10 self.openjdk9;
   openjdk11 = mkOpenjdk "11" (asBootJdk self.openjdk10 "${self.openjdk10}");
+  openjdk12 = old.openjdk12 self.openjdk11;
+  openjdk13 = old.openjdk13 self.openjdk12;
+  openjdk14 = old.openjdk14 self.openjdk13;
+  openjdk15 = old.openjdk15 self.openjdk14;
+  openjdk16 = old.openjdk16 self.openjdk15;
+  openjdk17 = mkOpenjdk "17" (asBootJdk self.openjdk16 "${self.openjdk16}");
+  openjdk18 = old.openjdk18 self.openjdk17;
+  openjdk19 = old.openjdk19 self.openjdk18;
+  openjdk20 = old.openjdk20 self.openjdk19;
+  openjdk21 = mkOpenjdk "21" (asBootJdk self.openjdk20 "${self.openjdk20}");
 })

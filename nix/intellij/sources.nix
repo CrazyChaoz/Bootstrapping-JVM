@@ -17,4 +17,8 @@
     rev = "refs/heads/172";
     hash = "sha256-4wZQe7HQJluM/2VYxbkUIQzsvND996SMx9mUMFTIzd8=";
   };
+  "173" = fetchIntellij {
+    rev = "refs/heads/173";
+    hash = "sha256-RI5v5/9Zq10zs+toDPvJhtz/dDXaJz99PqGr5ddPQkY=";
+  };
 }
