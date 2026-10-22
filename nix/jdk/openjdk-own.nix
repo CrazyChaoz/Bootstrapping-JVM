@@ -129,13 +129,20 @@ let
           [ -f $f ] && sed -i 's/__DATE__//; s/__TIME__//' $f
         done
         [ -f make/autoconf/generated-configure.sh ] && sed -i 's/-Werror//g' make/autoconf/generated-configure.sh || true
+      ''
+      + lib.optionalString (feature >= 12) ''
+        # glibc >= 2.42 declares uabs() in <stdlib.h>.
+        grep -rlw uabs src/hotspot | xargs -r sed -i 's/\buabs\b/hs_uabs/g'
+        # <sys/sysctl.h> was removed from glibc 2.32 (only used by jpackage on other OSes).
+        mkdir -p $TMPDIR/stubinc/sys && touch $TMPDIR/stubinc/sys/sysctl.h
       '';
 
       configurePhase = ''
         runHook preConfigure
         export HOME=$TMPDIR
         bash ./configure \
-          --with-extra-cflags="-fcommon -fno-delete-null-pointer-checks -fno-lifetime-dse -Wno-error=int-conversion" \
+          ${lib.optionalString (feature >= 12) ''--with-extra-cxxflags="-I$TMPDIR/stubinc"''} \
+          --with-extra-cflags="${lib.optionalString (feature >= 12) "-I$TMPDIR/stubinc "}-fcommon -fno-delete-null-pointer-checks -fno-lifetime-dse -Wno-error=int-conversion" \
           --with-boot-jdk=${bootJdk.home or bootJdk} \
           --with-freetype-include=${lib.getDev freetype}/include/freetype2 \
           --with-freetype-lib=${lib.getLib freetype}/lib \

@@ -591,6 +591,20 @@ let
         ln -s ${jar kotlinLibs.jline3} dependencies/jline3.jar
       '';
     };
+
+    "1.1.60" = step k."1.1.51" "1.1.60" [ ] { };
+    "1.2.0" = step k."1.1.60" "1.2.0" [ ] {
+      steps = ops.replace "ant-runtime" (antRuntime { fragment = ../../patches/own/runtime-targets-1.2.xml; });
+    };
+    "1.2.10" = step k."1.2.0" "1.2.10" [ ] {
+      steps = addLast "jvm-target-1.8" ''
+        sed -i -e 's|<compilerarg value="-version"/>|& <compilerarg line="-jvm-target 1.8"/>|' build.xml
+      '';
+    };
+    "1.2.21" = step k."1.2.10" "1.2.21" [ ] {
+      steps = ops.replace "ant-runtime" (antRuntime { fragment = ../../patches/own/runtime-targets-1.2.21.xml; });
+    };
+    "1.2.31" = step k."1.2.21" "1.2.31" [ ] { };
   });
 
   # Version independent replacements for the per-version patches of TarCV
