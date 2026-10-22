@@ -769,6 +769,179 @@ let
         '')
       ];
     };
+    "1.3.21" = step k."1.3.11" "1.3.21" [ ] {
+      steps = lib.flip lib.pipe [
+        (addLast "sdk-asm" ''
+          for f in ideaSDK/core/asm-6.0.jar ideaSDK/core/asm-all*.jar; do
+            ln -sf ${jar intellij."183".core.passthru.asm} $f
+          done
+        '')
+        (addLast "compiler-dirs" (compilerDirs [
+          "compiler/util/src"
+          "compiler/container/src"
+          "compiler/resolution/src"
+          "compiler/serialization/src"
+          "compiler/psi/src"
+          "compiler/frontend/src"
+          "compiler/frontend.java/src"
+          "compiler/frontend.script/src"
+          "compiler/cli/cli-common/src"
+          "compiler/daemon/daemon-common/src"
+          "compiler/daemon/src"
+          "compiler/ir/ir.tree/src"
+          "compiler/ir/ir.psi2ir/src"
+          "compiler/ir/backend.common/src"
+          "compiler/ir/backend.js/src"
+          "compiler/backend-common/src"
+          "compiler/backend/src"
+          "compiler/ir/backend.jvm/src"
+          "compiler/plugin-api/src"
+          "compiler/light-classes/src"
+          "compiler/cli/src"
+          "compiler/builtins-serializer/src"
+          "compiler/javac-wrapper/src"
+          "compiler/incremental-compilation-impl/src"
+          "js/js.ast/src"
+          "js/js.serializer/src"
+          "js/js.parser/src"
+          "js/js.frontend/src"
+          "js/js.translator/src"
+          "js/js.inliner/src"
+          "js/js.dce/src"
+          "build-common/src"
+          "core/metadata/src"
+          "core/metadata.jvm/src"
+          "core/descriptors/src"
+          "core/descriptors.jvm/src"
+          "core/deserialization/src"
+          "core/util.runtime/src"
+        ]))
+        (addLast "core-annotations" ''
+          # org.jetbrains.annotations for the core/reflection Java sources
+          sed -i 's|^<pathelement path="''${basedir}/lib/kotlin-annotations-jvm.jar"/>|&\n<pathelement path="''${basedir}/ideaSDK/core/intellij-annotations.jar"/>|' build.xml
+          grep -c 'core/intellij-annotations.jar"/>' build.xml
+        '')
+        (addLast "resources-dirs" ''
+          sed -i 's|<arg value="-Xuse-experimental=kotlin.contracts.ExperimentalContracts"/>|&\n            <arg value="-Xcommon-sources=libraries/kotlin.test/annotations-common/src/main/kotlin,libraries/kotlin.test/common/src/main/kotlin"/>|' build.xml
+          sed -i 's|<fileset dir="idea/src">|<fileset dir="idea/resources">|' build.xml
+          # kotlin-reflect.jar
+          perl -pi -e 's|^(\s*)<fileset dir="\$\{basedir\}/(core/[^"/]+)/src" includes="META-INF/services/\*\*"/>|$&\n$1<fileset dir="\$\{basedir\}/$2/resources" includes="META-INF/services/**"/>|' build.xml
+        '')
+      ];
+      inputs =
+        i:
+        i
+        // {
+          inherit (intellij."183") annotations javac2 core jps-model-impl;
+        };
+    };
+    "1.3.31" = step k."1.3.21" "1.3.31" [ ] {
+      steps = ops.replace "compiler-dirs" (compilerDirs [
+          "compiler/util/src"
+          "compiler/container/src"
+          "compiler/resolution/src"
+          "compiler/serialization/src"
+          "compiler/psi/src"
+          "compiler/frontend/src"
+          "compiler/frontend.common/src"
+          "compiler/frontend.java/src"
+          "compiler/frontend.script/src"
+          "compiler/cli/cli-common/src"
+          "compiler/daemon/daemon-common/src"
+          "compiler/daemon/src"
+          "compiler/ir/ir.tree/src"
+          "compiler/ir/ir.psi2ir/src"
+          "compiler/ir/backend.common/src"
+          "compiler/ir/backend.jvm/src"
+          "compiler/ir/backend.js/src"
+          "compiler/backend-common/src"
+          "compiler/backend/src"
+          "compiler/plugin-api/src"
+          "compiler/light-classes/src"
+          "compiler/cli/src"
+          "compiler/builtins-serializer/src"
+          "compiler/javac-wrapper/src"
+          "compiler/incremental-compilation-impl/src"
+          "js/js.ast/src"
+          "js/js.serializer/src"
+          "js/js.parser/src"
+          "js/js.frontend/src"
+          "js/js.translator/src"
+          "js/js.inliner/src"
+          "js/js.dce/src"
+          "build-common/src"
+          "core/metadata/src"
+          "core/metadata.jvm/src"
+          "core/descriptors/src"
+          "core/descriptors.jvm/src"
+          "core/deserialization/src"
+          "core/util.runtime/src"
+      ]);
+    };
+    "1.3.41" = step k."1.3.31" "1.3.41" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "sdk-asm" ''
+          for f in ideaSDK/core/asm-6.0.jar ideaSDK/core/asm-all*.jar; do
+            ln -sf ${jar intellij."191".core.passthru.asm} $f
+          done
+        '')
+        (ops.replace "compiler-dirs" (compilerDirs [
+          "compiler/util/src"
+          "compiler/container/src"
+          "compiler/resolution/src"
+          "compiler/serialization/src"
+          "compiler/psi/src"
+          "compiler/frontend/src"
+          "compiler/frontend.common/src"
+          "compiler/frontend.java/src"
+          "compiler/cli/cli-common/src"
+          "compiler/daemon/daemon-common/src"
+          "compiler/daemon/src"
+          "compiler/ir/ir.tree/src"
+          "compiler/ir/ir.psi2ir/src"
+          "compiler/ir/backend.common/src"
+          "compiler/ir/backend.jvm/src"
+          "compiler/ir/backend.js/src"
+          "compiler/ir/serialization.common/src"
+          "compiler/ir/serialization.js/src"
+          "compiler/backend-common/src"
+          "compiler/backend/src"
+          "compiler/plugin-api/src"
+          "compiler/light-classes/src"
+          "compiler/cli/src"
+          "compiler/builtins-serializer/src"
+          "compiler/javac-wrapper/src"
+          "compiler/incremental-compilation-impl/src"
+          "js/js.ast/src"
+          "js/js.serializer/src"
+          "js/js.parser/src"
+          "js/js.frontend/src"
+          "js/js.translator/src"
+          "js/js.inliner/src"
+          "js/js.dce/src"
+          "build-common/src"
+          "core/metadata/src"
+          "core/metadata.jvm/src"
+          "core/descriptors/src"
+          "core/descriptors.jvm/src"
+          "core/deserialization/src"
+          "core/util.runtime/src"
+          "core/type-system/src"
+          "compiler/fir/cones/src"
+          "compiler/fir/resolve/src"
+          "compiler/fir/tree/src"
+          "compiler/fir/tree/visitors"
+          "compiler/fir/psi2fir/src"
+          "compiler/fir/fir2ir/src"
+        ]))
+      ];
+      inputs =
+        i:
+        i
+        // {
+          inherit (intellij."191") annotations javac2 core jps-model-impl;
+        };
+    };
   });
 
   # Version independent replacements for the per-version patches of TarCV
@@ -861,6 +1034,27 @@ let
     (cd dependencies/fresh-stdlib && $JAVA_HOME/bin/jar cf ../kotlin-stdlib-fresh.jar .)
     antFlagsExtra+=" -Dbootstrap.runtime=$PWD/dependencies/kotlin-stdlib-fresh.jar"
   '';
+
+  # Replace the compiler source dirs of the restored build.xml (and the
+  # service descriptors packed into the compiler jar) by `dirs`, the
+  # `compilerModules` of the version's Gradle build (tools/kotlin-modules).
+  compilerDirs =
+    dirs:
+    let
+      list = lib.concatMapStrings (d: "${d}\n") dirs;
+    in
+    ''
+      cat > compiler-dirs.txt <<'EOF'
+      ${list}EOF
+      for d in $(cat compiler-dirs.txt); do [ -d $d ] || { echo "compiler-dirs: $d missing"; exit 1; }; done
+      DIRS=compiler-dirs.txt perl -0pi -e '
+        BEGIN { open F, "<", $ENV{DIRS}; @d = grep { /\S/ } split /\s+/, do { local $/; <F> } }
+        s{(<dirset id="compilerSources.dirset" dir="\$\{basedir\}/">).*?(</dirset>)}{$1 . join("", map { "\n        <include name=\"$_\"/>" } @d) . "\n    $2"}se;
+        # resources moved from src/ to resources/ (1.3.20)
+        @r = map { ($_, s{/[^/]+$}{/resources}r) } @d;
+        s{(\s*<fileset dir="\$\{basedir\}/[^"]+" includes="META-INF/services/\*\*"/>)+}{join("", map { "\n                <fileset dir=\"\$\{basedir\}/$_\" includes=\"META-INF/services/**\" erroronmissingdir=\"false\"/>" } @r)}se;
+      ' build.xml
+    '';
 
   # Kotlin 1.3.0's stdlib compiled with 1.2.71, which has the 1.3 language
   # features as unstable ones and whose release coroutines codegen still

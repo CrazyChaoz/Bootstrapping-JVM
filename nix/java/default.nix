@@ -208,6 +208,9 @@ lib.fix (self: {
           sed -i 's|^  int ASM7 = 7 << 16 \| 0 << 8;|&\n  int API_VERSION = ASM7; //[JB: convenience constant]|' asm/src/main/java/org/objectweb/asm/Opcodes.java
           sed -i 's|if (checkClassVersion && readShort(classFileOffset + 6) > Opcodes.V12)|if (false)|' asm/src/main/java/org/objectweb/asm/ClassReader.java
           grep -q API_VERSION asm/src/main/java/org/objectweb/asm/Opcodes.java
+          # JetBrains' coverage fix: the label node wraps the label (Kotlin's codegen relies on it)
+          sed -i 's|label.info = new LabelNode();|label.info = new LabelNode(label);|' asm-tree/src/main/java/org/objectweb/asm/tree/MethodNode.java
+          grep -q 'new LabelNode(label)' asm-tree/src/main/java/org/objectweb/asm/tree/MethodNode.java
         '';
       });
   asm-6 = self.mkAsm {
