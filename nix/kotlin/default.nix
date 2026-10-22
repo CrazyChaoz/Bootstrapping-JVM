@@ -744,6 +744,31 @@ let
         '')
       ];
     };
+    "1.3.11" = step k."1.3.0" "1.3.11" [ ] {
+      steps = lib.flip lib.pipe [
+        # the 1.3.0 stdlib has all the compiler needs
+        (ops.delete "fresh-stdlib")
+        (ops.replace "no-coroutines-in-compiler" ''
+          # no kotlinx.coroutines: block on the coroutine
+          f=compiler/frontend.script/src/org/jetbrains/kotlin/script/AsyncDependencyResolverWrapper.kt
+          sed -i 's|^import kotlinx.coroutines.runBlocking|import kotlin.coroutines.*|' $f
+          perl -0pi -e 's/\)\: DependenciesResolver\.ResolveResult\s*= runBlocking \{ (delegate\.resolveAsync\(scriptContents, environment\)) \}/): DependenciesResolver.ResolveResult {
+                  val latch = java.util.concurrent.CountDownLatch(1)
+                  var res: DependenciesResolver.ResolveResult? = null
+                  var error: Throwable? = null
+                  val block: suspend () -> DependenciesResolver.ResolveResult = { $1 }
+                  block.startCoroutine(Continuation(EmptyCoroutineContext) { r -> r.fold({ res = it }, { error = it }); latch.countDown() })
+                  latch.await()
+                  error?.let { throw it }
+                  return res!!
+              }/s' $f
+          ! grep -n runBlocking $f
+          # the effect system takes a local `fun equals(other: Any?)` for Any.equals (crash)
+          sed -i -e 's/    fun equals(other: Any?): Boolean =/    fun equalsImpl(other: Any?): Boolean =/' -e 's/-> equals(args.single())/-> equalsImpl(args.single())/' \
+            core/reflection.jvm/src/kotlin/reflect/jvm/internal/calls/AnnotationConstructorCaller.kt
+        '')
+      ];
+    };
   });
 
   # Version independent replacements for the per-version patches of TarCV
