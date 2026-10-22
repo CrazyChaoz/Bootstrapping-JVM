@@ -1212,6 +1212,197 @@ let
           inherit (intellij."193") annotations javac2 core jps-model-impl;
         };
     };
+    "1.4.0-M1" = step k."1.3.72" "1.4.0-M1" [ ] {
+      steps = lib.flip lib.pipe [
+        (addLast "language-1.4" ''
+          sed -i -e 's|<compilerarg value="-version"/>|& <compilerarg line="-language-version 1.4 -api-version 1.3"/>|' build.xml
+          grep -q 'language-version 1.4' build.xml
+        '')
+        (addLast "incremental-module-entry" ''
+          sed -i 's|org.jetbrains.kotlin.daemon.common.IncrementalModuleEntry|org.jetbrains.kotlin.incremental.IncrementalModuleEntry|' \
+            compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/multiproject/ModulesApiHistory.kt
+        '')
+        (addLast "no-fir" noFir)
+        (ops.replace "compiler-dirs" (compilerDirs [
+          "compiler/util/src"
+          "compiler/container/src"
+          "compiler/resolution/src"
+          "compiler/serialization/src"
+          "compiler/psi/src"
+          "compiler/frontend/src"
+          "compiler/frontend.common/src"
+          "compiler/frontend.java/src"
+          "compiler/cli/cli-common/src"
+          "compiler/ir/ir.tree/src"
+          "compiler/ir/ir.psi2ir/src"
+          "compiler/ir/backend.common/src"
+          "compiler/ir/backend.jvm/src"
+          "compiler/ir/backend.js/src"
+          "compiler/ir/serialization.common/src"
+          "compiler/ir/serialization.js/src"
+          "compiler/backend-common/src"
+          "compiler/backend/src"
+          "compiler/plugin-api/src"
+          "compiler/light-classes/src"
+          "compiler/cli/src"
+          "compiler/builtins-serializer/src"
+          "compiler/javac-wrapper/src"
+          "compiler/incremental-compilation-impl/src"
+          "js/js.ast/src"
+          "js/js.serializer/src"
+          "js/js.parser/src"
+          "js/js.frontend/src"
+          "js/js.translator/src"
+          "js/js.inliner/src"
+          "js/js.dce/src"
+          "build-common/src"
+          "core/metadata/src"
+          "core/metadata.jvm/src"
+          "core/descriptors/src"
+          "core/descriptors.jvm/src"
+          "core/deserialization/src"
+          "core/util.runtime/src"
+          "core/type-system/src"
+          "compiler/cli/cli-js/src"
+          "compiler/ir/serialization.jvm/src"
+          "compiler/util-io/src"
+          "compiler/util-klib/src"
+          "compiler/util-klib-metadata/src"
+          "compiler/ir/backend.wasm/src"
+          "core/descriptors.runtime/src"
+          "native/frontend/src"
+        ]))
+      ];
+    };
+    "1.4.0" = step k."1.3.72" "1.4.0" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "inference-fixes" ''
+          sed -i 's|types.reduce { left: SimpleType?, right: SimpleType? -> fold(left, right, mode) }|types.reduce<SimpleType?, SimpleType> { left, right -> fold(left, right, mode) }|' \
+            core/descriptors/src/org/jetbrains/kotlin/resolve/constants/IntegerLiteralTypeConstructor.kt
+          grep -q 'reduce<SimpleType?' core/descriptors/src/org/jetbrains/kotlin/resolve/constants/IntegerLiteralTypeConstructor.kt
+        '')
+        (addLast "mixed-named-args" ''
+          # 1.4 language feature "named arguments in their own position" is not known to the 1.3.61 compiler: drop the names
+          d() { perl -0pi -e "$1" "$2"; }
+          d 's/shouldCheckExpectActual = false,(\s+dependenciesContainer)/false,$1/' compiler/cli/cli-common/src/org/jetbrains/kotlin/analyzer/common/CommonResolverForModuleFactory.kt
+          f=compiler/fir/lightTree/src/org/jetbrains/kotlin/fir/lightTree/converter/DeclarationsConverter.kt
+          d 's/source = null,(\s+ConeClassLikeTypeImpl\()/null,$1/; s/member = (false|parentNode\?\.tokenType != KT_FILE), stubMode/$1, stubMode/g' $f
+          f=compiler/fir/psi2fir/src/org/jetbrains/kotlin/fir/builder/RawFirBuilder.kt
+          d 's/member = (false|!property\.isTopLevel), stubMode/$1, stubMode/g' $f
+          f=compiler/fir/resolve/src/org/jetbrains/kotlin/fir/FirCallResolver.kt
+          d 's/explicitReceiver = null,(\s+delegatedConstructorCall\.arguments,\s+)isSafeCall = false,(\s+)typeArguments = typeArguments,/null,$1false,$2typeArguments,/; s/dispatchReceiverValue = null,(\s+)implicitExtensionReceiverValue = null,(\s+ExplicitReceiverKind)/null,$1null,$2/' $f
+          f=compiler/fir/resolve/src/org/jetbrains/kotlin/fir/scopes/impl/FirIntegerLiteralTypeScope.kt
+          d 's/source = null,(\s+session,)/null,$1/g; s/receiverTypeRef = null,(\s+ALL_OPERATORS)/null,$1/' $f
+          d 's/isErrorTypeEqualsToAnything = false, isStubTypeEqualsToAnything = false, /false, false, /' compiler/fir/resolve/src/org/jetbrains/kotlin/fir/scopes/impl/FirSuperTypeScope.kt
+          d 's/isErrorTypeEqualsToAnything = false, isStubTypeEqualsToAnything = false, /false, false, /' compiler/fir/resolve/src/org/jetbrains/kotlin/fir/SessionUtils.kt
+          d 's/argumentName = null,(\s+outerCallContext)/null,$1/' compiler/frontend/src/org/jetbrains/kotlin/resolve/calls/tower/KotlinResolutionCallbacksImpl.kt
+          d 's/forceToSkipNullabilityAnnotation = false,(\s+methodIndex\n    \))/false,$1/' compiler/light-classes/src/org/jetbrains/kotlin/asJava/classes/ultraLightMethods.kt
+          d 's/hasBoundExtensionReceiver = (candidate\.extensionReceiver != null,)/$1/' compiler/resolution/src/org/jetbrains/kotlin/resolve/calls/components/CallableReferenceResolver.kt
+          d 's/topLevelType = null, context/null, context/' compiler/resolution/src/org/jetbrains/kotlin/resolve/calls/inference/components/VariableFixationFinder.kt
+        '')
+        (addLast "compiler-crashes" ''
+          # the 1.3.72 compiler crashes in common supertype calculation ("Expected some types") on this
+          f=compiler/fir/java/src/org/jetbrains/kotlin/fir/java/deserialization/KotlinDeserializedJvmSymbolsProvider.kt
+          cat > new-alias.txt <<'EOF'
+              private fun findAndDeserializeTypeAlias(classId: ClassId): FirTypeAliasSymbol? {
+                  if (!classId.relativeClassName.isOneSegmentFQN()) return null
+                  if (typeAliasCache.containsKey(classId)) return typeAliasCache[classId]
+                  var result: FirTypeAliasSymbol? = null
+                  for (part in getPackageParts(classId.packageFqName)) {
+                      val ids = part.typeAliasNameIndex[classId.shortClassName]
+                      if (ids == null || ids.isEmpty()) continue
+                      val aliasProto = ids.map { part.proto.getTypeAlias(it) }.single()
+                      result = part.context.memberDeserializer.loadTypeAlias(aliasProto).symbol
+                      break
+                  }
+                  typeAliasCache[classId] = result
+                  return result
+              }
+
+          EOF
+          F=$f perl -0pi -e 'BEGIN { local $/; open N, "<", "new-alias.txt"; $n = <N> } s/    private fun findAndDeserializeTypeAlias\(.*?\n    \}\n\n(?=    private fun KotlinJvmBinaryClass\.readClassDataFrom)/$n/s' $f
+          grep -q 'var result: FirTypeAliasSymbol' $f
+        '')
+        (addLast "language-1.4" ''
+          sed -i -e 's|<compilerarg value="-version"/>|& <compilerarg line="-language-version 1.4 -api-version 1.3"/>|' build.xml
+          grep -q 'language-version 1.4' build.xml
+        '')
+        (addLast "no-fir" ''
+          # FIR (experimental front end) needs fun interfaces and kotlinx.collections.immutable: leave it out
+          f=compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
+          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\..*\n//mg; s/(    private fun compileModulesUsingFrontendIR\([^\n]*\): Boolean) \{.*?\n(?=    private fun getBuildFilePaths)/$1 =\n        throw UnsupportedOperationException("FIR is not part of the bootstrap build")\n\n/s' $f
+          grep -q 'not part of the bootstrap build' $f
+          ! grep -q 'kotlin\.fir\.' $f
+        '')
+        (ops.replace "ant-runtime" (antRuntime { fragment = ../../patches/own/runtime-targets-1.4.0.xml; }))
+        (addLast "fresh-stdlib" freshStdlib14)
+        (ops.replace "sdk-asm" ''
+          for f in ideaSDK/core/asm-6.0.jar ideaSDK/core/asm-all*.jar; do
+            ln -sf ${jar intellij."193".core.passthru.asm} $f
+          done
+        '')
+        (ops.replace "compiler-dirs" (compilerDirs [
+          "build-common/src"
+          "compiler/backend-common/src"
+          "compiler/backend/src"
+          "compiler/builtins-serializer/src"
+          "compiler/cli/cli-common/src"
+          "compiler/cli/cli-js/src"
+          "compiler/cli/src"
+          "compiler/compiler.version/src"
+          "compiler/config.jvm/src"
+          "compiler/config/src"
+          "compiler/container/src"
+          "compiler/frontend.common/src"
+          "compiler/frontend.java/src"
+          "compiler/frontend/src"
+          "compiler/incremental-compilation-impl/src"
+          "compiler/ir/backend.common/src"
+          "compiler/ir/backend.js/src"
+          "compiler/ir/backend.jvm/src"
+          "compiler/ir/backend.wasm/src"
+          "compiler/ir/ir.psi2ir/src"
+          "compiler/ir/ir.tree/src"
+          "compiler/ir/serialization.common/src"
+          "compiler/ir/serialization.js/src"
+          "compiler/ir/serialization.jvm/src"
+          "compiler/javac-wrapper/src"
+          "compiler/light-classes/src"
+          "compiler/plugin-api/src"
+          "compiler/psi/src"
+          "compiler/resolution/src"
+          "compiler/serialization/src"
+          "compiler/util/src"
+          "core/descriptors.jvm/src"
+          "core/descriptors.runtime/src"
+          "core/descriptors/src"
+          "core/deserialization/src"
+          "core/metadata.jvm/src"
+          "core/metadata/src"
+          "core/type-system/src"
+          "core/util.runtime/src"
+          "js/js.ast/src"
+          "js/js.config/src"
+          "js/js.dce/src"
+          "js/js.frontend/src"
+          "js/js.inliner/src"
+          "js/js.parser/src"
+          "js/js.serializer/src"
+          "js/js.translator/src"
+          "native/utils/src"
+          "compiler/util-io/src"
+          "compiler/util-klib/src"
+          "native/frontend/src"
+          "compiler/util-klib-metadata/src"
+        ]))
+      ];
+      inputs =
+        i:
+        i
+        // {
+          inherit (intellij."193") annotations javac2 core jps-model-impl;
+        };
+    };
   });
 
   # Version independent replacements for the per-version patches of TarCV
@@ -1377,6 +1568,35 @@ let
       antFlagsExtra+=" -Dbootstrap.runtime=$PWD/dependencies/kotlin-stdlib-fresh.jar"
     '';
   fresh = d: if lib.hasPrefix "libraries/stdlib/" d then "fresh-stdlib-src/" + lib.removePrefix "libraries/stdlib/" d else d;
+
+  # Kotlin 1.4's stdlib compiled by 1.3.72 (language version 1.4), to compile
+  # the compiler against: it uses stdlib API that is new in 1.4.
+  freshStdlib14 = ''
+    mkdir -p dependencies/fresh-stdlib dependencies/prev-builtins
+    unzip -q "$BOOTSTRAP/lib/kotlin-stdlib.jar" 'kotlin/*.kotlin_builtins' -d dependencies/prev-builtins
+    $JAVA_HOME/bin/java -Xmx3g -cp "$BOOTSTRAP/lib/kotlin-compiler.jar" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+      -no-stdlib -cp dependencies/prev-builtins -Xallow-kotlin-package -Xallow-result-return-type -Xmultifile-parts-inherit -Xmulti-platform \
+      -language-version 1.4 -api-version 1.4 -Xnormalize-constructor-calls=enable -module-name kotlin-stdlib \
+      -Xopt-in=kotlin.RequiresOptIn -Xopt-in=kotlin.ExperimentalMultiplatform -Xopt-in=kotlin.ExperimentalUnsignedTypes \
+      -Xopt-in=kotlin.contracts.ExperimentalContracts -XXLanguage:+InlineClasses \
+      -Xcommon-sources=libraries/stdlib/common/src,libraries/stdlib/src,libraries/stdlib/unsigned/src \
+      -d dependencies/fresh-stdlib core/builtins/src libraries/stdlib/jvm/runtime libraries/stdlib/jvm/src \
+      libraries/stdlib/common/src libraries/stdlib/src libraries/stdlib/unsigned/src
+    find core/builtins/src libraries/stdlib/jvm/runtime libraries/stdlib/jvm/src -name '*.java' > fresh-stdlib.txt
+    $JAVA_HOME/bin/javac -nowarn -d dependencies/fresh-stdlib -cp dependencies/fresh-stdlib @fresh-stdlib.txt
+    cp -r dependencies/prev-builtins/kotlin/. dependencies/fresh-stdlib/kotlin/
+    (cd dependencies/fresh-stdlib && $JAVA_HOME/bin/jar cf ../kotlin-stdlib-fresh.jar .)
+    antFlagsExtra+=" -Dbootstrap.runtime=$PWD/dependencies/kotlin-stdlib-fresh.jar"
+  '';
+
+  # FIR (experimental front end) needs fun interfaces and kotlinx.collections.immutable: leave it out
+  noFir = ''
+    f=compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
+    perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\..*\n//mg; s/(    private fun compileModulesUsingFrontendIR\([^\n]*\): Boolean) \{.*?\n(?=    private fun getBuildFilePaths)/$1 =\n        throw UnsupportedOperationException("FIR is not part of the bootstrap build")\n\n/s' $f
+    grep -q 'not part of the bootstrap build' $f
+    ! grep -q 'kotlin\.fir\.' $f
+    sed -i '/org\.jetbrains\.kotlin\.fir\./d' compiler/cli/resources/META-INF/services/org.jetbrains.kotlin.diagnostics.rendering.DefaultErrorMessages\$Extension
+  '';
 
   # Relocate the compiler core classes in kotlin-reflect.jar and strip their
   # Kotlin metadata, as upstream does (otherwise compiling the next compiler

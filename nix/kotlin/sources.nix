@@ -104,6 +104,10 @@
   "1.3.50" = fetchKotlin { rev = "v1.3.50"; hash = "sha256-1oI2ZVRG3ppfYy1U38ZcfdTNIYivNADp4yMIAzNX/zY="; };
   "1.3.61" = fetchKotlin { rev = "v1.3.61"; hash = "sha256-1k4ei2Io/iLTeKt39k9ozESayaxpg4hiFTSn3gtkVNM="; };
   "1.3.72" = fetchKotlin { rev = "v1.3.72"; hash = "sha256-4FzX4q7l3aSKZUlsH7aek30nfY1G+FpGdJLKV90uGTM="; };
+  "1.4.0-M1" = fetchKotlin { rev = "v1.4-M1"; hash = "sha256-J4wzRA8kLgzEKxCLfn0u39hrePxrHi5et0SKv+J41fk="; };
+  "1.4.0-M2" = fetchKotlin { rev = "v1.4-M2"; hash = "sha256-aamgqE9cj/AqEl+1kl4dHmKzLF4HnyRZgudU50Z0FTg="; };
+  "1.4.0-M3" = fetchKotlin { rev = "v1.4-M3"; hash = "sha256-u72GvxnuqBE7ECbrTSD1/Z0yXM9ZkiY6wVT6Kgv5uiY="; };
+  "1.4.0-rc" = fetchKotlin { rev = "v1.4.0-rc"; hash = "sha256-HV6zvFyck1qRDJXfATWyyVw0b+1xMnPsuE5DHEvn6cA="; };
   "1.4.0" = fetchKotlin { rev = "v1.4.0"; hash = "sha256-CNoutQkICOHnT3MzEdjd1pmcUd35aP2gsAsehmqCpjY="; };
   "1.4.10" = fetchKotlin { rev = "v1.4.10"; hash = "sha256-0UKSbB0kgtwNax/yX7E4IO2FPmtK+tv2V7/yPTapTkQ="; };
   "1.4.21" = fetchKotlin { rev = "v1.4.21"; hash = "sha256-wof3p2mcHbSgbCh/7IzZ8kthqB0wK49Lr/Ef2F5j0xA="; };
