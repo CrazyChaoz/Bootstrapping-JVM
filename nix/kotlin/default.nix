@@ -619,6 +619,38 @@ let
           inherit (intellij."181") annotations javac2 core jps-model-impl;
         };
     };
+
+    # build.xml was removed from the repository in 1.2.40: reuse that of 1.2.31.
+    "1.2.40" = step k."1.2.31" "1.2.40" [ ] {
+      steps = s: [
+        {
+          name = "restore-build-xml";
+          script = ''
+            cp ${kotlinSources."1.2.31"}/build.xml ${kotlinSources."1.2.31"}/common.xml .
+            chmod u+w build.xml common.xml
+            # new modules since 1.2.31
+            sed -i -e 's|<include name="core/deserialization/src"/>|& <include name="core/metadata/src"/> <include name="core/metadata.jvm/src"/> <include name="compiler/psi/src"/>|' \
+              -e 's|<fileset dir="core/deserialization/src"/>|& <fileset dir="core/metadata/src"/> <fileset dir="core/metadata.jvm/src"/> <fileset dir="compiler/psi/src"/>|' build.xml
+          '';
+        }
+      ]
+      ++ (lib.flip lib.pipe [
+        (ops.replace "ant-runtime" (antRuntime { fragment = ../../patches/own/runtime-targets-1.2.40.xml; }))
+        (addLast "compiler-xml-location-1.2.40" ''
+          # compiler.xml is back in idea/src
+          sed -i 's|<fileset dir="compiler/cli/src">|<fileset dir="idea/src">|' build.xml
+        '')
+      ] s);
+    };
+
+    "1.2.41" = step k."1.2.40" "1.2.41" [ ] { };
+    "1.2.50" = step k."1.2.41" "1.2.50" [ ] { };
+    "1.2.51" = step k."1.2.50" "1.2.51" [ ] { };
+    "1.2.60" = step k."1.2.51" "1.2.60" [ ] { };
+    "1.2.61" = step k."1.2.60" "1.2.61" [ ] { };
+    "1.2.70" = step k."1.2.61" "1.2.70" [ ] { };
+    "1.2.71" = step k."1.2.70" "1.2.71" [ ] { };
+    "1.3.0" = step k."1.2.71" "1.3.0" [ ] { };
   });
 
   # Version independent replacements for the per-version patches of TarCV
