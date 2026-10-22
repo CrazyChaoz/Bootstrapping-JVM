@@ -150,7 +150,7 @@ let
           --x-libraries=${lib.getLib xorg.libX11}/lib \
           --with-cups=${lib.getDev cups} \
           --with-alsa=${lib.getDev alsa-lib} \
-          --with-fontconfig=${lib.getDev fontconfig} \
+          ${lib.optionalString (feature >= 10) "--with-fontconfig=${lib.getDev fontconfig}"} \
           --prefix=$out
         runHook postConfigure
       '';

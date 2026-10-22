@@ -97,6 +97,81 @@ let
       javaRelease = "1.8";
     };
 
+    # JavaCC is written with JavaCC.  Seed: the Maven sources jar of 7.0.4,
+    # which contains the generated parsers as plain Java; then JavaCC is
+    # rebuilt from git with the seed, regenerating them from the grammars.
+    javacc-seed = mkJar {
+      pname = "javacc";
+      version = "7.0.4-seed";
+      src = fetchzip {
+        url = "https://repo1.maven.org/maven2/net/java/dev/javacc/javacc/7.0.4/javacc-7.0.4-sources.jar";
+        hash = "sha256-rumrnr144u61SIiqTTzFpv/7twGiEE3DzKpHHONsEx4=";
+        extension = "zip";
+      };
+      postPatch = "rm -rf bin; find . -name '*.class' -delete";
+      sourceDirs = [
+        "src/main/java"
+        "src/main/generated-sources"
+      ];
+      resourceDirs = [ "src/main/resources" ];
+      javaRelease = "1.8";
+    };
+
+    javacc = stdenv.mkDerivation {
+      pname = "javacc";
+      version = "7.0.4";
+      src = gh "javacc" "javacc" "7.0.4" "sha256-MfXuyBA7/OUnmVzETEREWYIHADb+ZVlEfiOp9sZUc6I=";
+      nativeBuildInputs = [
+        jdk
+        ant
+        stripJavaArchivesHook
+      ];
+      postPatch = "rm -rf bootstrap lib";
+      buildPhase = ''
+        ant -Dbootstrap-jar=${s.javacc-seed}/share/java/javacc.jar jar
+      '';
+      installPhase = ''
+        install -Dm644 target/javacc.jar $out/share/java/javacc.jar
+        mkdir -p $out/bin
+        printf '#!/bin/sh\nexec ${jdk}/bin/java -cp %s/share/java/javacc.jar "$(basename "$0")" "$@"\n' $out > $out/bin/javacc
+        chmod +x $out/bin/javacc
+      '';
+    };
+
+    javaparser-core = mkJar {
+      pname = "javaparser-core";
+      version = "3.16.1";
+      src = gh "javaparser" "javaparser" "javaparser-parent-3.16.1" "sha256-aVfF9+pxnSUIUtCCa4AI0t2dxgGqbeSBcmEo50SYkqg=";
+      nativeBuildInputs = [ s.javacc ];
+      preBuild = ''
+        cd javaparser-core/src/main
+        cp java-templates/com/github/javaparser/JavaParserBuild.java java/com/github/javaparser/
+        sed -i -e 's/''${project.version}/3.16.1/; s/''${project.name}/javaparser/' \
+               -e 's/''${project.build.finalName}/javaparser/; s/''${[a-z.]*}/unknown/g' \
+               java/com/github/javaparser/JavaParserBuild.java
+        (cd java && java -cp ${s.javacc}/share/java/javacc.jar javacc ../javacc/java.jj)
+        cp -r javacc-support/. java/
+        cd -
+      '';
+      sourceDirs = [ "javaparser-core/src/main/java" ];
+      javaRelease = "1.8";
+    };
+
+    qdox-1_12 = mkJar {
+      pname = "qdox";
+      version = "1.12.1";
+      src = fetchzip {
+        url = "https://repo1.maven.org/maven2/com/thoughtworks/qdox/qdox/1.12.1/qdox-1.12.1-sources.jar";
+        hash = "sha256-YKtNKPhgGGccxc3cbIbQJujlhSonf/q9pF6Fzsf+isc=";
+        stripRoot = false;
+        extension = "zip";
+      };
+      postPatch = "rm -rf com/thoughtworks/qdox/junit";
+      sourceDirs = [ "." ];
+      deps = [ ant ];
+      javaRelease = "1.8";
+    };
+
     deps = [
       antlr.antlr2
       antlr.tvl-antlr4-runtime
@@ -251,10 +326,26 @@ let
     groovy-dateutil = s.subproject "groovy-dateutil" { };
     groovy-sql = s.subproject "groovy-sql" { };
     groovy-astbuilder = s.subproject "groovy-astbuilder" { };
+    groovy-docgenerator = s.subproject "groovy-docgenerator" {
+      deps = [
+        s.groovy-templates
+        s.groovy-xml
+        s.qdox-1_12
+      ];
+    };
+    groovy-groovydoc = s.subproject "groovy-groovydoc" {
+      deps = [
+        s.groovy-templates
+        s.groovy-xml
+        s.groovy-docgenerator
+        s.javaparser-core
+      ];
+    };
     groovy-ant = s.subproject "groovy-ant" {
       deps = [
         ant
         s.groovy-xml
+        s.groovy-groovydoc
         java.junit4
       ];
       preBuild = s.removeFindbugs "subprojects/groovy-ant";
