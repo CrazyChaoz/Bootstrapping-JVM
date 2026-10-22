@@ -1035,6 +1035,88 @@ let
         ]))
       ];
     };
+    "1.3.61" = step k."1.3.50" "1.3.61" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "inference-fixes" ''
+          sed -i 's|types.reduce { left: SimpleType?, right: SimpleType? -> fold(left, right, mode) }|types.reduce<SimpleType?, SimpleType> { left, right -> fold(left, right, mode) }|' \
+            core/descriptors/src/org/jetbrains/kotlin/resolve/constants/IntegerLiteralTypeConstructor.kt
+          grep -q 'reduce<SimpleType?' core/descriptors/src/org/jetbrains/kotlin/resolve/constants/IntegerLiteralTypeConstructor.kt
+        '')
+        (addLast "preloader-java8" ''
+          sed -i '/<target name="preloader">/,/<\/target>/ s|source="1.6" target="1.6"|source="1.8" target="1.8"|' build.xml
+          grep -q 'source="1.8" target="1.8"' build.xml
+        '')
+        (addLast "jvm-default" ''
+          sed -i -e 's|<compilerarg value="-version"/>|& <compilerarg line="-Xjvm-default=enable"/>|' build.xml
+          grep -q 'Xjvm-default=enable' build.xml
+        '')
+        (ops.replace "sdk-asm" ''
+          for f in ideaSDK/core/asm-6.0.jar ideaSDK/core/asm-all*.jar; do
+            ln -sf ${jar intellij."192".core.passthru.asm} $f
+          done
+        '')
+        (ops.replace "compiler-dirs" (compilerDirs [
+          "compiler/util/src"
+          "compiler/container/src"
+          "compiler/resolution/src"
+          "compiler/serialization/src"
+          "compiler/psi/src"
+          "compiler/frontend/src"
+          "compiler/frontend.common/src"
+          "compiler/frontend.java/src"
+          "compiler/cli/cli-common/src"
+          "compiler/ir/ir.tree/src"
+          "compiler/ir/ir.psi2ir/src"
+          "compiler/ir/backend.common/src"
+          "compiler/ir/backend.jvm/src"
+          "compiler/ir/backend.js/src"
+          "compiler/ir/serialization.common/src"
+          "compiler/ir/serialization.js/src"
+          "compiler/backend-common/src"
+          "compiler/backend/src"
+          "compiler/plugin-api/src"
+          "compiler/light-classes/src"
+          "compiler/cli/src"
+          "compiler/builtins-serializer/src"
+          "compiler/javac-wrapper/src"
+          "compiler/incremental-compilation-impl/src"
+          "js/js.ast/src"
+          "js/js.serializer/src"
+          "js/js.parser/src"
+          "js/js.frontend/src"
+          "js/js.translator/src"
+          "js/js.inliner/src"
+          "js/js.dce/src"
+          "build-common/src"
+          "core/metadata/src"
+          "core/metadata.jvm/src"
+          "core/descriptors/src"
+          "core/descriptors.jvm/src"
+          "core/deserialization/src"
+          "core/util.runtime/src"
+          "core/type-system/src"
+          "compiler/fir/cones/src"
+          "compiler/fir/resolve/src"
+          "compiler/fir/tree/src"
+          "compiler/fir/tree/visitors"
+          "compiler/fir/psi2fir/src"
+          "compiler/fir/fir2ir/src"
+          "compiler/cli/cli-js/src"
+          "compiler/fir/java/src"
+          "compiler/util-io/src"
+          "compiler/util-klib/src"
+          "compiler/util-klib-metadata/src"
+          "compiler/ir/backend.wasm/src"
+          "core/descriptors.runtime/src"
+        ]))
+      ];
+      inputs =
+        i:
+        i
+        // {
+          inherit (intellij."192") annotations javac2 core jps-model-impl;
+        };
+    };
   });
 
   # Version independent replacements for the per-version patches of TarCV
