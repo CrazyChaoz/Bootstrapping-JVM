@@ -611,6 +611,7 @@ let
         trove4j*) t=ideaSDK/core/jetbrains-trove4j.jar ;;
         xpp3*) t=ideaSDK/core/xpp3.jar ;;
         xstream*) t=ideaSDK/core/xstream.jar ;;
+        streamex*) t=${jar kotlinLibs.streamex} ;;
         *) echo "scripted-edits: do not know which jar provides ideaSDK/core/$n"; exit 1 ;;
       esac
       [ -e "$t" ] || { echo "scripted-edits: $t missing (for $n)"; exit 1; }
@@ -662,6 +663,20 @@ let
     java -cp ${javaLib.classpathOf [ kotlinLibs.strip-kotlin-metadata ]} StripKotlinMetadata \
       'kotlin/reflect/jvm/internal/impl/.*' reflect-jarjar.jar kotlin-reflect.jar
     rm rules.txt reflect-jarjar.jar
+    # jarjar does not relocate service descriptors
+    mkdir svc
+    (cd svc
+    unzip -q ../kotlin-reflect.jar 'META-INF/services/*'
+    for f in META-INF/services/org.jetbrains.kotlin.*; do
+      [ -e "$f" ] || continue
+      n=META-INF/services/kotlin.reflect.jvm.internal.impl.''${f#META-INF/services/org.jetbrains.kotlin.}
+      sed 's/^org\.jetbrains\.kotlin\./kotlin.reflect.jvm.internal.impl./' "$f" > "$n"
+      rm "$f"
+      zip -q -d ../kotlin-reflect.jar "$f"
+      zip -q ../kotlin-reflect.jar "$n"
+      echo "relocated service $n"
+    done)
+    rm -r svc
     cd -
   '';
 

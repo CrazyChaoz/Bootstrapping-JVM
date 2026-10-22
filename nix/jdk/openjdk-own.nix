@@ -16,6 +16,7 @@
   cpio,
   perl,
   bash,
+  pkg-config,
   alsa-lib,
   cups,
   fontconfig,
@@ -75,7 +76,8 @@ let
         file
         cpio
         perl
-      ];
+      ]
+      ++ lib.optional (feature >= 11) pkg-config;
       buildInputs = [
         alsa-lib
         cups

@@ -117,6 +117,7 @@
         <pack-runtime-jar jar-name="kotlin-reflect.jar" implementation-title="${manifest.impl.title.kotlin.jvm.reflect}">
             <jar-content>
                 <fileset dir="${basedir}/core/descriptor.loader.java/src" includes="META-INF/services/**"/>
+                <fileset dir="${basedir}/core/deserialization/src" includes="META-INF/services/**"/>
                 <fileset dir="${output}/classes/reflection"/>
                 <fileset dir="${output}/classes/core"/>
                 <zipfileset src="${protobuf.jar}"/>

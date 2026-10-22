@@ -108,6 +108,14 @@ in
     javaRelease = "1.8";
   };
 
+  streamex = mkJar {
+    pname = "streamex";
+    version = "0.6.2";
+    src = gh "amaembo" "streamex" "streamex-0.6.2" "sha256-x1384g7ssZoCxdtUXoz5UbZD+qxyg7snTbgu+JIPe1A=";
+    sourceDirs = [ "src/main/java" ];
+    javaRelease = "1.8";
+  };
+
   json-org = mkJar {
     pname = "json-org";
     version = "20160807";
