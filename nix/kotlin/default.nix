@@ -1462,9 +1462,23 @@ let
       ];
     };
 
-    "2.2.0" = step k."2.1.0" "2.2.0" [ ] {
+    "2.1.20" = step k."2.1.0" "2.1.20" [ ] {
       steps = lib.flip lib.pipe [
-        (ops.replace "compiler-dirs" (compilerDirs (dirs220 ++ firDirs220)))
+        (ops.replace "compiler-dirs" (compilerDirs (dirs2120 ++ firDirs2120)))
+        # APIs of newer IntelliJ SDKs (applyIf, addIfNotNull, elementType) and a duplicated constant
+        (addLast "no-223-api-2120" ''
+          sed -i '/^const val CONTINUATION_VARIABLE_NAME = /d' compiler/backend/src/org/jetbrains/kotlin/codegen/coroutines/coroutineCodegenUtil.kt
+          sed -i 's|collectSources(configuration, projectEnvironment, messageCollector)|collectSources(configuration, projectEnvironment.project, messageCollector)|' compiler/cli/src/org/jetbrains/kotlin/cli/metadata/AbstractFirMetadataSerializer.kt
+          f=compiler/ir/ir.tree/src/org/jetbrains/kotlin/ir/util/RenderIrElement.kt
+          sed -i 's|^import com.intellij.util.applyIf$||' $f
+          printf '\nprivate inline fun <T> T.applyIf(condition: Boolean, body: T.() -> T): T = if (condition) body() else this\n' >> $f
+          sed -i 's|^import com.intellij.util.containers.addIfNotNull$|import org.jetbrains.kotlin.utils.addIfNotNull|' compiler/ir/serialization.common/src/org/jetbrains/kotlin/backend/common/serialization/NonLinkingIrInlineFunctionDeserializer.kt
+          f=compiler/psi/src/org/jetbrains/kotlin/psi/psiUtil/psiUtils.kt
+          sed -i 's|^import com.intellij.psi.util.elementType$||' $f
+          printf '\nprivate val PsiElement?.elementType: com.intellij.psi.tree.IElementType? get() = this?.node?.elementType\n' >> $f
+          sed -i 's|new AnnotationRemapper(null, |new AnnotationRemapper(|' compiler/backend/src/org/jetbrains/kotlin/codegen/inline/RemappingClassBuilder.java
+          if grep -q 'const val CONTINUATION_VARIABLE_NAME' compiler/backend/src/org/jetbrains/kotlin/codegen/coroutines/coroutineCodegenUtil.kt; then exit 1; fi
+        '')
         (ops.replace "no-scripting-plugin" ''
           f=compiler/daemon/src/org/jetbrains/kotlin/daemon/KotlinRemoteReplService.kt
           sed -i '/^import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptingCompilerConfigurationComponentRegistrar$/d' $f
@@ -1477,10 +1491,33 @@ let
           sed -i 's|return createTypeSource(psiTypeParameterSource.psi.permitsListTypes\[permittedTypeIndex\])|throw UnsupportedOperationException("sealed Java classes")|' $d/source/JavaElementSourceFactory.kt
           if grep -rq 'PsiModifier.SEALED' $d; then exit 1; fi
         '')
-        (addLast "immutable-collections" ''
-          ln -sf ${jar (kotlinLibs.kotlinx-collections-immutable k."2.1.0")} ideaSDK/core/kotlinx-collections-immutable.jar
-          sed -i 's|^\( *\)<zipfileset src="''${basedir}/ideaSDK/core/trove4j.jar"/>|&\n\1<zipfileset src="''${basedir}/ideaSDK/core/kotlinx-collections-immutable.jar"/>|' build.xml
-          grep -q 'core/kotlinx-collections-immutable.jar' build.xml
+        (ops.replace "fir-by-k1" ''
+          sed -i 's|-Xopt-in=org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi|& -Xopt-in=org.jetbrains.kotlin.fir.symbols.SymbolInternals -Xopt-in=org.jetbrains.kotlin.types.model.K2Only|' build.xml
+          grep -q 'fir.symbols.SymbolInternals' build.xml
+          # SDK 201 API (the 2.1.20 FIR is compiled by K2: the K1 workarounds of 2.1.0 are not needed)
+          sed -i 's|override fun getType(): TypeInfo {|override fun getType(doResolve: Boolean): TypeInfo {|' compiler/fir/java/src/org/jetbrains/kotlin/fir/java/FirJavaElementFinder.kt
+          sed -i 's#source?.psi.let { it is PsiMethod \&\& JavaPsiRecordUtil.isCanonicalConstructor(it) }#false#' compiler/fir/java/src/org/jetbrains/kotlin/fir/java/FirJavaFacade.kt
+        '')
+        # compiled by the K2-capable 2.1.0 (also for 2.2.0): language 2.1 (K2), with the 2.2 features the sources use
+        (addLast "k2-language" ''
+          sed -i 's|-language-version 1.9 -api-version 1.9|-language-version 2.1 -api-version 2.0 -Xwhen-guards -Xmulti-dollar-interpolation -Xnon-local-break-continue -Xcontext-parameters -Xopt-in=org.jetbrains.kotlin.backend.konan.InternalKotlinNativeApi -Xopt-in=kotlin.contracts.ExperimentalContracts|' build.xml
+          grep -q 'language-version 2.1' build.xml
+        '')
+        (ops.replace "compiler-version-150" ''
+          echo -n "2.1.20" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+      ];
+    };
+
+    "2.2.0" = step k."2.1.20" "2.2.0" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "compiler-dirs" (compilerDirs (dirs220 ++ firDirs220)))
+        (ops.replace "fir-by-k1" ''
+          sed -i 's|-Xopt-in=org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi|& -Xopt-in=org.jetbrains.kotlin.fir.symbols.SymbolInternals -Xopt-in=org.jetbrains.kotlin.types.model.K2Only|' build.xml
+          grep -q 'fir.symbols.SymbolInternals' build.xml
+          # SDK 201 API
+          sed -i 's|override fun getType(): TypeInfo {|override fun getType(doResolve: Boolean): TypeInfo {|' compiler/fir/fir-jvm/src/org/jetbrains/kotlin/fir/java/FirJavaElementFinder.kt
+          sed -i 's#source?.psi.let { it is PsiMethod \&\& JavaPsiRecordUtil.isCanonicalConstructor(it) }#false#' compiler/fir/fir-jvm/src/org/jetbrains/kotlin/fir/java/FirJavaFacade.kt
         '')
         (ops.replace "compiler-version-150" ''
           echo -n "2.2.0" > compiler/compiler.version/resources/META-INF/compiler.version
@@ -2406,8 +2443,9 @@ KT
   dirs180 = (lib.subtractLists [ "compiler/ir/ir.tree.impl/src" ] dirs170)
     ++ [ "analysis/light-classes-base/src" "compiler/ir/ir.tree/gen" ];
 
-  dirs220 = lib.subtractLists [ "compiler/builtins-serializer/src" "js/js.dce/src" "js/js.inliner/src" ] dirs210
-    ++ [ "compiler/arguments.common/src" "compiler/ir/backend.native/src" "js/js.frontend.common/src" "native/base/src" ];
+  dirs2120 = lib.subtractLists [ "js/js.dce/src" "js/js.inliner/src" ] dirs210 ++ [ "compiler/ir/backend.native/src" "native/base/src" ];
+  firDirs2120 = firDirs210 ++ [ "compiler/config/gen" "compiler/config.jvm/gen" "compiler/cli/cli-base/gen" "js/js.frontend/gen" ];
+  dirs220 = lib.subtractLists [ "compiler/builtins-serializer/src" ] dirs2120 ++ [ "compiler/arguments.common/src" "js/js.frontend.common/src" ];
   firDirs210 = [
     "compiler/fir/raw-fir/light-tree2fir/src"
     "compiler/fir/cones/src"
