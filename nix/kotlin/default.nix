@@ -15,6 +15,7 @@
   kotlinSources,
   kotlinLibs,
   javaLib,
+  antlr,
 }:
 
 let
@@ -1509,6 +1510,191 @@ let
       ];
     };
 
+    "2.4.0" = step k."2.3.0" "2.4.0" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "compiler-dirs" (compilerDirs (dirs240 ++ firDirs240)))
+        # 2.4 moved more files between modules: put them where the inherited patch steps expect them
+        (ops.addAfter "relocate-modules" "relocate-modules-240" ''
+          while read new old; do
+            [ -e "$new" ] || continue
+            mkdir -p "$(dirname "$old")"
+            mv "$new" "$old"
+          done <<'LIST'
+compiler/frontend/src/org/jetbrains/kotlin/analyzer/common/CommonResolverForModuleFactory.kt compiler/cli/cli-common/src/org/jetbrains/kotlin/analyzer/common/CommonResolverForModuleFactory.kt
+compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/common/arguments/preprocessCommandLineArguments.kt compiler/cli/cli-common/src/org/jetbrains/kotlin/cli/common/arguments/preprocessCommandLineArguments.kt
+compiler/cli/cli-jvm/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinToJVMBytecodeCompiler.kt compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
+compiler/cli/cli-jvm/src/org/jetbrains/kotlin/cli/jvm/compiler/cliCompilerUtils.kt compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/cliCompilerUtils.kt
+compiler/cli/cli-metadata/src/org/jetbrains/kotlin/cli/pipeline/metadata/MetadataFrontendPipelinePhase.kt compiler/cli/src/org/jetbrains/kotlin/cli/pipeline/metadata/MetadataFrontendPipelinePhase.kt
+core/language.targets.jvm/src/org/jetbrains/kotlin/config/JvmTarget.kt compiler/config.jvm/src/org/jetbrains/kotlin/config/JvmTarget.kt
+compiler/resolution.common/src/org/jetbrains/kotlin/resolve/calls/inference/components/VariableFixationFinder.kt compiler/resolution/src/org/jetbrains/kotlin/resolve/calls/inference/components/VariableFixationFinder.kt
+core/names/src/org/jetbrains/kotlin/name/FqNameUnsafe.kt core/compiler.common/src/org/jetbrains/kotlin/name/FqNameUnsafe.kt
+LIST
+        '')
+        # upstream fixed the IrDeclarationOrigin initialization cycle itself
+        (ops.delete "origin-init-cycle")
+        (ops.replace "context-before-annotations" ''
+          for f in $(grep -rlE '^[ \t]*context\(' --include=*.kt compiler core js native wasm analysis | grep -v testData); do
+            perl -0pi -e 'my $ann = qr/^[ \t]*\@[A-Za-z][\w.]*(?:\((?:[^()]|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))*\))?[ \t]*\n/m; my $ctx = qr/^[ \t]*context\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)[ \t]*\n/m; s/((?:$ann)+)($ctx)/$2$1/g' $f
+          done
+          grep -q 'context(context: DiagnosticContext)' compiler/frontend.common/src/org/jetbrains/kotlin/diagnostics/KtDiagnosticReportHelpers.kt
+        '')
+        (ops.replace "psi-merged-java" ''
+          sed -i 's#^    internal \(tailrec fun isDeclaredInsideValueArgument\|fun StubOutputStream.writeNullableBoolean\|fun StubInputStream.readNullableBoolean\)#    \1#' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/StubUtils.kt
+          sed -i 's#\$[a-z_]*psi_impl##' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/*.java
+          sed -i 's#createStub(@NotNull \(KtImportDirective\|KtUserType\) psi, StubElement<?> parentStub)#createStub(@NotNull \1 psi, StubElement parentStub)#' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/KtImportDirectiveElementType.java compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/KtUserTypeElementType.java
+          if grep -rq 'psi_impl' compiler/psi/src; then exit 1; fi
+        '')
+        # the JS parser is ANTLR-based now: regenerate it with the (tunnelvisionlabs) ANTLR chain and ship the runtime
+        (addLast "antlr-js-parser" ''
+          ln -sf ${jar antlr.tvl-antlr4-runtime} ideaSDK/core/antlr4-runtime.jar
+          ln -sf ${jar antlr.tvl-antlr4-runtime-annotations} ideaSDK/core/antlr4-runtime-annotations.jar
+          sed -i 's|^\( *\)<zipfileset src="''${basedir}/ideaSDK/core/trove4j.jar"/>|&\n\1<zipfileset src="''${basedir}/ideaSDK/core/antlr4-runtime.jar"/>\n\1<zipfileset src="''${basedir}/ideaSDK/core/antlr4-runtime-annotations.jar"/>|' build.xml
+          grep -q 'core/antlr4-runtime.jar' build.xml
+          g=$PWD/js/js.parser/src/org/jetbrains/kotlin/js/parser/antlr/generated
+          rm -f $g/*
+          (cd js/js.parser/src/main/antlr && ${antlr.tvl-antlr4}/bin/antlr4 -visitor -package org.jetbrains.kotlin.js.parser.antlr.generated -o $g JavaScriptLexer.g4 JavaScriptParser.g4)
+          test -f $g/JavaScriptParser.java
+        '')
+        (addLast "explicit-backing-fields" ''
+          sed -i 's|-Xwhen-guards|-Xwhen-guards -Xexplicit-backing-fields|' build.xml
+          grep -q 'Xexplicit-backing-fields' build.xml
+        '')
+        # 2.4 sources use language 2.4 features (explicit backing fields on overrides, contracts on getters, ...)
+        (addLast "language-24" ''
+          sed -i 's|-language-version 2.2 -api-version 2.2|-language-version 2.4 -api-version 2.3 -Xsuppress-version-warnings|; s|-Xopt-in=kotlin.contracts.ExperimentalContracts|& -Xopt-in=org.jetbrains.kotlin.K1Deprecation|' build.xml
+          grep -q 'language-version 2.4' build.xml
+          sed -i 's|<arg value="-Xopt-in=kotlin.contracts.ExperimentalContracts[^"]*"/>|&|' build.xml
+        '')
+        # APIs of newer IntelliJ SDKs, and the 2.3 patches that no longer apply
+        (addLast "api-24-fixes" ''
+          # MockProject is a copy of a newer SDK class here; the SDK's own will do
+          rm compiler/cli/cli-base/src/com/intellij/mock/MockProject.kt
+          rm compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/DumbJavaModuleGraphHelper.java compiler/cli/src/com/intellij/openapi/progress/impl/CoreProgressManager.java
+          f=compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreApplicationEnvironment.kt
+          perl -0pi -e 's/        if \(application\.getService\(JavaModuleGraphHelper::class\.java\) == null\) \{\n.*?\n        \}\n//s; s/^import com\.intellij\.psi\.JavaModuleGraphHelper\n//m' $f
+          f=compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreEnvironment.kt
+          sed -i '/PsiJavaModuleModificationTracker/d' $f
+          if grep -q 'JavaModuleGraphHelper' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreApplicationEnvironment.kt; then exit 1; fi
+          # KParameter.Kind.CONTEXT is there now
+          f=compiler/ir/ir.interpreter/src/org/jetbrains/kotlin/ir/interpreter/state/reflection/KParameterState.kt
+          sed -i 's|^\( *\)KParameter.Kind.EXTENSION_RECEIVER -> |\1@Suppress("OPT_IN_USAGE_ERROR") KParameter.Kind.CONTEXT -> append("context parameter ''${irParameter.name}")\n&|' $f
+          # collectSources keeps its VfsBasedProjectEnvironment
+          f=compiler/cli/src/org/jetbrains/kotlin/cli/common/GroupedKtSources.kt
+          sed -i 's|^import com.intellij.openapi.vfs.isFile$|import org.jetbrains.kotlin.cli.jvm.compiler.VfsBasedProjectEnvironment|; s|virtualFile\.isFile|!virtualFile.isDirectory|' $f
+          # compiler/cri-impl and friends
+          f=compiler/fir/raw-fir/psi2fir/src/org/jetbrains/kotlin/fir/builder/PsiRawFirBuilder.kt
+          sed -i 's|^import com.intellij.psi.util.childrenOfType$||' $f
+          printf '\nprivate inline fun <reified T : com.intellij.psi.PsiElement> com.intellij.psi.PsiElement.childrenOfType(): List<T> =\n    com.intellij.psi.util.PsiTreeUtil.getChildrenOfTypeAsList(this, T::class.java)\n' >> $f
+          sed -i 's|other\.elementType == elementType|other.stubType == stubType|' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/impl/KotlinPlaceHolderWithTextStubImpl.kt
+          f=compiler/ir/backend.wasm/src/org/jetbrains/kotlin/backend/wasm/ir2wasm/WasmCompiledModuleFragment.kt
+          sed -i 's|^import com.intellij.util.containers.reverse$||' $f
+          printf '\nprivate fun <K, V> Map<K, V>.reverse(): Map<V, K> = entries.associate { it.value to it.key }\n' >> $f
+          grep -rl 'import com.intellij.util.containers.addIfNotNull' compiler js native build-common | xargs -r sed -i 's|^import com.intellij.util.containers.addIfNotNull$|import org.jetbrains.kotlin.utils.addIfNotNull|'
+          # the JS parser is generated by tunnelvisionlabs' ANTLR (4.7.4) here: a few API differences
+          sed -i 's|parser\.tokenStream as CommonTokenStream|parser.inputStream as CommonTokenStream|' js/js.parser/src/org/jetbrains/kotlin/js/parser/JsParser.kt
+          cat > js/js.parser/src/org/jetbrains/kotlin/js/parser/antlr/RecognizerExtensions.kt <<'KT'
+package org.jetbrains.kotlin.js.parser.antlr
+
+import org.jetbrains.kotlin.js.parser.CodePosition
+import org.jetbrains.kotlin.js.parser.ErrorReporter
+import org.antlr.v4.runtime.ANTLRErrorListener
+import org.antlr.v4.runtime.BaseErrorListener
+import org.antlr.v4.runtime.Lexer
+import org.antlr.v4.runtime.Parser
+import org.antlr.v4.runtime.RecognitionException
+import org.antlr.v4.runtime.Recognizer
+import org.antlr.v4.runtime.Token
+
+internal fun Lexer.addErrorListener(reporter: ErrorReporter) {
+    addErrorListener(object : ANTLRErrorListener<Int> {
+        override fun <T : Int> syntaxError(
+            recognizer: Recognizer<T, *>,
+            offendingSymbol: T?,
+            line: Int,
+            charPositionInLine: Int,
+            msg: String,
+            e: RecognitionException?,
+        ) {
+            reporter.error(msg, CodePosition(line, charPositionInLine), CodePosition(line, charPositionInLine))
+        }
+    })
+}
+
+internal fun Parser.addErrorListener(reporter: ErrorReporter) {
+    addErrorListener(object : BaseErrorListener() {
+        override fun <T : Token> syntaxError(
+            recognizer: Recognizer<T, *>,
+            offendingSymbol: T?,
+            line: Int,
+            charPositionInLine: Int,
+            msg: String,
+            e: RecognitionException?,
+        ) {
+            reporter.error(msg, CodePosition(line, charPositionInLine), CodePosition(line, charPositionInLine))
+        }
+    })
+}
+KT
+        '')
+        # what the 2.3.0 compiler cannot do with 2.4 sources: explicit backing fields on overrides (use mutable property
+        # types instead), `return` in expression bodies, and the CRI (needs the kotlinx.serialization plugin)
+        (addLast "api-24-fixes-2" ''
+          f=compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/IncrementalJvmCompilerRunnerBase.kt
+          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.buildtools\.internal\.cri\.CriDataSerializerImpl\n//m; s/(        reporter\.info \{ "Generating Compiler Reference Index\.\.\." \}\n)\n        val serializer = CriDataSerializerImpl\(\).*?(\n    \}\n\}\s*)\z/$1$2/s' $f
+          if grep -q CriDataSerializerImpl $f; then exit 1; fi
+          sed -i 's|Map<KtSourceFile?, List<KtDiagnostic>>$|Map<KtSourceFile?, MutableList<KtDiagnostic>>|' compiler/frontend.common/src/org/jetbrains/kotlin/diagnostics/impl/DiagnosticsCollectorImpl.kt
+          f=compiler/cli/cli-metadata/src/org/jetbrains/kotlin/cli/metadata/K1MetadataKlibSerializer.kt
+          perl -0pi -e 's/    override val moduleInfos: List<ModuleInfo>\n        field = /    private val klibModuleInfos = /; s/(    override val friendModuleInfos)/    override val moduleInfos: List<ModuleInfo> get() = klibModuleInfos\n\n$1/; s/= moduleInfos\.filter/= klibModuleInfos.filter/g' $f
+          grep -q 'private val klibModuleInfos' $f
+          for f in \
+            compiler/fir/checkers/src/org/jetbrains/kotlin/fir/analysis/checkers/config/ComposedLanguageVersionSettingsCheckers.kt \
+            compiler/fir/resolve/src/org/jetbrains/kotlin/fir/resolve/calls/candidate/Candidate.kt \
+            compiler/fir/resolve/src/org/jetbrains/kotlin/fir/resolve/inference/FirPCLAInferenceSession.kt \
+            compiler/fir/semantics/src/org/jetbrains/kotlin/fir/resolve/dfa/cfg/CFGNode.kt \
+            compiler/frontend.common/src/org/jetbrains/kotlin/diagnostics/impl/DiagnosticsCollectorImpl.kt \
+            compiler/util-klib-metadata/src/org/jetbrains/kotlin/library/metadata/resolver/impl/KotlinResolvedLibraryImpl.kt
+          do
+            perl -0pi -e 's/^(\s*(?:override )?val \w+: )(List|Set|Map)<([^\n]*)>\n\s+field = /$1Mutable$2<$3> = /mg' $f
+            if grep -q '^\s*field = ' $f; then exit 1; fi
+          done
+          sed -i 's|    protected fun mangleTypeArguments(tBuilder: StringBuilder, type: Type, declarationSiteSession: Session) =|    protected fun mangleTypeArguments(tBuilder: StringBuilder, type: Type, declarationSiteSession: Session): Unit =|' compiler/ir/serialization.common/src/org/jetbrains/kotlin/backend/common/serialization/mangle/BaseKotlinMangleComputer.kt
+          sed -i 's|addIfNotNull(exportModule)|exportModule?.let { add(it) }|' js/js.config/src/org/jetbrains/kotlin/js/artifacts/JsArtifactProducer.kt
+        '')
+        (addLast "psi-merged-java-2" ''
+          sed -i 's#^    internal \(fun StubOutputStream.writeContract\|fun StubInputStream.readContract\)#    \1#' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/StubUtils.kt
+          sed -i 's#\$[a-z_]*psi_impl##' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/*.java
+          sed -i 's#List<StubElement<?>> childrenStubs = stub.getChildrenStubs();#List<? extends StubElement> childrenStubs = stub.getChildrenStubs();#' compiler/psi/src/org/jetbrains/kotlin/psi/KtStringTemplateEntry.java
+          sed -i 's#other.getElementType()#other.getStubType()#; s#this.getElementType()#this.getStubType()#' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/impl/KotlinPlaceHolderStubImpl.java
+          if grep -rq 'psi_impl' compiler/psi/src; then exit 1; fi
+        '')
+        (addLast "cli-resources-240" ''
+          sed -i 's|compiler/cli/cli-common/resources|compiler/cli/cli-base/resources|g' build.xml
+          ! grep -q 'cli-common/resources' build.xml
+        '')
+        # the stdlib's Java runtime sources use JetBrains annotations
+        (addLast "javac-annotations-240" ''
+          sed -i 's|^\( *\)<pathelement location="@{output}"/>$|&\n\1<pathelement location="''${basedir}/ideaSDK/core/annotations.jar"/>|' build.xml
+          grep -q 'core/annotations.jar"/>' build.xml
+        '')
+        # core got new modules (names, language settings)
+        (addLast "core-modules-240" ''
+          sed -i 's|^\( *\)<include name="core/util.runtime/src"/>$|&\n\1<include name="core/names/src"/>\n\1<include name="core/language.model/src"/>\n\1<include name="core/language.targets/src"/>\n\1<include name="core/language.targets.jvm/src"/>\n\1<include name="core/language.version-settings/src"/>\n\1<include name="compiler/compiler.version/src"/>|' build.xml
+          grep -q 'core/language.model/src' build.xml
+        '')
+        # JvmTarget (patched in compiler/config.jvm by the inherited steps) belongs to core now
+        (addLast "jvm-target-core-240" ''
+          mv compiler/config.jvm/src/org/jetbrains/kotlin/config/JvmTarget.kt core/language.targets.jvm/src/org/jetbrains/kotlin/config/JvmTarget.kt
+        '')
+        (addLast "reflect-opt-in-240" ''
+          sed -i 's|moduleName="kotlin-reflection" additionalOptions="|&-opt-in=kotlin.ExperimentalContextParameters |' build.xml
+          grep -q 'opt-in=kotlin.ExperimentalContextParameters' build.xml
+        '')
+        (ops.replace "compiler-version-150" ''
+          echo -n "2.4.0" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+      ];
+    };
+
     "2.3.0" = step k."2.2.0" "2.3.0" [ ] {
       steps = lib.flip lib.pipe [
         (ops.replace "compiler-dirs" (compilerDirs (dirs230 ++ firDirs230)))
@@ -1543,10 +1729,11 @@ let
           sed -i 's#createStub(@NotNull \(KtImportDirective\|KtUserType\) psi, StubElement<?> parentStub)#createStub(@NotNull \1 psi, StubElement parentStub)#' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/KtImportDirectiveElementType.java compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/KtUserTypeElementType.java
           if grep -rq 'psi_impl' compiler/psi/src; then exit 1; fi
         '')
-        # the Ant tasks were dropped from the Kotlin repository in 2.3
+        # the Ant tasks were dropped from the Kotlin repository in 2.3; the build still drives its own `kotlinc` Ant task
+        # (runner, daemon-client) from the bootstrap's kotlin-ant.jar, so hand that jar on
         (addLast "no-ant-tools" ''
-          perl -0pi -e 's|<target name="ant-tools">.*?</target>|<target name="ant-tools"/>|s' build.xml
-          grep -q '<target name="ant-tools"/>' build.xml
+          perl -0pi -e 's|<target name="ant-tools">.*?</target>|<target name="ant-tools"><copy file="\$\{bootstrap.compiler.home\}/lib/kotlin-ant.jar" todir="\$\{kotlin-home\}/lib"/></target>|s' build.xml
+          grep -q 'target name="ant-tools"><copy' build.xml
         '')
         # the 2.3 stdlib uses @IgnorableReturnValue (see libraries/stdlib/build.gradle.kts)
         (addLast "return-value-checker" ''
@@ -2670,6 +2857,14 @@ KT
       "js/js.config/gen"
     ];
   firDirs230 = firDirs220;
+  dirs240 = lib.subtractLists [ "compiler/cli/cli-common/gen" "compiler/fir/fir-js/src" ] dirs230
+    ++ [
+      "compiler/cli/cli-jvm/src" "compiler/cli/cli-metadata/src" "native/native.config/src"
+      "core/names/src" "core/language.model/src" "core/language.targets/src" "core/language.targets.jvm/src"
+      "core/language.version-settings/src"
+      "compiler/fir/diagnostic-renderers/src" "compiler/frontend.common/gen" "wasm/wasm.frontend/gen" "native/native.config/gen"
+    ];
+  firDirs240 = lib.subtractLists [ "compiler/fir/fir-js/src" ] firDirs230;
   dirs220 = lib.subtractLists [ "compiler/builtins-serializer/src" ] dirs2120 ++ [ "compiler/arguments.common/src" "js/js.frontend.common/src" ];
   firDirs210 = [
     "compiler/fir/raw-fir/light-tree2fir/src"

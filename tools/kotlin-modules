@@ -13,7 +13,7 @@ def read(p):
 settings = read('settings.gradle') + read('settings.gradle.kts')
 # project(':x:y').projectDir = "$rootDir/a/b" / File(rootDir, "a/b") / file("a/b")
 dirs = {}
-for m in re.finditer(r'''project\(\s*["']([^"']+)["']\s*\)\.projectDir\s*=\s*(?:new\s+)?(?:File\(\s*(?:rootDir|\$rootDir)\s*,\s*["']([^"']+)["']\s*\)|["']\$rootDir/([^"']+)["']|file\(\s*["']([^"']+)["']\s*\))''', settings):
+for m in re.finditer(r'''project\(\s*["']([^"']+)["']\s*\)\.projectDir\s*=\s*(?:new\s+)?(?:File\(\s*(?:rootDir|\$rootDir)\s*,\s*["']([^"']+)["']\s*\)|(?:File\(\s*)?["']\$rootDir/([^"']+)["']\s*\)?|file\(\s*["']([^"']+)["']\s*\))''', settings):
     dirs[m.group(1)] = next(g for g in m.groups()[1:] if g)
 
 root = read('build.gradle.kts')
