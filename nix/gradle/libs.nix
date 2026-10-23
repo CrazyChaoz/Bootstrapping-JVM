@@ -64,7 +64,7 @@ let
           mkdir -p build/classes
           : > build/sources.txt
           for d in ${lib.escapeShellArgs sourceDirs}; do
-            find "$d" -name '*.java' >> build/sources.txt
+            find "$d" -path ./build -prune -o -name '*.java' -print >> build/sources.txt
           done
           sort -o build/sources.txt build/sources.txt
           echo "compiling $(wc -l < build/sources.txt) java files"
@@ -74,7 +74,7 @@ let
           fi
           ${lib.optionalString (args.copySourceResources or false) ''
             for d in ${lib.escapeShellArgs sourceDirs}; do
-              (cd "$d" && find . -type f ! -name '*.java' -exec cp --parents -t "$OLDPWD/build/classes" {} +)
+              (cd "$d" && find . -path ./build -prune -o -type f ! -name '*.java' -print0 | xargs -0 -r cp --parents -t "$OLDPWD/build/classes")
             done
           ''}
           ${lib.concatMapStrings (d: ''
@@ -864,9 +864,108 @@ lib.fix (self: {
     src = mvn "org.yaml" "snakeyaml" "1.6" "sha256-8jkjqMOiWrwbVXY/yjfTC0iCWyTkZowvgk1lcAe5cNE=";
     sourceDirs = [ "." ];
   };
+  findbugs-stub = mk {
+    pname = "findbugs-annotations-stub";
+    src = ./findbugs-stub;
+    sourceDirs = [ "." ];
+  };
   guice-stub = mk {
     pname = "guice-stub";
     src = ./guice-stub;
     sourceDirs = [ "." ];
   };
+  # --- ANTLR 4.13 fork (Groovy 4's parser) -------------------------------
+  # Groovy needs me.sunlan's fork of ANTLR 4.13.2 (alt labels may be reused
+  # across rules); built from its Maven sources jars.
+  # official 4.13.2: only for its Unicode data template, the fork's generates too large a method
+  antlr413-git-src = gh "antlr" "antlr4" "4.13.2" "sha256-DxxRL+FQFA+x0RudIXtLhewseU50aScHKSCDX7DE9bY=";
+  antlr413-annotations = mk {
+    pname = "antlr4-annotations";
+    version = "4.13.2.7";
+    javacFlags = [ "-proc:none" ];
+    src = mvn "me.sunlan" "antlr4-annotations" "4.13.2.7" "sha256-HSFVeXnRSGOfmbZV3CXVv/kHXYN/+wqZ0DsRqoNkjSw=";
+    sourceDirs = [ "." ];
+  };
+  # (annotations merged in, like upstream's shading)
+  antlr413-runtime = mk {
+    pname = "antlr4-runtime";
+    version = "4.13.2.7";
+    buildDeps = [ self.antlr413-annotations ];
+    mergeJars = [ "${self.antlr413-annotations}/share/java/antlr4-annotations.jar" ];
+    javacFlags = [ "-proc:none" ];
+    src = mvn "me.sunlan" "antlr4-runtime" "4.13.2.7" "sha256-fEd8goMfXXvrXJq7mrJWlVt0a5hAVlJ+e4CZJE7Dj9Q=";
+    sourceDirs = [ "." ];
+    copySourceResources = true;
+  };
+
+  # (the antlr.mkAntlr4 recipe of nix/java/antlr.nix, with 4.13's template-based
+  # Unicode data generation: a small renderer replaces string-template-maven-plugin)
+  antlr413 =
+    (mk {
+      pname = "antlr4";
+      version = "4.13.2.7";
+      javacFlags = [ "-proc:none" ];
+      # (the jar also carries a generated UnicodeData.java under src/)
+      postPatch = "rm -rf src";
+      src = mvn "me.sunlan" "antlr4" "4.13.2.7" "sha256-VUSy4SzdTzP0hn/5tBW8C1V4/XLwSktIsvy5radoCKE=";
+      nativeBuildInputs = [ antlr.antlr3 ];
+      preBuild = ''
+        export CLASSPATH="${
+          classpathOf [
+            antlr.antlr3
+            self.antlr413-runtime
+            antlr.stringtemplate4
+            antlr.treelayout
+            antlr.icu4j
+          ]
+        }"
+        mkdir -p $TMPDIR/gen-classes
+        cp ${self.antlr413-git-src}/tool/resources/org/antlr/v4/tool/templates/unicodedata.st org/antlr/v4/tool/templates/
+        cp ${self.antlr413-git-src}/tool/src/org/antlr/v4/unicode/UnicodeDataTemplateController.java org/antlr/v4/unicode/
+        chmod -R u+w org
+        cat > UnicodeRenderer.java <<'EOF'
+        import java.io.*;
+        import java.util.Map;
+        import org.stringtemplate.v4.*;
+        public class UnicodeRenderer {
+          public static void main(String[] a) throws Exception {
+            Map<String, Object> props = org.antlr.v4.unicode.UnicodeDataTemplateController.getProperties();
+            STGroup g = new STGroupDir(a[0]);
+            ST st = g.getInstanceOf("unicodedata");
+            for (Map.Entry<String, Object> e : props.entrySet()) st.add(e.getKey(), e.getValue());
+            try (Writer w = new FileWriter(a[1])) { w.write(st.render()); }
+          }
+        }
+        EOF
+        javac -cp "$CLASSPATH" -d $TMPDIR/gen-classes -nowarn UnicodeRenderer.java \
+          org/antlr/v4/unicode/UnicodeDataTemplateController.java
+        java -cp "$CLASSPATH:$TMPDIR/gen-classes" UnicodeRenderer \
+          org/antlr/v4/tool/templates org/antlr/v4/unicode/UnicodeData.java
+        sed -i 's/\\>/>/g' org/antlr/v4/unicode/UnicodeData.java
+        rm UnicodeRenderer.java
+        (cd org/antlr/v4/parse
+         for f in ANTLRLexer.g ANTLRParser.g BlockSetTransformer.g GrammarTreeVisitor.g ATNBuilder.g \
+                  ActionSplitter.g LeftRecursiveRuleWalker.g; do antlr3 $f; done)
+        (cd org/antlr/v4/codegen && cp ../parse/ANTLRParser.tokens . && antlr3 SourceGenTriggers.g)
+      '';
+      sourceDirs = [ "." ];
+      copySourceResources = true;
+      deps = [
+        antlr.antlr3
+        self.antlr413-runtime
+        antlr.stringtemplate4
+        antlr.treelayout
+      ];
+      buildDeps = [ antlr.icu4j ];
+    }).overrideAttrs
+      (o: {
+        postInstall = ''
+          mkdir -p $out/bin
+          cat > $out/bin/antlr4 <<EOF
+          #!/bin/sh
+          exec ${jdk}/bin/java -cp $out/share/java/antlr4.jar:${classpathOf o.passthru.javaDeps} org.antlr.v4.Tool "\$@"
+          EOF
+          chmod +x $out/bin/antlr4
+        '';
+      });
 })

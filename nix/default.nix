@@ -44,6 +44,13 @@ pkgs.lib.makeScope pkgs.newScope (self: {
     inherit (self.javaLib21) mkJar classpathOf;
   };
 
+  gradleGroovy = self.callPackage ./gradle/groovy.nix {
+    jdk = self.jdk21;
+    inherit (self.javaLib21) classpathOf closureOf;
+    inherit (self.gradleLibs) mk gh;
+    inherit (self.groovy) javacc qdox-1_12;
+  };
+
   groovy = self.callPackage ./java/groovy.nix {
     jdk = self.jdk11;
     inherit (self.javaLib11) mkJar;
