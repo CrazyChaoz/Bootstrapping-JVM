@@ -1509,6 +1509,155 @@ let
       ];
     };
 
+    "2.3.0" = step k."2.2.0" "2.3.0" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "compiler-dirs" (compilerDirs (dirs230 ++ firDirs230)))
+        (ops.replace "no-213-api-java" ''
+          sed -i 's|NotNullLazyValue.atomicLazy(|com.intellij.openapi.util.AtomicNotNullLazyValue.createValue(|' compiler/frontend/src/org/jetbrains/kotlin/resolve/diagnostics/DiagnosticsElementsCache.java
+          sed -i 's|NotNullLazyValue.lazy(|NotNullLazyValue.createValue(|' compiler/psi/src/org/jetbrains/kotlin/idea/KotlinFileType.java compiler/psi/src/org/jetbrains/kotlin/idea/KotlinModuleFileType.java
+          f=compiler/cli/src/org/jetbrains/kotlin/cli/common/messages/PlainTextMessageRenderer.kt
+          sed -i '/import org.fusesource.jansi.internal.CLibrary/d; s|CLibrary.isatty(CLibrary.STDERR_FILENO) != 0|System.console() != null|' $f
+          if grep -q CLibrary $f; then exit 1; fi
+        '')
+        (addLast "opt-ins-230" ''
+          sed -i 's|-Xopt-in=kotlin.contracts.ExperimentalContracts|& -Xopt-in=kotlin.ExperimentalSubclassOptIn|' build.xml
+          grep -q 'ExperimentalSubclassOptIn' build.xml
+        '')
+        # 2.3 sources call the stdlib's context(a, b) { } (@SinceKotlin("2.2"))
+        (addLast "language-22" ''
+          sed -i 's|-language-version 2.1 -api-version 2.0|-language-version 2.2 -api-version 2.2|' build.xml
+          grep -q 'api-version 2.2' build.xml
+        '')
+        # KParameter.Kind.CONTEXT is not in the bootstrap's stdlib; api 2.2 makes toLowerCase an error
+        (addLast "api-22-fixes" ''
+          perl -0pi -e 's|\s*// Can.t use `\@OptIn.*?KParameter\.Kind\.CONTEXT,\s*-> append\("context parameter \$\{irParameter\.name\}"\)||s' compiler/ir/ir.interpreter/src/org/jetbrains/kotlin/ir/interpreter/state/reflection/KParameterState.kt
+          if grep -q 'Kind.CONTEXT' compiler/ir/ir.interpreter/src/org/jetbrains/kotlin/ir/interpreter/state/reflection/KParameterState.kt; then exit 1; fi
+          sed -i 's|this?.toLowerCase()|this?.lowercase()|' native/utils/src/org/jetbrains/kotlin/konan/target/Configurables.kt
+          grep -rl '^import com.intellij.psi.util.elementType$' compiler --include=*.kt | grep -v psiUtil/psiUtils.kt | xargs -r sed -i 's|^import com.intellij.psi.util.elementType$|import org.jetbrains.kotlin.psi.psiUtil.elementType|'
+        '')
+        # psi-impl is merged into the psi module: its internal helpers are called from Java by mangled name;
+        # SDK 201's IStubElementType.createStub takes a raw StubElement
+        (addLast "psi-merged-java" ''
+          sed -i 's#^    internal \(tailrec fun isDeclaredInsideValueArgument\|fun StubOutputStream.writeNullableBoolean\|fun StubInputStream.readNullableBoolean\)#    \1#' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/StubUtils.kt
+          sed -i 's|\$psi_impl||' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/*.java
+          sed -i 's#createStub(@NotNull \(KtImportDirective\|KtUserType\) psi, StubElement<?> parentStub)#createStub(@NotNull \1 psi, StubElement parentStub)#' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/KtImportDirectiveElementType.java compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/KtUserTypeElementType.java
+          if grep -rq 'psi_impl' compiler/psi/src; then exit 1; fi
+        '')
+        # the Ant tasks were dropped from the Kotlin repository in 2.3
+        (addLast "no-ant-tools" ''
+          perl -0pi -e 's|<target name="ant-tools">.*?</target>|<target name="ant-tools"/>|s' build.xml
+          grep -q '<target name="ant-tools"/>' build.xml
+        '')
+        # the 2.3 stdlib uses @IgnorableReturnValue (see libraries/stdlib/build.gradle.kts)
+        (addLast "return-value-checker" ''
+          sed -i 's|-Xcompile-builtins-as-part-of-stdlib|& -Xreturn-value-checker=full|' build.xml
+          grep -q 'return-value-checker' build.xml
+        '')
+        # the 2.3 compiler ignores -Xopt-in (deprecated); kotlin.test uses unnamed locals and @IgnorableReturnValue
+        (addLast "kotlin-test-230" ''
+          sed -i 's|<arg value="-Xopt-in=kotlin.contracts.ExperimentalContracts[^"]*"/>|<arg value="-opt-in=kotlin.contracts.ExperimentalContracts"/> <arg value="-opt-in=kotlin.ExperimentalSubclassOptIn"/> <arg value="-Xreturn-value-checker=full"/> <arg value="-XXLanguage:+UnnamedLocalVariables"/>|' build.xml
+          grep -q 'UnnamedLocalVariables' build.xml
+        '')
+        # core and reflection use context parameters now
+        (addLast "core-context-parameters" ''
+          sed -i 's|moduleName="kotlin-core" additionalOptions="|&-Xcontext-parameters |; s|moduleName="kotlin-reflection" additionalOptions="|&-Xcontext-parameters |' build.xml
+          grep -c 'additionalOptions="-Xcontext-parameters' build.xml | grep -q 2
+        '')
+        # more APIs of newer IntelliJ SDKs (VirtualFile.toNioPath, asSafely, containers.addIfNotNull) and a duplicate declaration
+        (addLast "no-223-api-230" ''
+          sed -i 's|it\.file\.toNioPath()|java.nio.file.Paths.get(it.file.path)|' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/config/JvmContentRoots.kt compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/cliCompilerUtils.kt
+          f=compiler/fir/fir-jvm/src/org/jetbrains/kotlin/fir/java/JavaUtils.kt
+          sed -i 's|^import com.intellij.util.asSafely$||' $f
+          printf '\nprivate inline fun <reified T> Any?.asSafely(): T? = this as? T\n' >> $f
+          grep -rl 'import com.intellij.util.containers.addIfNotNull' compiler | xargs -r sed -i 's|^import com.intellij.util.containers.addIfNotNull$|import org.jetbrains.kotlin.utils.addIfNotNull|'
+          sed -i 's|^private val PsiElement?.elementType|val PsiElement?.elementType|' compiler/psi/src/org/jetbrains/kotlin/psi/psiUtil/psiUtils.kt
+          perl -0pi -e 's|/\*\*\n \* The containing symbol is resolved using the declaration-site session.*?\n    \}\n\n||s' compiler/fir/resolve/src/org/jetbrains/kotlin/fir/resolve/ResolveUtils.kt
+          if grep -q 'fun FirCallableDeclaration.getContainingClass' compiler/fir/resolve/src/org/jetbrains/kotlin/fir/resolve/ResolveUtils.kt; then exit 1; fi
+        '')
+        (ops.replace "new-inference" ''
+          sed -i 's|<compilerarg line="-Xread-deserialized-contracts -Xeffect-system"/>|<compilerarg line="-Xread-deserialized-contracts -Xeffect-system -Xnew-inference"/>|' build.xml
+        '')
+        # 2.3 merged and split modules (psi, resolution.common.jvm, ...): put the files back where the inherited
+        # patch steps expect them (everything is one compilation anyway)
+        (ops.addAfter "restore-build-xml" "relocate-modules" ''
+          for d in parser psi-api psi-frontend-utils psi-impl psi-utils; do
+            cp -rn compiler/psi/$d/src/. compiler/psi/src/
+            rm -rf compiler/psi/$d/src
+          done
+          while read new old; do
+            [ -e "$new" ] || continue
+            mkdir -p "$(dirname "$old")"
+            mv "$new" "$old"
+          done <<'LIST'
+compiler/ir/backend.common/src/org/jetbrains/kotlin/backend/common/BackendException.kt compiler/backend-common/src/org/jetbrains/kotlin/backend/common/BackendException.kt
+compiler/frontend/src/org/jetbrains/kotlin/backend/common/SimpleMemberScope.kt compiler/backend-common/src/org/jetbrains/kotlin/backend/common/SimpleMemberScope.kt
+compiler/util/src/org/jetbrains/kotlin/backend/common/output/output.kt compiler/backend-common/src/org/jetbrains/kotlin/backend/common/output/output.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/kotlin/VirtualFileFinder.kt compiler/frontend.java/src/org/jetbrains/kotlin/load/kotlin/VirtualFileFinder.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/kotlin/VirtualFileFinderFactory.kt compiler/frontend.java/src/org/jetbrains/kotlin/load/kotlin/VirtualFileFinderFactory.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/resolve/jvm/JdkClasses.kt compiler/frontend.java/src/org/jetbrains/kotlin/resolve/jvm/JdkClasses.kt
+compiler/backend/src/org/jetbrains/kotlin/resolve/jvm/diagnostics/JvmDeclarationOrigin.kt compiler/frontend.java/src/org/jetbrains/kotlin/resolve/jvm/diagnostics/JvmDeclarationOrigin.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/asJava/KtClsJavaBasedLightClass.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/asJava/KtClsJavaBasedLightClass.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/asJava/KtLightClassMarker.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/asJava/KtLightClassMarker.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/asJava/SyntheticElementUtils.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/asJava/SyntheticElementUtils.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaAnnotationImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaAnnotationImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaAnnotationOwnerImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaAnnotationOwnerImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaArrayTypeImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaArrayTypeImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaClassImpl.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaClassImpl.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaClassifierImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaClassifierImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaClassifierTypeImpl.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaClassifierTypeImpl.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaConstructorImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaConstructorImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaElementCollectionFromPsiArrayUtil.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaElementCollectionFromPsiArrayUtil.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaElementImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaElementImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaElementUtil.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaElementUtil.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaFieldImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaFieldImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaMemberImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaMemberImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaMethodImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaMethodImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaModifierListOwnerImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaModifierListOwnerImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaPackageImpl.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaPackageImpl.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaPrimitiveTypeImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaPrimitiveTypeImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaRecordComponentImpl.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaRecordComponentImpl.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaTypeImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaTypeImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaTypeParameterImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaTypeParameterImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaValueParameterImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaValueParameterImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaWildcardTypeImpl.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaWildcardTypeImpl.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/NotEvaluatedConstAware.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/NotEvaluatedConstAware.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/VirtualFileBoundJavaClass.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/VirtualFileBoundJavaClass.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/annotationArgumentsImpl.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/annotationArgumentsImpl.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classNamesUtil.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classNamesUtil.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/javaPsiUtils.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/javaPsiUtils.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/Annotations.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/Annotations.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/BinaryClassSignatureParser.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/BinaryClassSignatureParser.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/BinaryJavaClass.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/BinaryJavaClass.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/ClassifierResolutionContext.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/ClassifierResolutionContext.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/Methods.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/Methods.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/Other.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/Other.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/Types.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/Types.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/commonMixins.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/commonMixins.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/source/JavaElementPsiSource.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/source/JavaElementPsiSource.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/source/JavaElementSourceFactory.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/source/JavaElementSourceFactory.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/source/JavaElementTypeSource.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/source/JavaElementTypeSource.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/source/JavaSourceFactoryOwner.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/source/JavaSourceFactoryOwner.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/resolve/jvm/KotlinCliJavaFileManager.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/resolve/jvm/KotlinCliJavaFileManager.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/resolve/jvm/KotlinFinderMarker.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/resolve/jvm/KotlinFinderMarker.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/resolve/jvm/KotlinJavaPsiFacade.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/resolve/jvm/KotlinJavaPsiFacade.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/resolve/jvm/KotlinSafeClassFinder.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/resolve/jvm/KotlinSafeClassFinder.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/resolve/jvm/NotFoundPackagesCachingStrategy.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/resolve/jvm/NotFoundPackagesCachingStrategy.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/resolve/jvm/TopPackageNamesProvider.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/resolve/jvm/TopPackageNamesProvider.kt
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/util/ConstUtils.java compiler/resolution.common.jvm/src/org/jetbrains/kotlin/util/ConstUtils.java
+compiler/frontend.common.jvm/src/org/jetbrains/kotlin/util/vavr/vavrAdapters.kt compiler/resolution.common.jvm/src/org/jetbrains/kotlin/util/vavr/vavrAdapters.kt
+js/js.config/src/org/jetbrains/kotlin/js/config/SourceMapNamesPolicy.kt js/js.frontend/src/org/jetbrains/kotlin/js/config/SourceMapNamesPolicy.kt
+js/js.config/gen/org/jetbrains/kotlin/js/config/JSConfigurationKeys.kt js/js.frontend/gen/org/jetbrains/kotlin/js/config/JSConfigurationKeys.kt
+compiler/fir/resolve/src/org/jetbrains/kotlin/fir/scopes/impl/FirActualizingScope.kt compiler/fir/providers/src/org/jetbrains/kotlin/fir/scopes/impl/FirActualizingScope.kt
+compiler/fir/tree/gen/org/jetbrains/kotlin/fir/expressions/builder/FirArgumentListBuilder.kt compiler/fir/tree/src/org/jetbrains/kotlin/fir/expressions/builder/FirArgumentListBuilder.kt
+compiler/fir/tree/gen/org/jetbrains/kotlin/fir/expressions/impl/FirArgumentListImpl.kt compiler/fir/tree/src/org/jetbrains/kotlin/fir/expressions/impl/FirArgumentListImpl.kt
+LIST
+        '')
+        (ops.replace "compiler-version-150" ''
+          echo -n "2.3.0" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+      ];
+    };
+
     "2.2.0" = step k."2.1.20" "2.2.0" [ ] {
       steps = lib.flip lib.pipe [
         (ops.replace "compiler-dirs" (compilerDirs (dirs220 ++ firDirs220)))
@@ -2511,6 +2660,16 @@ KT
 
   dirs2120 = lib.subtractLists [ "js/js.dce/src" "js/js.inliner/src" ] dirs210 ++ [ "compiler/ir/backend.native/src" "native/base/src" ];
   firDirs2120 = firDirs210 ++ [ "compiler/config/gen" "compiler/config.jvm/gen" "compiler/cli/cli-base/gen" "js/js.frontend/gen" ];
+  dirs230 = dirs220
+    ++ [
+      "compiler/ir/ir.validation/src"
+      "js/typescript-export-model/src"
+      "js/typescript-printer/src"
+      "native/binary-options/src"
+      "compiler/build-tools/kotlin-build-tools-api/gen"
+      "js/js.config/gen"
+    ];
+  firDirs230 = firDirs220;
   dirs220 = lib.subtractLists [ "compiler/builtins-serializer/src" ] dirs2120 ++ [ "compiler/arguments.common/src" "js/js.frontend.common/src" ];
   firDirs210 = [
     "compiler/fir/raw-fir/light-tree2fir/src"
