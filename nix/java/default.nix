@@ -496,6 +496,21 @@ lib.fix (self: {
     javaRelease = "1.7";
   };
 
+  # The Java sources are generated from the `drv` templates with the C preprocessor.
+  fastutil = mkJar {
+    pname = "fastutil";
+    version = "8.5.4";
+    src = gh "vigna" "fastutil" "8.5.4" "sha256-G6o8UZzZx8lMyN3DwmotKKLFmkQHzEJDasqnnX9BmhM=";
+    sourceDirs = [ "src" ];
+    preBuild = ''
+      patchShebangs gencsource.sh
+      make sources
+      find src -name '*.java' -size 0 | grep . && exit 1
+      rm -f src/it/unimi/dsi/fastutil/package-info.java
+    '';
+    javaRelease = "1.8";
+  };
+
   jna-5 = mkJar {
     pname = "jna";
     version = "5.3.1";
