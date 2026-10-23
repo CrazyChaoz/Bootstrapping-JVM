@@ -1356,19 +1356,63 @@ let
             ln -sf ${jar java.jetbrains-asm-8} $f
           done
         '')
+        # the stdlib's version requirements (e.g. ULong ops need 1.4.30) are checked against this string
+        (addLast "compiler-version-1432" ''
+          echo -n "1.4.32" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
         (addLast "no-202-api" ''
           sed -i 's|LanguageLevel.JDK_15_PREVIEW|LanguageLevel.HIGHEST|' compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/JavaLanguageLevel.kt
           sed -i 's|classifierTypes(psi.permitsListTypes)|classifierTypes(emptyArray())|' compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaClassImpl.kt
-          sed -i 's|PsiModifier.SEALED|"sealed"|' compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaElementUtil.java
+          sed -i 's|return owner.getPsi().hasModifierProperty(PsiModifier.SEALED);|return false;|' compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaElementUtil.java
           # MAX_VALUE of the unsigned types is stdlib 1.4.30 API
           sed -i -e 's/UByte.MAX_VALUE.toLong()/0xFFL/' -e 's/UShort.MAX_VALUE.toLong()/0xFFFFL/' -e 's/UInt.MAX_VALUE.toLong()/0xFFFFFFFFL/' \
             core/descriptors/src/org/jetbrains/kotlin/resolve/constants/PrimitiveTypeUtil.kt
           grep -q 'classifierTypes(emptyArray())' compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaClassImpl.kt
         '')
         (ops.replace "compiler-dirs" (compilerDirs dirs1432))
+        (addLast "extensions-xml" ''
+          # META-INF/extensions/compiler.xml: without it the packed compiler only works from a source checkout
+          perl -0pi -e 's|(\n(\s*)<fileset dir="\$\{basedir\}/compiler/compiler.version/resources" includes="META-INF/compiler.version"/>)|\n$2<fileset dir="\$\{basedir\}/compiler/cli/cli-common/resources" includes="META-INF/extensions/**"/>$1|' build.xml
+          grep -q 'META-INF/extensions' build.xml
+        '')
         (addLast "core-deserialization-common" ''
           sed -i '/<target name="core">/,/<\/target>/ s|^\( *\)<include name="core/deserialization/src"/>|&\n\1<include name="core/deserialization.common/src"/>\n\1<include name="core/deserialization.common.jvm/src"/>|' build.xml
           grep -q 'core/deserialization.common/src' build.xml
+        '')
+      ];
+    };
+    "1.5.0-M1" = step k."1.4.32" "1.5.0-M1" [ ] {
+      steps = lib.flip lib.pipe [
+        (addLast "language-1.5" ''
+          sed -i 's|-language-version 1.4 -api-version 1.4|-language-version 1.5 -api-version 1.5|' build.xml
+          grep -q 'api-version 1.5' build.xml
+        '')
+        # SDK 202 API in the sources, SDK 201 is what we have
+        # 1.5 dropped the experimental-coroutines stdlib; keep the (empty) target so later targets still work
+        (addLast "no-experimental-coroutines" ''
+          perl -0pi -e 's|(<target name="stdlib">).*?(</target>)|$1<mkdir dir="\$\{output\}/classes/stdlib"/>$2|s' build.xml
+          grep -q 'name="stdlib"><mkdir' build.xml
+        '')
+        (addLast "compiler-version-150" ''
+          echo -n "1.5.0-M1" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+        (addLast "no-202-api-2" ''
+          sed -i 's|PsiAugmentProvider.collectAugments(element, type, null)|PsiAugmentProvider.collectAugments(element, type)|' compiler/light-classes/src/org/jetbrains/kotlin/asJava/classes/lightClassPlatformUtils.kt
+          sed -i 's|Interner.createStringInterner()|com.intellij.util.containers.StringInterner()|; s|MultiMap.createConcurrent<K, V>()|MultiMap.createConcurrentSet<K, V>()|' compiler/util/src/org/jetbrains/kotlin/utils/platformUtils.kt
+          grep -q StringInterner compiler/util/src/org/jetbrains/kotlin/utils/platformUtils.kt
+        '')
+        (addLast "suppress-api-not-available" ''
+          # the 1.4.32 compiler does not take 1.4.30 stdlib API as available even with -api-version 1.5
+          for f in compiler/ir/backend.common/src/org/jetbrains/kotlin/backend/common/lower/loops/HeaderInfo.kt \
+                   compiler/ir/backend.common/src/org/jetbrains/kotlin/backend/common/lower/loops/ProgressionType.kt \
+                   compiler/ir/serialization.common/src/org/jetbrains/kotlin/backend/common/serialization/CityHash.kt; do
+            if grep -q '^@file:Suppress(' $f; then
+              perl -0pi -e 's/^\@file:Suppress\(/\@file:Suppress("API_NOT_AVAILABLE", /m' $f
+            else
+              perl -0pi -e 's/^package /\@file:Suppress("API_NOT_AVAILABLE")\npackage /m' $f
+            fi
+            grep -q 'API_NOT_AVAILABLE' $f
+          done
         '')
       ];
     };
