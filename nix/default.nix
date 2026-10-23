@@ -36,6 +36,14 @@ pkgs.lib.makeScope pkgs.newScope (self: {
   # TODO: use the JDK from nix/jdk once the chain is complete.
   jdk11 = pkgs.openjdk11;
   javaLib11 = self.callPackage ./lib/mk-jar.nix { jdk = self.jdk11; };
+  # Gradle: JDK 21 from the chain (nix/jdk).
+  jdk21 = self.jdks.openjdk21;
+  javaLib21 = self.callPackage ./lib/mk-jar.nix { jdk = self.jdk21; };
+  gradleLibs = self.callPackage ./gradle/libs.nix {
+    jdk = self.jdk21;
+    inherit (self.javaLib21) mkJar classpathOf;
+  };
+
   groovy = self.callPackage ./java/groovy.nix {
     jdk = self.jdk11;
     inherit (self.javaLib11) mkJar;
