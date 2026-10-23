@@ -1462,6 +1462,50 @@ let
       ];
     };
 
+    "1.7.0" = step k."1.6.21" "1.7.0" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "compiler-dirs" (compilerDirs dirs170))
+        # -Xuse-experimental is gone in 1.7
+        (addLast "opt-in-flag" ''
+          sed -i 's|-Xuse-experimental=|-Xopt-in=|g' build.xml
+          ! grep -q 'Xuse-experimental' build.xml
+        '')
+        (addLast "jsr305" ''
+          ln -sf ${jar java.jsr305} ideaSDK/core/jsr305.jar
+        '')
+        (addLast "no-203-api" ''
+          rm compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/incrementalFirCacheUtils.kt
+          f=compiler/light-classes/src/org/jetbrains/kotlin/asJava/classes/KotlinClassInnerStuffCache.kt
+          sed -i 's|PsiKeyword.SEALED|"sealed"|' $f
+          ! grep -q PsiKeyword.SEALED $f
+        '')
+        (ops.replace "no-fir" ''
+          d=compiler/cli/src/org/jetbrains/kotlin/cli
+          rm -r $d/common/fir $d/jvm/compiler/pipeline
+          rm $d/jvm/compiler/FirKotlinToJvmBytecodeCompiler.kt $d/jvm/compiler/VfsBasedProjectEnvironment.kt
+          rm compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/IncrementalFirJvmCompilerRunner.kt
+          stub='throw UnsupportedOperationException("FIR is not part of the bootstrap build")'
+          f=$d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
+          STUB="$stub" perl -0pi -e 's/^import [^\n]*FirDiagnosticsCompilerResultsReporter\n//m; s/val projectEnvironment =\s*VfsBasedProjectEnvironment\(.*?buildFile, chunk, extendedAnalysisMode\s*\)/$ENV{STUB}/s; s/FirDiagnosticsCompilerResultsReporter\.reportToMessageCollector\(.*?\n        \)\n//s' $f
+          f=$d/jvm/compiler/KotlinCoreEnvironment.kt
+          sed -i '/FirExtensionRegistrarAdapter/d' $f
+          f=$d/jvm/K2JVMCompiler.kt
+          STUB="$stub" perl -0pi -e 's/^import [^\n]*\.pipeline\.[^\n]*\n//mg; s/if \(configuration\.getBoolean\(CommonConfigurationKeys\.USE_FIR\) && arguments\.useFirLT.*?\n            \} else \{/if (false) {\n                $ENV{STUB}\n            } else {/s' $f
+          f=compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/IncrementalJvmCompilerRunner.kt
+          STUB="$stub" perl -0pi -e 's/if \(args\.useK2 && args\.useFirIC && args\.useFirLT[^\n]*\n\s*IncrementalFirJvmCompilerRunner\(.*?\n\s*\)\n(\s*)else/if (false) $ENV{STUB}\n$1else/s' $f
+          grep -q 'not part of the bootstrap build' $d/jvm/K2JVMCompiler.kt $d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt $f
+          ! grep -rq 'kotlin\.fir\.\|cli\.common\.fir\|IncrementalFirJvm\|\.pipeline\.' $d compiler/incremental-compilation-impl/src
+        '')
+        (ops.replace "compiler-version-150" ''
+          echo -n "1.7.0" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+        (addLast "language-1.7" ''
+          sed -i 's|-language-version 1.6 -api-version 1.6|-language-version 1.7 -api-version 1.7|' build.xml
+          grep -q 'api-version 1.7' build.xml
+        '')
+      ];
+    };
+
     "1.6.21" = step k."1.6.0" "1.6.21" [ ] {
       steps = lib.flip lib.pipe [
         (ops.delete "minby-or-null")
@@ -1904,6 +1948,9 @@ let
     "compiler/frontend.common-psi/src"
     "compiler/ir/backend.jvm/codegen/src"
   ];
+
+  dirs170 = (lib.subtractLists [ "compiler/ir/ir.tree.persistent/gen" "compiler/ir/ir.tree.persistent/src" ] dirs1621)
+    ++ [ "compiler/frontend.common.jvm/src" ];
 
   dirs1432 = [
     "build-common/src"
