@@ -1348,6 +1348,30 @@ let
           inherit (intellij."193") annotations;
         };
     };
+    "1.4.32" = step k."1.4.21" "1.4.32" [ ] {
+      steps = lib.flip lib.pipe [
+        # SDK 202 would need fastutil and the split-off util modules: stay on SDK 201 but with ASM 8 (records)
+        (ops.replace "sdk-asm" ''
+          for f in ideaSDK/core/asm-6.0.jar ideaSDK/core/asm-all*.jar; do
+            ln -sf ${jar java.jetbrains-asm-8} $f
+          done
+        '')
+        (addLast "no-202-api" ''
+          sed -i 's|LanguageLevel.JDK_15_PREVIEW|LanguageLevel.HIGHEST|' compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/JavaLanguageLevel.kt
+          sed -i 's|classifierTypes(psi.permitsListTypes)|classifierTypes(emptyArray())|' compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaClassImpl.kt
+          sed -i 's|PsiModifier.SEALED|"sealed"|' compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaElementUtil.java
+          # MAX_VALUE of the unsigned types is stdlib 1.4.30 API
+          sed -i -e 's/UByte.MAX_VALUE.toLong()/0xFFL/' -e 's/UShort.MAX_VALUE.toLong()/0xFFFFL/' -e 's/UInt.MAX_VALUE.toLong()/0xFFFFFFFFL/' \
+            core/descriptors/src/org/jetbrains/kotlin/resolve/constants/PrimitiveTypeUtil.kt
+          grep -q 'classifierTypes(emptyArray())' compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaClassImpl.kt
+        '')
+        (ops.replace "compiler-dirs" (compilerDirs dirs1432))
+        (addLast "core-deserialization-common" ''
+          sed -i '/<target name="core">/,/<\/target>/ s|^\( *\)<include name="core/deserialization/src"/>|&\n\1<include name="core/deserialization.common/src"/>\n\1<include name="core/deserialization.common.jvm/src"/>|' build.xml
+          grep -q 'core/deserialization.common/src' build.xml
+        '')
+      ];
+    };
   });
 
   # Version independent replacements for the per-version patches of TarCV
@@ -1684,6 +1708,71 @@ let
     ! grep -q 'kotlin\.fir\.' $f
     sed -i '/org\.jetbrains\.kotlin\.fir\./d' compiler/cli/resources/META-INF/services/org.jetbrains.kotlin.diagnostics.rendering.DefaultErrorMessages\$Extension
   '';
+
+  dirs1432 = [
+    "build-common/src"
+    "compiler/backend-common/src"
+    "compiler/backend.common.jvm/src"
+    "compiler/backend/src"
+    "compiler/builtins-serializer/src"
+    "compiler/cli/cli-common/src"
+    "compiler/cli/cli-js/src"
+    "compiler/cli/src"
+    "compiler/compiler.version/src"
+    "compiler/config.jvm/src"
+    "compiler/config/src"
+    "compiler/container/src"
+    "compiler/frontend.common/src"
+    "compiler/frontend.java/src"
+    "compiler/frontend/src"
+    "compiler/incremental-compilation-impl/src"
+    "compiler/ir/backend.common/src"
+    "compiler/ir/backend.js/src"
+    "compiler/ir/backend.jvm/src"
+    "compiler/ir/backend.wasm/src"
+    "compiler/ir/ir.interpreter/src"
+    "compiler/ir/ir.psi2ir/src"
+    "compiler/ir/ir.tree.impl/src"
+    "compiler/ir/ir.tree.persistent/src"
+    "compiler/ir/ir.tree/src"
+    "compiler/ir/serialization.common/src"
+    "compiler/ir/serialization.js/src"
+    "compiler/ir/serialization.jvm/src"
+    "compiler/javac-wrapper/src"
+    "compiler/light-classes/src"
+    "compiler/plugin-api/src"
+    "compiler/psi/src"
+    "compiler/resolution.common.jvm/src"
+    "compiler/resolution.common/src"
+    "compiler/resolution/src"
+    "compiler/serialization/src"
+    "compiler/util-io/src"
+    "compiler/util-klib-metadata/src"
+    "compiler/util-klib/src"
+    "compiler/util/src"
+    "core/compiler.common.jvm/src"
+    "core/compiler.common/src"
+    "core/descriptors.jvm/src"
+    "core/descriptors.runtime/src"
+    "core/descriptors/src"
+    "core/deserialization.common.jvm/src"
+    "core/deserialization.common/src"
+    "core/deserialization/src"
+    "core/metadata.jvm/src"
+    "core/metadata/src"
+    "core/util.runtime/src"
+    "js/js.ast/src"
+    "js/js.config/src"
+    "js/js.dce/src"
+    "js/js.frontend/src"
+    "js/js.inliner/src"
+    "js/js.parser/src"
+    "js/js.serializer/src"
+    "js/js.translator/src"
+    "native/frontend/src"
+    "native/utils/src"
+    "wasm/wasm.ir/src"
+  ];
 
   # Relocate the compiler core classes in kotlin-reflect.jar and strip their
   # Kotlin metadata, as upstream does (otherwise compiling the next compiler

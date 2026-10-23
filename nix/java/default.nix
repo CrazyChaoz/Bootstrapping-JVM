@@ -213,6 +213,30 @@ lib.fix (self: {
           grep -q 'new LabelNode(label)' asm-tree/src/main/java/org/objectweb/asm/tree/MethodNode.java
         '';
       });
+  # intellij-deps-asm 8 (IntelliJ 202)
+  jetbrains-asm-8 =
+    (self.mkAsm {
+      version = "8.0.1";
+      src = self.asm-8-src;
+      sourceDirs = [
+        "asm/src/main/java"
+        "asm-tree/src/main/java"
+        "asm-analysis/src/main/java"
+        "asm-commons/src/main/java"
+        "asm-util/src/main/java"
+      ];
+      relocateTo = "org.jetbrains.org.objectweb.asm";
+      javaRelease = "1.8";
+    }).overrideAttrs
+      (o: {
+        postPatch = o.postPatch + ''
+          sed -i 's|^  int ASM8 = 8 << 16 \| 0 << 8;|&\n  int API_VERSION = ASM8; //[JB: convenience constant]|' asm/src/main/java/org/objectweb/asm/Opcodes.java
+          sed -i 's|if (checkClassVersion && readShort(classFileOffset + 6) > Opcodes.V[0-9]*)|if (false)|' asm/src/main/java/org/objectweb/asm/ClassReader.java
+          grep -q API_VERSION asm/src/main/java/org/objectweb/asm/Opcodes.java
+          sed -i 's|label.info = new LabelNode();|label.info = new LabelNode(label);|' asm-tree/src/main/java/org/objectweb/asm/tree/MethodNode.java
+          grep -q 'new LabelNode(label)' asm-tree/src/main/java/org/objectweb/asm/tree/MethodNode.java
+        '';
+      });
   asm-6 = self.mkAsm {
     version = "6.0";
     src = self.asm-6-src;
