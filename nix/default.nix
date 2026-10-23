@@ -61,6 +61,22 @@ pkgs.lib.makeScope pkgs.newScope (self: {
       ln -s ${self.kotlin."2.4.0"}/lib/${name}.jar $out/share/java/${name}.jar
     '';
 
+  kotlinEmbeddable = self.callPackage ./gradle/kotlin-embeddable.nix {
+    jdk = self.jdk21;
+    inherit (self) gradleLibs;
+    inherit (self.javaLib21) classpathOf;
+  };
+
+  kotlinCompilerEmbeddable = self.kotlinEmbeddable.relocate {
+    name = "kotlin-compiler-embeddable";
+    jars = [ "${self.kotlin."2.4.0"}/lib/kotlin-compiler.jar" ];
+    exclude = [
+      "com/sun/jna/"
+      "org/jetbrains/annotations/"
+      "build/"
+    ];
+  };
+
   kotlinPlugins = self.callPackage ./gradle/kotlin-plugins.nix {
     jdk = self.jdk21;
     kotlinSrc = self.kotlinSources."2.4.0";
@@ -79,6 +95,7 @@ pkgs.lib.makeScope pkgs.newScope (self: {
       kotlinStdlib = self.kotlinJar "kotlin-stdlib";
       kotlinReflect = self.kotlinJar "kotlin-reflect";
       kotlinScriptRuntime = self.kotlinJar "kotlin-script-runtime";
+      kotlinCompilerEmbeddable = self.kotlinCompilerEmbeddable;
     };
   };
 
