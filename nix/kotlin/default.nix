@@ -1462,6 +1462,97 @@ let
       ];
     };
 
+    "1.9.0" = step k."1.8.0" "1.9.0" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "compiler-dirs" (compilerDirs dirs190))
+        # more SDK 201 vs 213 differences, in Java sources
+        (addLast "no-213-api-java" ''
+          f=analysis/light-classes-base/src/org/jetbrains/kotlin/asJava/classes/ClassInnerStuffCache.java
+          perl -pi -e 's/collectAugments\((myClass, \w+\.class), (?:null|name)\)/collectAugments($1)/g; s/Interner\.createWeakInterner\(\)/(Interner) new com.intellij.util.containers.WeakInterner()/' $f
+          ! grep -q 'createWeakInterner' $f
+          sed -i 's|NotNullLazyValue.atomicLazy(|com.intellij.openapi.util.AtomicNotNullLazyValue.createValue(|' compiler/frontend/src/org/jetbrains/kotlin/resolve/diagnostics/DiagnosticsElementsCache.java
+          sed -i 's|NotNullLazyValue.lazy(|NotNullLazyValue.createValue(|' compiler/psi/src/org/jetbrains/kotlin/idea/KotlinFileType.java compiler/psi/src/org/jetbrains/kotlin/idea/KotlinModuleFileType.java
+          f=compiler/cli/src/org/jetbrains/kotlin/cli/common/messages/PlainTextMessageRenderer.java
+          sed -i '/import org.fusesource.jansi.internal.CLibrary;/d; s|CLibrary.isatty(CLibrary.STDERR_FILENO) != 0|System.console() != null|' $f
+          ! grep -q CLibrary $f
+        '')
+        (addLast "unsafe-cast-opt-in" ''
+          sed -i 's|-Xopt-in=org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi|& -Xopt-in=org.jetbrains.kotlin.utils.addToStdlib.UnsafeCastFunction|' build.xml
+          grep -q 'UnsafeCastFunction' build.xml
+        '')
+        # SDK 201 instead of SDK 213, and no FIR/JS-FIR/wasm-immutable-collections
+        (addLast "no-213-api" ''
+          sed -i 's|\.map { it\.toFile() }||; s|getJdkClassesRoots(Paths.get(javaHome), true)|getJdkClassesRoots(File(javaHome), true)|; s|getJdkClassesRoots(jdkHome.toPath(), false)|getJdkClassesRoots(jdkHome, false)|; s|getJdkClassesRoots(javaRoot.toPath(), !isJdk)|getJdkClassesRoots(javaRoot, !isJdk)|' compiler/util/src/org/jetbrains/kotlin/utils/PathUtil.kt
+          perl -0pi -e 's/(ExtensionPoint\.Kind\.INTERFACE),\s*false/$1/' compiler/util/src/org/jetbrains/kotlin/extensions/ProjectExtensionDescriptor.kt compiler/util/src/org/jetbrains/kotlin/extensions/ApplicationExtensionDescriptor.kt
+          rm compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/DummyJavaFileCodeStyleFacadeFactory.kt
+          sed -i '/JavaFileCodeStyleFacade/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreApplicationEnvironment.kt
+          sed -i '/hasConfiguredAnnotationRoot/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/MockExternalAnnotationsManager.kt
+          f=compiler/ir/serialization.common/src/org/jetbrains/kotlin/backend/common/serialization/IrInterningService.kt
+          sed -i '/import it.unimi.dsi.fastutil/d; s|ObjectOpenHashSet<String>()|HashMap<String, String>()|; s|ObjectOpenHashSet<Name>()|HashMap<Name, Name>()|; s|strings.addOrGet(string)|strings.getOrPut(string) { string }|; s|names.addOrGet(name)|names.getOrPut(name) { name }|' $f
+          f=build-common/src/org/jetbrains/kotlin/incremental/storage/CachingLazyStorage.kt
+          sed -i '/import com.intellij.util.io.AppendablePersistentMap/d; s|AppendablePersistentMap.ValueDataAppender|PersistentHashMap.ValueDataAppender|' $f
+          f=wasm/wasm.ir/src/org/jetbrains/kotlin/wasm/ir/convertors/WasmIrToBinary.kt
+          sed -i '/import kotlinx.collections.immutable/d; s|private var offsets = persistentListOf<Box>()|private var offsets: List<Box> = emptyList()|' $f
+          rm -r compiler/ir/serialization.js/src/org/jetbrains/kotlin/fir
+          f=compiler/cli/cli-js/src/org/jetbrains/kotlin/cli/js/K2JsIrCompiler.kt
+          STUB='throw UnsupportedOperationException("FIR is not part of the bootstrap build")' perl -0pi -e 's/val analyzedOutput = compileModuleToAnalyzedFir\(.*?(\n        return moduleStructure)/$ENV{STUB}$1/s' $f
+          grep -q 'not part of the bootstrap build' $f
+        '')
+        (addLast "builtins-was-experimental" ''
+          cp libraries/stdlib/src/kotlin/annotations/WasExperimental.kt builtins-cherry/
+        '')
+        (ops.replace "no-203-api" ''
+          f=analysis/light-classes-base/src/org/jetbrains/kotlin/asJava/classes/KotlinClassInnerStuffCache.kt
+          sed -i 's|PsiKeyword.SEALED|"sealed"|' $f
+          ! grep -q PsiKeyword.SEALED $f
+        '')
+        (ops.replace "no-202-api" ''
+          sed -i 's|classifierTypes(psi.permitsListTypes)|classifierTypes(emptyArray())|' compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaClassImpl.kt
+          sed -i 's|return owner.getPsi().hasModifierProperty(PsiModifier.SEALED);|return false;|' compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaElementUtil.java
+          grep -q 'classifierTypes(emptyArray())' compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/JavaClassImpl.kt
+        '')
+        (ops.replace "no-fir" ''
+          d=compiler/cli/src/org/jetbrains/kotlin/cli
+          rm -r $d/common/fir $d/jvm/compiler/pipeline
+          rm $d/common/FirSessionConstructionUtils.kt $d/metadata/FirMetadataSerializer.kt
+          rm $d/jvm/compiler/FirKotlinToJvmBytecodeCompiler.kt $d/jvm/compiler/VfsBasedProjectEnvironment.kt
+          rm compiler/cli/cli-js/src/org/jetbrains/kotlin/cli/js/klib/compilerPipeline.kt
+          rm compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/IncrementalFirJvmCompilerRunner.kt
+          rm compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/incrementalFirCacheUtils.kt
+          stub='throw UnsupportedOperationException("FIR is not part of the bootstrap build")'
+          f=$d/jvm/compiler/cliCompilerUtils.kt
+          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/\nfun createContextForIncrementalCompilation\(.*\z/\n/s' $f
+          sed -i '/FirMetadataSerializer/d' $d/metadata/K2MetadataCompiler.kt
+          f=$d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
+          STUB="$stub" perl -0pi -e 's/^import [^\n]*FirDiagnosticsCompilerResultsReporter\n//m; s/val projectEnvironment =\s*VfsBasedProjectEnvironment\(.*?buildFile, chunk\s*\)/$ENV{STUB}/s; s/FirDiagnosticsCompilerResultsReporter\.reportToMessageCollector\(.*?\n        \)\n//s' $f
+          sed -i '/FirExtensionRegistrarAdapter/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreEnvironment.kt
+          f=$d/jvm/K2JVMCompiler.kt
+          STUB="$stub" perl -0pi -e 's/^import [^\n]*\.pipeline\.[^\n]*\n//mg; s/if \(configuration\.getBoolean\(CommonConfigurationKeys\.USE_FIR\) && configuration\.getBoolean\(CommonConfigurationKeys\.USE_LIGHT_TREE\)\)\s*\{.*?\n            \} else \{/if (false) {\n                $ENV{STUB}\n            } else {/s' $f
+          f=compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/CompilerRunnerUtils.kt
+          STUB="$stub" perl -0pi -e 's/if \(useK2 && args\.useFirIC && args\.useFirLT[^\n]*\n\s*IncrementalFirJvmCompilerRunner\(.*?\n\s*\)\n(\s*)else/if (false) $ENV{STUB}\n$1else/s' $f
+          grep -q 'not part of the bootstrap build' $d/jvm/K2JVMCompiler.kt $d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt $f
+          ! grep -rq 'kotlin\.fir\.\|cli\.common\.fir\|IncrementalFirJvm\|\.pipeline\.\|FirMetadataSerializer' $d compiler/incremental-compilation-impl/src compiler/cli/cli-base/src
+        '')
+        (ops.replace "compiler-version-150" ''
+          echo -n "1.9.0" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+        (addLast "language-1.9" ''
+          sed -i 's|-language-version 1.8 -api-version 1.8|-language-version 1.9 -api-version 1.9|' build.xml
+          grep -q 'api-version 1.9' build.xml
+        '')
+        # core has Java default methods (ValidateableDescriptor)
+        (addLast "javac-8" ''
+          sed -i 's|source="1.6" target="1.6"|source="1.8" target="1.8"|' build.xml
+          ! grep -q 'source="1.6"' build.xml
+        '')
+        # the stdlib's platform implementations moved into the jdk7/jdk8 source sets
+        (addLast "stdlib-jdk78" ''
+          perl -0pi -e 's|(<target name="builtins">.*?<include name="libraries/stdlib/jvm/src"/>\n)|$1                <include name="libraries/stdlib/jdk7/src"/>\n                <include name="libraries/stdlib/jdk8/src"/>\n|s' build.xml
+          grep -q 'stdlib/jdk8/src' build.xml
+        '')
+      ];
+    };
+
     "1.8.0" = step k."1.7.0" "1.8.0" [ ] {
       steps = lib.flip lib.pipe [
         (ops.replace "compiler-dirs" (compilerDirs dirs180))
@@ -1482,6 +1573,14 @@ let
           perl -0pi -e 's/    \@Override\n(    boolean isWhitespaceOrComment)/$1/' compiler/psi/src/org/jetbrains/kotlin/parsing/SemanticWhitespaceAwarePsiBuilder.java
           grep -q 'super.toString' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/KtStubElementType.java
           ! grep -B1 'boolean isWhitespaceOrComment' compiler/psi/src/org/jetbrains/kotlin/parsing/SemanticWhitespaceAwarePsiBuilder.java | grep -q Override
+        '')
+        # javac target 1.6 cannot emit the interface invokespecial of AnnotationDescriptor.super.getFqName()
+        (addLast "annotation-fqname" ''
+          f=core/descriptors/src/org/jetbrains/kotlin/descriptors/annotations/AnnotationDescriptorImpl.java
+          perl -pi -e 's/AnnotationDescriptor\.super\.getFqName\(\)/fqNameDefault(this)/' $f
+          perl -0pi -e 's/    \@Nullable\n    \@Override\n(    public FqName getFqName\(\) \{)/    private static FqName fqNameDefault(AnnotationDescriptor d) {\n        org.jetbrains.kotlin.descriptors.ClassDescriptor c = org.jetbrains.kotlin.resolve.descriptorUtil.DescriptorUtilsKt.getAnnotationClass(d);\n        if (c == null || org.jetbrains.kotlin.types.error.ErrorUtils.isError(c)) return null;\n        return org.jetbrains.kotlin.resolve.descriptorUtil.DescriptorUtilsKt.fqNameOrNull(c);\n    }\n\n    \@Nullable\n$1/' $f
+          grep -q 'static FqName fqNameDefault' $f
+          ! grep -B1 'public FqName getFqName' $f | grep -q Override
         '')
         (ops.delete "interpreter-dup-utils")
         (addLast "flags-1.8" ''
@@ -2015,6 +2114,16 @@ let
 
   dirs180 = (lib.subtractLists [ "compiler/ir/ir.tree.impl/src" ] dirs170)
     ++ [ "analysis/light-classes-base/src" "compiler/ir/ir.tree/gen" ];
+
+  dirs190 = dirs180 ++ [
+    "compiler/cli/cli-common/gen"
+    "analysis/project-structure/src"
+    "compiler/build-tools/kotlin-build-statistics/src"
+    "compiler/cli/cli-base/src"
+    "core/compiler.common.js/src"
+    "wasm/wasm.config/src"
+    "wasm/wasm.frontend/src"
+  ];
 
   dirs1432 = [
     "build-common/src"
