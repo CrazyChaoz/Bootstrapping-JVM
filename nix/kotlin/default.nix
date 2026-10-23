@@ -1297,7 +1297,24 @@ let
       ];
     };
     "1.4.0-M3" = step k."1.4.0-M2" "1.4.0-M3" [ ] {
-      steps = ops.replace "compiler-dirs" (compilerDirs dirs14);
+      steps = lib.flip lib.pipe [
+        (addLast "builtins-reflect-jvm-annotations" ''
+        # the M2 serializer cannot resolve JVM annotations in the cherry-picked reflect sources
+        sed -i -e '/^import kotlin.jvm.Jvm/d' -e '/^ *@Jvm\(Field\|Static\)$/d' builtins-cherry/*.kt
+        ! grep -q '@Jvm' builtins-cherry/*.kt
+      '')
+        (addLast "stdlib-jdk8-types" ''
+          # upstream compiles this against JDK 6 (no Type.getTypeName, no AnnotatedElement in TypeVariable)
+          f=libraries/stdlib/jvm/src/kotlin/reflect/TypesJVM.kt
+          perl -0pi -e 's|(private interface TypeImpl : Type \{\n[^\n]*\n)    fun getTypeName\(\): String|$1    override fun getTypeName(): String|; s|(    override fun getBounds\(\): Array<Type> = [^\n]*\n)|$1\n    override fun <T : Annotation?> getAnnotation(annotationClass: Class<T>): T? = null\n    override fun getAnnotations(): Array<Annotation> = emptyArray()\n    override fun getDeclaredAnnotations(): Array<Annotation> = emptyArray()\n    override fun getAnnotatedBounds(): Array<java.lang.reflect.AnnotatedType> = emptyArray()\n|' $f
+          grep -q getAnnotatedBounds $f
+        '')
+        (addLast "api-1.4" ''
+          sed -i 's|-language-version 1.4 -api-version 1.3|-language-version 1.4 -api-version 1.4|' build.xml
+          grep -q 'api-version 1.4' build.xml
+        '')
+        (addLast "fresh-stdlib" freshBuiltins)
+      ];
     };
     "1.4.0" = step k."1.3.72" "1.4.0" [ ] {
       steps = lib.flip lib.pipe [
@@ -1609,7 +1626,10 @@ let
       libraries/stdlib/common/src libraries/stdlib/src libraries/stdlib/unsigned/src
     find core/builtins/src libraries/stdlib/jvm/runtime libraries/stdlib/jvm/src -name '*.java' > fresh-stdlib.txt
     $JAVA_HOME/bin/javac -nowarn -d dependencies/fresh-stdlib -cp dependencies/fresh-stdlib @fresh-stdlib.txt
-    cp -r dependencies/prev-builtins/kotlin/. dependencies/fresh-stdlib/kotlin/
+    # builtins metadata of the new sources (e.g. DeprecatedSinceKotlin)
+    $JAVA_HOME/bin/java -cp "$BOOTSTRAP/lib/kotlin-compiler.jar" org.jetbrains.kotlin.serialization.builtins.RunKt \
+      dependencies/new-builtins core/builtins/native core/builtins/src builtins-cherry
+    cp -r dependencies/new-builtins/kotlin/. dependencies/fresh-stdlib/kotlin/
     (cd dependencies/fresh-stdlib && $JAVA_HOME/bin/jar cf ../kotlin-stdlib-fresh.jar .)
     antFlagsExtra+=" -Dbootstrap.runtime=$PWD/dependencies/kotlin-stdlib-fresh.jar"
   '';
@@ -1678,6 +1698,19 @@ let
     "native/frontend/src"
     "native/utils/src"
   ];
+
+  # The bootstrap's stdlib with the builtins metadata of the new sources
+  # (new builtin declarations such as DeprecatedSinceKotlin), for when the
+  # bootstrap compiler cannot compile the new stdlib itself.
+  freshBuiltins = ''
+    mkdir -p dependencies
+    cp "$BOOTSTRAP/lib/kotlin-stdlib.jar" dependencies/kotlin-stdlib-fresh.jar
+    chmod u+w dependencies/kotlin-stdlib-fresh.jar
+    $JAVA_HOME/bin/java -cp "$BOOTSTRAP/lib/kotlin-compiler.jar" org.jetbrains.kotlin.serialization.builtins.RunKt \
+      dependencies/new-builtins core/builtins/native core/builtins/src builtins-cherry
+    $JAVA_HOME/bin/jar uf dependencies/kotlin-stdlib-fresh.jar -C dependencies/new-builtins kotlin
+    antFlagsExtra+=" -Dbootstrap.runtime=$PWD/dependencies/kotlin-stdlib-fresh.jar"
+  '';
 
   # Relocate the compiler core classes in kotlin-reflect.jar and strip their
   # Kotlin metadata, as upstream does (otherwise compiling the next compiler
