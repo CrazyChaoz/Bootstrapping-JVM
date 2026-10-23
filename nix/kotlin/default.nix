@@ -1462,6 +1462,67 @@ let
       ];
     };
 
+    "1.8.0" = step k."1.7.0" "1.8.0" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "compiler-dirs" (compilerDirs dirs180))
+        (ops.delete "fresh-stdlib")
+        (addLast "context-receivers-core" ''
+          perl -pi -e 's/(<new-kotlinc output="[^"]*" moduleName="[^"]*")>/$1 additionalOptions="-Xcontext-receivers -Xjvm-default=all">/' build.xml
+          grep -q 'moduleName="kotlin-core" additionalOptions="-Xcontext-receivers' build.xml
+        '')
+        # IntRange etc. moved from the builtins to the stdlib sources
+        (addLast "builtins-from-sources" ''
+          sed -i 's|additionalOptions="-Xmulti-platform|additionalOptions="-Xbuiltins-from-sources -Xmulti-platform|' build.xml
+          grep -q 'Xbuiltins-from-sources' build.xml
+        '')
+        # SDK 203 API / -Xjvm-default=all applied to every module (upstream skips some)
+        (addLast "no-203-api-3" ''
+          sed -i 's|AnnotationDescriptor.DefaultImpls.getFqName(this)|AnnotationDescriptor.super.getFqName()|' core/descriptors/src/org/jetbrains/kotlin/descriptors/annotations/AnnotationDescriptorImpl.java
+          sed -i 's|"kotlin." + getDebugName()|"kotlin." + super.toString()|' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/KtStubElementType.java
+          perl -0pi -e 's/    \@Override\n(    boolean isWhitespaceOrComment)/$1/' compiler/psi/src/org/jetbrains/kotlin/parsing/SemanticWhitespaceAwarePsiBuilder.java
+          grep -q 'super.toString' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/KtStubElementType.java
+          ! grep -B1 'boolean isWhitespaceOrComment' compiler/psi/src/org/jetbrains/kotlin/parsing/SemanticWhitespaceAwarePsiBuilder.java | grep -q Override
+        '')
+        (ops.delete "interpreter-dup-utils")
+        (addLast "flags-1.8" ''
+          sed -i 's|-Xjvm-default=enable|-Xjvm-default=all|; s|-language-version 1.7 -api-version 1.7|& -Xcontext-receivers -Xopt-in=org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi|' build.xml
+          grep -q 'Xcontext-receivers' build.xml
+        '')
+        (addLast "no-203-api-2" ''
+          f=compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/classpathDiff/ClasspathSnapshotSerializer.kt
+          sed -i 's|Interner.createWeakInterner<|com.intellij.util.containers.WeakInterner<|' $f
+          ! grep -q createWeakInterner $f
+        '')
+        # the primitive iterators moved from the builtins to the stdlib sources
+        (addLast "builtins-primitive-iterators" ''
+          cp libraries/stdlib/src/kotlin/collections/PrimitiveIterators.kt builtins-cherry/
+          cp libraries/stdlib/src/kotlin/annotations/ExperimentalStdlibApi.kt builtins-cherry/
+          cp libraries/stdlib/src/kotlin/annotations/OptIn.kt builtins-cherry/
+          for f in libraries/stdlib/src/kotlin/ranges/*.kt; do
+            [ "$(basename $f)" = Ranges.kt ] || cp $f builtins-cherry/
+          done
+        '')
+        (ops.replace "no-203-api" ''
+          rm compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/incrementalFirCacheUtils.kt
+          f=analysis/light-classes-base/src/org/jetbrains/kotlin/asJava/classes/KotlinClassInnerStuffCache.kt
+          sed -i 's|PsiKeyword.SEALED|"sealed"|' $f
+          ! grep -q PsiKeyword.SEALED $f
+        '')
+        (ops.replace "no-202-api-2" ''
+          sed -i 's|PsiAugmentProvider.collectAugments(element, type, null)|PsiAugmentProvider.collectAugments(element, type)|' analysis/light-classes-base/src/org/jetbrains/kotlin/asJava/classes/lightClassPlatformUtils.kt
+          sed -i 's|Interner.createStringInterner()|com.intellij.util.containers.StringInterner()|; s|MultiMap.createConcurrent<K, V>()|MultiMap.createConcurrentSet<K, V>()|' compiler/util/src/org/jetbrains/kotlin/utils/platformUtils.kt
+          grep -q StringInterner compiler/util/src/org/jetbrains/kotlin/utils/platformUtils.kt
+        '')
+        (ops.replace "compiler-version-150" ''
+          echo -n "1.8.0" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+        (addLast "language-1.8" ''
+          sed -i 's|-language-version 1.7 -api-version 1.7|-language-version 1.8 -api-version 1.8|' build.xml
+          grep -q 'api-version 1.8' build.xml
+        '')
+      ];
+    };
+
     "1.7.0" = step k."1.6.21" "1.7.0" [ ] {
       steps = lib.flip lib.pipe [
         (ops.replace "compiler-dirs" (compilerDirs dirs170))
@@ -1951,6 +2012,9 @@ let
 
   dirs170 = (lib.subtractLists [ "compiler/ir/ir.tree.persistent/gen" "compiler/ir/ir.tree.persistent/src" ] dirs1621)
     ++ [ "compiler/frontend.common.jvm/src" ];
+
+  dirs180 = (lib.subtractLists [ "compiler/ir/ir.tree.impl/src" ] dirs170)
+    ++ [ "analysis/light-classes-base/src" "compiler/ir/ir.tree/gen" ];
 
   dirs1432 = [
     "build-common/src"
