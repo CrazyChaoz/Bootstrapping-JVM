@@ -1451,6 +1451,11 @@ let
 
     "1.5.0" = step k."1.5.0-RC" "1.5.0" [ ] {
       steps = lib.flip lib.pipe [
+        # minBy/maxBy became errors in the 1.5 stdlib
+        (addLast "minby-or-null" ''
+          sed -i 's/\.minBy {/.minByOrNull {/; s/\.maxBy {/.maxByOrNull {/' compiler/cli/src/org/jetbrains/kotlin/cli/jvm/JvmRuntimeVersionsConsistencyChecker.kt
+          grep -q minByOrNull compiler/cli/src/org/jetbrains/kotlin/cli/jvm/JvmRuntimeVersionsConsistencyChecker.kt
+        '')
         (ops.replace "compiler-version-150" ''
           echo -n "1.5.0" > compiler/compiler.version/resources/META-INF/compiler.version
         '')
