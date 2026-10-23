@@ -75,7 +75,7 @@ def parse_deps(text):
                 dep = "project:" + kebab(pm.group(1).split(".")[-1])
             elif (pm := re.fullmatch(r'project\(":([\w-]+)"\)', arg)):
                 dep = "project:" + pm.group(1)
-            elif (pm := re.fullmatch(r"(libs|testLibs|buildLibs)\.([\w.]+)", arg)):
+            elif (pm := re.fullmatch(r"(libs|testLibs|buildLibs|providedLibs)\.([\w.]+)", arg)):
                 dep = "lib:" + pm.group(2)
             elif (pm := re.fullmatch(r'"([^"]+)"', arg)):
                 dep = "coord:" + pm.group(1)
@@ -99,6 +99,47 @@ def plugins(text):
     return out
 
 
+def balanced(text, start):
+    """Text of the {...} block whose '{' is at text[start]."""
+    level, i = 0, start
+    while i < len(text):
+        level += {"{": 1, "}": -1}.get(text[i], 0)
+        i += 1
+        if level == 0:
+            break
+    return text[start + 1:i - 1]
+
+
+def runtimes(text):
+    out = {}
+    m = re.search(r"computedRuntimes\s*\{", text)
+    if m:
+        body = balanced(text, m.end() - 1)
+        for k in ("client", "daemon", "worker"):
+            if re.search(rf"\b{k}\s*=\s*true", body):
+                out[k] = True
+    return out
+
+
+def main_compilation(text):
+    """Settings of the main compilation from the jvmCompile {} block."""
+    out = {}
+    m = re.search(r"(?m)^jvmCompile\s*\{", text)
+    if not m:
+        return out
+    body = balanced(text, m.end() - 1)
+    for nm in re.finditer(r'named\("main"\)\s*\{', body):
+        b = balanced(body, nm.end() - 1)
+        if re.search(r"usesJdkInternals\s*=\s*true", b):
+            out["usesJdkInternals"] = True
+        if re.search(r"usesFutureStdlib\s*=\s*true", b):
+            out["usesFutureStdlib"] = True
+        t = re.search(r"targetJvmVersion\s*=\s*(\d+)", b)
+        if t:
+            out["targetJvmVersion"] = int(t.group(1))
+    return out
+
+
 def src_info(d):
     info = {}
     main = os.path.join(root, d, "src/main")
@@ -116,6 +157,31 @@ def src_info(d):
     return info
 
 
+# dependencies added by convention plugins (build-logic/uber-plugins)
+IMPLICIT = {
+    "gradlebuild.instrumented-java-project": {
+        "compileOnly": ["project:base-asm", "project:internal-instrumentation-api",
+                        "project:stdlib-java-extensions", "lib:asm", "lib:asmTree"],
+        "annotationProcessor": ["project:internal-instrumentation-processor"],
+    },
+}
+IMPLIES = {
+    "gradlebuild.distribution.api-java": ["gradlebuild.instrumented-java-project"],
+    "gradlebuild.distribution.api-kotlin": [],
+}
+
+
+def expand(ps):
+    seen = []
+    todo = list(ps)
+    while todo:
+        p = todo.pop()
+        if p not in seen:
+            seen.append(p)
+            todo += IMPLIES.get(p, [])
+    return seen
+
+
 out = {}
 for name, d in settings_modules().items():
     path = os.path.join(root, d, "build.gradle.kts")
@@ -123,11 +189,20 @@ for name, d in settings_modules().items():
         print(f"warning: no build script for {name} ({d})", file=sys.stderr)
         continue
     text = strip_comments(open(path).read())
+    ps = plugins(text)
+    deps = parse_deps(text)
+    for p in expand(ps):
+        for conf, ds in IMPLICIT.get(p, {}).items():
+            for x in ds:
+                if x not in deps.setdefault(conf, []) and x != "project:" + name:
+                    deps[conf].append(x)
     out[name] = {
         "dir": d,
-        "plugins": plugins(text),
-        "deps": parse_deps(text),
+        "plugins": ps,
+        "deps": deps,
         "src": src_info(d),
+        "runtimes": runtimes(text),
+        "main": main_compilation(text),
     }
 json.dump(out, sys.stdout, indent=1, sort_keys=True)
 print()

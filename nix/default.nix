@@ -44,11 +44,34 @@ pkgs.lib.makeScope pkgs.newScope (self: {
     inherit (self.javaLib21) mkJar classpathOf;
   };
 
+  gradleSrc = self.callPackage ./gradle/source.nix { };
+
   gradleGroovy = self.callPackage ./gradle/groovy.nix {
     jdk = self.jdk21;
     inherit (self.javaLib21) classpathOf closureOf;
     inherit (self.gradleLibs) mk gh;
     inherit (self.groovy) javacc qdox-1_12;
+  };
+
+  # a jar of the Kotlin 2.4.0 distribution, in the share/java layout used by classpathOf
+  kotlinJar =
+    name:
+    pkgs.runCommand name { } ''
+      mkdir -p $out/share/java
+      ln -s ${self.kotlin."2.4.0"}/lib/${name}.jar $out/share/java/${name}.jar
+    '';
+
+  gradleModules = self.callPackage ./gradle/modules.nix {
+    jdk = self.jdk21;
+    inherit (self.javaLib21) classpathOf closureOf;
+    inherit (self) gradleSrc gradleLibs gradleGroovy;
+    kotlinCompiler = self.kotlin."2.4.0";
+    extraLibs = {
+      fastutil = self.java.fastutil;
+      kotlinStdlib = self.kotlinJar "kotlin-stdlib";
+      kotlinReflect = self.kotlinJar "kotlin-reflect";
+      kotlinScriptRuntime = self.kotlinJar "kotlin-script-runtime";
+    };
   };
 
   groovy = self.callPackage ./java/groovy.nix {
