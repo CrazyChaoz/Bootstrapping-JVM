@@ -1512,6 +1512,72 @@ let
     "2.2.0" = step k."2.1.20" "2.2.0" [ ] {
       steps = lib.flip lib.pipe [
         (ops.replace "compiler-dirs" (compilerDirs (dirs220 ++ firDirs220)))
+        # the sources use context parameters only (the two experimental features exclude each other)
+        (addLast "context-parameters-only" ''
+          sed -i 's| -Xcontext-receivers||g; s|-Xcontext-receivers ||g' build.xml
+          sed -i 's|-Xopt-in=org.jetbrains.kotlin.fir.symbols.SymbolInternals|& -Xopt-in=org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess -Xopt-in=org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi -Xopt-in=org.jetbrains.kotlin.fir.scopes.ScopeFunctionRequiresPrewarm -Xopt-in=org.jetbrains.kotlin.fir.types.UnexpandedTypeCheck|' build.xml
+          if grep -q 'Xcontext-receivers' build.xml; then exit 1; fi
+        '')
+        # the 2.1.20 parser only accepts a context list in front of the annotations of a declaration
+        (addLast "context-before-annotations" ''
+          for f in $(grep -rlE '^[ \t]*context\(' --include=*.kt compiler core js native wasm analysis | grep -v testData); do
+            perl -0pi -e 'my $ann = qr/^[ \t]*\@[A-Za-z][\w.]*(?:\((?:[^()]|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))*\))?[ \t]*\n/m; my $ctx = qr/^[ \t]*context\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)[ \t]*\n/m; s/((?:$ann)+)($ctx)/$2$1/g' $f
+          done
+          grep -q 'context(_: DiagnosticContext)' compiler/frontend.common/src/org/jetbrains/kotlin/diagnostics/KtDiagnosticReportHelpers.kt
+          if grep -B1 -A0 'context(_: DiagnosticContext)' compiler/frontend.common/src/org/jetbrains/kotlin/diagnostics/KtDiagnosticReportHelpers.kt | grep -q '^)'; then exit 1; fi
+        '')
+        # APIs of newer IntelliJ SDKs / ASM 9
+        (addLast "no-223-api-220" ''
+          sed -i 's|Opcodes.ASM9|Opcodes.ASM8|' build-common/src/org/jetbrains/kotlin/incremental/impl/InstanceOwnerRecordingClassVisitor.kt
+          f=compiler/cli/src/org/jetbrains/kotlin/cli/common/utils.kt
+          sed -i '/^import com.intellij.openapi.application.runWriteAction$/d; s|^        runWriteAction {$|        ApplicationManager.getApplication().runWriteAction(Runnable {|' $f
+          perl -0pi -e 's/(runWriteAction\(Runnable \{\n\s*Disposer\.dispose\(disposable\)\n\s*\})/$1)/' $f
+          sed -i 's|collectSources(configuration, projectEnvironment, messageCollector)|collectSources(configuration, projectEnvironment.project, messageCollector)|' compiler/cli/src/org/jetbrains/kotlin/cli/pipeline/metadata/MetadataFrontendPipelinePhase.kt
+          f=compiler/ir/serialization.js/src/org/jetbrains/kotlin/ir/backend/js/checkers/declarations/JsKlibPossibleFileClashWarning.kt
+          sed -i '/^import com.intellij.util.containers.without$/d; s|\.without(key)|.filterKeys { it != key }|' $f
+          cat > compiler/light-classes/src/org/jetbrains/kotlin/asJava/classes/LightClassesLazyCreator.kt <<'KT'
+package org.jetbrains.kotlin.asJava.classes
+
+import com.intellij.openapi.project.Project
+
+class LightClassesLazyCreator(private val project: Project) : KotlinClassInnerStuffCache.LazyCreator() {
+    override fun <T : Any> get(initializer: () -> T, dependencies: List<Any>): Lazy<T> = lazy(LazyThreadSafetyMode.PUBLICATION, initializer)
+}
+KT
+          f=compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/KtBlockStringTemplateEntryElementType.kt
+          sed -i '/^import com.intellij.psi.util.childrenOfType$/d; s|psi.childrenOfType<KtExpression>()|com.intellij.psi.util.PsiTreeUtil.getChildrenOfTypeAsList(psi, KtExpression::class.java)|' $f
+          f=compiler/resolution.common.jvm/src/org/jetbrains/kotlin/asJava/KtClsJavaBasedLightClass.kt
+          sed -i '/^import org.jetbrains.annotations.ApiStatus$/d; /^@ApiStatus.Internal$/d' $f
+          if grep -q 'ApiStatus' $f; then exit 1; fi
+        '')
+        # 2.2: the builtins are compiled as part of the stdlib, which itself writes the .kotlin_builtins
+        # (libraries/stdlib/build.gradle.kts); there is no separate serialization any more
+        (addLast "builtins-as-part-of-stdlib" ''
+          perl -0pi -e 's|<target name="serialize-builtins">.*?</target>|<target name="serialize-builtins"><mkdir dir="\$\{output}/builtins"/></target>|s' build.xml
+          perl -0pi -e 's|(<target name="builtins">.*?<src>\n)|$1                <include name="libraries/stdlib/jvm/builtins"/>\n|s' build.xml
+          perl -0pi -e 's|(<target name="builtins">.*?)<class-path>\s*<pathelement path="\$\{output}/builtins"/>\s*</class-path>|$1<class-path><pathelement path="\$\{output}/classes/none"/></class-path>|s' build.xml
+          perl -0pi -e 's|(<target name="builtins">.*?</new-kotlinc>)|$1<mkdir dir="\$\{output}/builtins"/><move todir="\$\{output}/builtins"><fileset dir="\$\{output}/classes/builtins" includes="**/*.kotlin_builtins"/></move>|s' build.xml
+          sed -i 's|-Xstdlib-compilation|-Xstdlib-compilation -Xoutput-builtins-metadata -Xcompile-builtins-as-part-of-stdlib -Xcontext-parameters|' build.xml
+          grep -q 'Xoutput-builtins-metadata' build.xml
+          perl -0ne 'exit(/<target name="builtins">.*?<\/target>/s && $& =~ m#libraries/stdlib/jvm/builtins# ? 0 : 1)' build.xml
+        '')
+        # kotlin-reflect uses kotlin-metadata (kotlin.metadata.*) in 2.2: compile its sources into the reflection module
+        (addLast "reflect-metadata" ''
+          perl -0pi -e 's|(<target name="reflection">\s*<new-kotlinc output="[^"]*" moduleName="kotlin-reflection" additionalOptions=")([^"]*)(">\s*<src>\n)|$1$2 -Xallow-kotlin-package$3                <include name="libraries/kotlinx-metadata/src"/>\n                <include name="libraries/kotlinx-metadata/jvm/src"/>\n|s' build.xml
+          perl -0ne 'exit(/<target name="reflection">.*?<\/target>/s && $& =~ m#kotlinx-metadata/jvm/src# ? 0 : 1)' build.xml
+        '')
+        (ops.replace "no-223-api-2120" ''
+          sed -i '/^const val CONTINUATION_VARIABLE_NAME = /d' compiler/backend/src/org/jetbrains/kotlin/codegen/coroutines/coroutineCodegenUtil.kt
+          f=compiler/ir/ir.tree/src/org/jetbrains/kotlin/ir/util/RenderIrElement.kt
+          sed -i 's|^import com.intellij.util.applyIf$||' $f
+          printf '\nprivate inline fun <T> T.applyIf(condition: Boolean, body: T.() -> T): T = if (condition) body() else this\n' >> $f
+          sed -i 's|^import com.intellij.util.containers.addIfNotNull$|import org.jetbrains.kotlin.utils.addIfNotNull|' compiler/fir/checkers/src/org/jetbrains/kotlin/fir/analysis/checkers/declaration/FirCyclicTypeBoundsChecker.kt
+          f=compiler/psi/src/org/jetbrains/kotlin/psi/psiUtil/psiUtils.kt
+          sed -i 's|^import com.intellij.psi.util.elementType$||' $f
+          printf '\nprivate val PsiElement?.elementType: com.intellij.psi.tree.IElementType? get() = this?.node?.elementType\n' >> $f
+          sed -i 's|new AnnotationRemapper(null, |new AnnotationRemapper(|' compiler/backend/src/org/jetbrains/kotlin/codegen/inline/RemappingClassBuilder.java
+          if grep -q 'const val CONTINUATION_VARIABLE_NAME' compiler/backend/src/org/jetbrains/kotlin/codegen/coroutines/coroutineCodegenUtil.kt; then exit 1; fi
+        '')
         (ops.replace "fir-by-k1" ''
           sed -i 's|-Xopt-in=org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi|& -Xopt-in=org.jetbrains.kotlin.fir.symbols.SymbolInternals -Xopt-in=org.jetbrains.kotlin.types.model.K2Only|' build.xml
           grep -q 'fir.symbols.SymbolInternals' build.xml
