@@ -1416,6 +1416,52 @@ let
         '')
       ];
     };
+
+    "1.5.0-M2" = step k."1.5.0-M1" "1.5.0-M2" [ ] {
+      steps = lib.flip lib.pipe [
+        # Int.mod/floorDiv are stdlib 1.5 API, missing from the previous stdlib: drop constant folding for them
+        (addLast "no-mod-floordiv" ''
+          sed -i '/^ *"\(mod\|floorDiv\)" -> return /d' compiler/frontend/src/org/jetbrains/kotlin/resolve/constants/evaluate/OperationsMapGenerated.kt
+          ! grep -q '"floorDiv" ->' compiler/frontend/src/org/jetbrains/kotlin/resolve/constants/evaluate/OperationsMapGenerated.kt
+        '')
+        # the 1.5 stdlib is JVM 1.8 bytecode with inline functions
+        (addLast "jvm-target-1.8" ''
+          sed -i -e 's|-jvm-target 1.6|-jvm-target 1.8|' build.xml
+          grep -q 'jvm-target 1.8' build.xml
+        '')
+        (ops.delete "suppress-api-not-available")
+        (ops.replace "compiler-version-150" ''
+          echo -n "1.5.0-M2" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+      ];
+    };
+
+    "1.5.0-RC" = step k."1.5.0-M2" "1.5.0-RC" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.delete "suppress-api-not-available")
+        (ops.replace "compiler-version-150" ''
+          echo -n "1.5.0-RC" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+      ];
+    };
+
+    "1.5.0" = step k."1.5.0-RC" "1.5.0" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.delete "suppress-api-not-available")
+        (ops.replace "compiler-version-150" ''
+          echo -n "1.5.0" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+      ];
+    };
+
+    "1.5.31" = step k."1.5.0" "1.5.31" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.delete "suppress-api-not-available")
+        (ops.replace "compiler-version-150" ''
+          echo -n "1.5.31" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+      ];
+    };
   });
 
   # Version independent replacements for the per-version patches of TarCV
