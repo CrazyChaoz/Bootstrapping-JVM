@@ -1462,6 +1462,41 @@ let
       ];
     };
 
+    "1.6.0" = step k."1.5.31" "1.6.0" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.delete "explicit-ir-function-type")
+        (addLast "compiler-xml-cli-common" ''
+          sed -i 's|<fileset dir="idea/resources">|<fileset dir="compiler/cli/cli-common/resources">|' build.xml
+          grep -q 'dir="compiler/cli/cli-common/resources">' build.xml
+        '')
+        # IStubElementType.createStub takes a raw StubElement in SDK 201 (StubElement<?> in 203)
+        (addLast "raw-stub-element" ''
+          d=compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements
+          sed -i 's|createStub(@NotNull T psi, StubElement<?> parentStub)|createStub(@NotNull T psi, StubElement parentStub)|' $d/KtModifierListElementType.java $d/KtPlaceHolderStubElementType.java
+          grep -q 'T psi, StubElement parentStub' $d/KtPlaceHolderStubElementType.java
+        '')
+        # the ir.interpreter.* and ir.util.* star imports of Wrapper.kt clash: prefer the interpreter's own helpers explicitly
+        (ops.replace "interpreter-dup-utils" ''
+          f=compiler/ir/ir.interpreter/src/org/jetbrains/kotlin/ir/interpreter/state/Wrapper.kt
+          sed -i '0,/^import org.jetbrains.kotlin.ir.interpreter.\*/s||import org.jetbrains.kotlin.ir.interpreter.*\nimport org.jetbrains.kotlin.ir.interpreter.isThrowable\nimport org.jetbrains.kotlin.ir.interpreter.isKFunction\nimport org.jetbrains.kotlin.ir.interpreter.isFunction\nimport org.jetbrains.kotlin.ir.interpreter.isTypeParameter|' $f
+          grep -q 'interpreter.isThrowable' $f
+        '')
+        (ops.replace "compiler-dirs" (compilerDirs dirs160))
+        (ops.replace "no-fir" ''
+          d=compiler/cli/src/org/jetbrains/kotlin/cli
+          rm $d/jvm/compiler/FirKotlinToJvmBytecodeCompiler.kt $d/jvm/compiler/PsiBasedProjectEnvironment.kt
+          rm -r $d/common/fir
+          f=$d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
+          perl -0pi -e 's/val projectEnvironment =\s*PsiBasedProjectEnvironment\(.*?buildFile, chunk, extendedAnalysisMode\s*\)/throw UnsupportedOperationException("FIR is not part of the bootstrap build")/s' $f
+          grep -q 'not part of the bootstrap build' $f
+          ! grep -rq 'kotlin\.fir\.' $d
+        '')
+        (ops.replace "compiler-version-150" ''
+          echo -n "1.6.0" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+      ];
+    };
+
     "1.5.31" = step k."1.5.0" "1.5.31" [ ] {
       steps = lib.flip lib.pipe [
         (ops.delete "no-mod-floordiv")
@@ -1832,6 +1867,8 @@ let
     "compiler/ir/ir.tree.persistent/gen"
     "js/js.sourcemap/src"
   ];
+
+  dirs160 = dirs1531 ++ [ "compiler/ir/backend.jvm/lower/src" ];
 
   dirs1432 = [
     "build-common/src"
