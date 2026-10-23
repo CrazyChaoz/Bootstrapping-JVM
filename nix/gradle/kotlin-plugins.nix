@@ -9,6 +9,7 @@
   stripJavaArchivesHook,
   kotlinSrc,
   kotlinCompiler,
+  jetbrainsAnnotations,
   writeShellScript,
 }:
 
@@ -94,7 +95,7 @@ let
           -opt-in=kotlin.contracts.ExperimentalContracts -opt-in=kotlin.ExperimentalStdlibApi \
           -Xplugin=${self.serialization}/share/java/kotlinx-serialization-compiler-plugin.jar \
           -module-name ${name} \
-          -cp "${kotlinCompiler}/lib/kotlin-stdlib.jar${lib.concatMapStrings (d: ":${d}/share/java/${d.pname}.jar") deps}" \
+          -cp "${kotlinCompiler}/lib/kotlin-stdlib.jar${lib.concatMapStrings (d: ":${d}/share/java/${d.pname}.jar") deps}:$(echo ${jetbrainsAnnotations}/share/java/*.jar)" \
           -d build/classes @build/sources
         for d in ${lib.escapeShellArgs resourceDirs}; do [ -d $d ] && cp -r $d/. build/classes/; done
       '';

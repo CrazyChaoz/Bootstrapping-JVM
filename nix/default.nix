@@ -64,6 +64,7 @@ pkgs.lib.makeScope pkgs.newScope (self: {
   kotlinPlugins = self.callPackage ./gradle/kotlin-plugins.nix {
     jdk = self.jdk21;
     kotlinSrc = self.kotlinSources."2.4.0";
+    jetbrainsAnnotations = self.gradleLibs.jetbrains-annotations;
     kotlinCompiler = self.kotlin."2.4.0";
   };
 
