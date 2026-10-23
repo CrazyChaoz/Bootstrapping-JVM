@@ -41,6 +41,8 @@ let
       # javac 8 crashes on newer platform sources
       newJdk ? false,
       corePostPatch ? "",
+      # resources dirs of core modules (201+)
+      coreResourceDirs ? [ ],
     }:
     let
       src = intellijSources.${version};
@@ -156,7 +158,7 @@ let
             for d in platform/core-api/src/META-INF platform/core-impl/src/META-INF; do
               [ -d $d ] && cp -r $d/. build/classes/META-INF/ || true
             done
-          '';
+          '' + lib.concatMapStrings (d: "if [ -d ${d} ]; then cp -r ${d}/. build/classes/; fi\n") coreResourceDirs;
           }
           // lib.optionalAttrs (corePostPatch != "") { postPatch = corePostPatch; }
         );
@@ -472,6 +474,12 @@ in
     basePatches = [ ../../patches/own/sdk-193.patch ];
     annotations = java.jetbrains-annotations-18;
     newJdk = true;
+    coreResourceDirs = [
+      "java/java-psi-api/resources"
+      "java/java-psi-impl/resources"
+      "platform/core-api/resources"
+      "platform/core-impl/resources"
+    ];
     # sun.misc.Contended moved to jdk.internal in JDK 9
     corePostPatch = ''
       sed -i 's/@sun.misc.Contended //' platform/core-impl/src/com/intellij/concurrency/ConcurrentHashMap.java

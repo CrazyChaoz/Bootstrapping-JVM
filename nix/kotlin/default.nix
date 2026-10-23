@@ -1318,6 +1318,36 @@ let
     };
     "1.4.0-rc" = step k."1.4.0-M3" "1.4.0-rc" [ ] { steps = ops.delete "stdlib-jdk8-types"; };
     "1.4.0" = step k."1.4.0-rc" "1.4.0" [ ] { };
+    "1.4.21" = step k."1.4.0" "1.4.21" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "sdk-asm" ''
+          for f in ideaSDK/core/asm-6.0.jar ideaSDK/core/asm-all*.jar; do
+            ln -sf ${jar intellij."201".core.passthru.asm} $f
+          done
+        '')
+        (ops.replace "no-fir" noFir2)
+        (addLast "duplicate-javaslang" ''
+          rm compiler/frontend/src/org/jetbrains/kotlin/util/javaslang/javaslangAdapters.kt
+        '')
+        (addLast "opt-in" ''
+          sed -i 's|-language-version 1.4 -api-version 1.4"/>|-language-version 1.4 -api-version 1.4 -Xopt-in=kotlin.RequiresOptIn -Xopt-in=org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI"/>|' build.xml
+          grep -q ObsoleteDescriptorBasedAPI build.xml
+        '')
+        (addLast "core-compiler-common" ''
+          sed -i -e '/<target name="core">/,/<\/target>/ { s|^\( *\)<include name="core/type-system/src"/>|\1<include name="core/compiler.common/src"/>\n\1<include name="core/compiler.common.jvm/src"/>|; s|^\( *\)<pathelement path="''${protobuf.jar}"/>|&\n\1<pathelement path="''${basedir}/ideaSDK/core/asm-6.0.jar"/>| }' build.xml
+          grep -q 'core/compiler.common/src' build.xml
+        '')
+        (ops.replace "compiler-dirs" (compilerDirs dirs1421))
+      ];
+      inputs =
+        i:
+        i
+        // {
+          inherit (intellij."201") javac2 core jps-model-impl;
+          # 18.x has TYPE_USE annotations, which Kotlin applies to array elements
+          inherit (intellij."193") annotations;
+        };
+    };
   });
 
   # Version independent replacements for the per-version patches of TarCV
@@ -1583,6 +1613,76 @@ let
       dependencies/new-builtins core/builtins/native core/builtins/src builtins-cherry
     $JAVA_HOME/bin/jar uf dependencies/kotlin-stdlib-fresh.jar -C dependencies/new-builtins kotlin
     antFlagsExtra+=" -Dbootstrap.runtime=$PWD/dependencies/kotlin-stdlib-fresh.jar"
+  '';
+
+  # compilerModules of Kotlin 1.4.21 without FIR
+  dirs1421 = [
+    "build-common/src"
+    "compiler/backend-common/src"
+    "compiler/backend/src"
+    "compiler/builtins-serializer/src"
+    "compiler/cli/cli-common/src"
+    "compiler/cli/cli-js/src"
+    "compiler/cli/src"
+    "compiler/compiler.version/src"
+    "compiler/config.jvm/src"
+    "compiler/config/src"
+    "compiler/container/src"
+    "compiler/frontend.common/src"
+    "compiler/frontend.java/src"
+    "compiler/frontend/src"
+    "compiler/incremental-compilation-impl/src"
+    "compiler/ir/backend.common/src"
+    "compiler/ir/backend.js/src"
+    "compiler/ir/backend.jvm/src"
+    "compiler/ir/backend.wasm/src"
+    "compiler/ir/ir.interpreter/src"
+    "compiler/ir/ir.psi2ir/src"
+    "compiler/ir/ir.tree.impl/src"
+    "compiler/ir/ir.tree.persistent/src"
+    "compiler/ir/ir.tree/src"
+    "compiler/ir/serialization.common/src"
+    "compiler/ir/serialization.js/src"
+    "compiler/ir/serialization.jvm/src"
+    "compiler/javac-wrapper/src"
+    "compiler/light-classes/src"
+    "compiler/plugin-api/src"
+    "compiler/psi/src"
+    "compiler/resolution.common.jvm/src"
+    "compiler/resolution.common/src"
+    "compiler/resolution/src"
+    "compiler/serialization/src"
+    "compiler/util-io/src"
+    "compiler/util-klib-metadata/src"
+    "compiler/util-klib/src"
+    "compiler/util/src"
+    "core/compiler.common.jvm/src"
+    "core/compiler.common/src"
+    "core/descriptors.jvm/src"
+    "core/descriptors.runtime/src"
+    "core/descriptors/src"
+    "core/deserialization/src"
+    "core/metadata.jvm/src"
+    "core/metadata/src"
+    "core/util.runtime/src"
+    "js/js.ast/src"
+    "js/js.config/src"
+    "js/js.dce/src"
+    "js/js.frontend/src"
+    "js/js.inliner/src"
+    "js/js.parser/src"
+    "js/js.serializer/src"
+    "js/js.translator/src"
+    "native/frontend/src"
+    "native/utils/src"
+  ];
+
+  noFir2 = ''
+    f=compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
+    perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\..*\n//mg; s/    private fun compileModulesUsingFrontendIR\(.*?\n(?=    private fun getBuildFilePaths)/    private fun compileModulesUsingFrontendIR(environment: KotlinCoreEnvironment, buildFile: File?, chunk: List<Module>, extendedAnalysisMode: Boolean): Boolean =\n        throw UnsupportedOperationException("FIR is not part of the bootstrap build")\n\n/s' $f
+    grep -q 'not part of the bootstrap build' $f
+    ! grep -q 'kotlin\.fir\.' $f
+    sed -i '/org\.jetbrains\.kotlin\.fir\./d' compiler/cli/resources/META-INF/services/org.jetbrains.kotlin.diagnostics.rendering.DefaultErrorMessages\$Extension
   '';
 
   # Relocate the compiler core classes in kotlin-reflect.jar and strip their
