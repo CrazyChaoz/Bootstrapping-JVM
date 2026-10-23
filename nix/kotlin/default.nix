@@ -1464,6 +1464,26 @@ let
 
     "1.5.31" = step k."1.5.0" "1.5.31" [ ] {
       steps = lib.flip lib.pipe [
+        (ops.delete "no-mod-floordiv")
+        (addLast "no-asm9-api" ''
+          sed -i 's|override fun visitPermittedSubclass(|override fun visitPermittedSubtypeExperimental(|' compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/BinaryJavaClass.kt
+          grep -q visitPermittedSubtypeExperimental compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl/classFiles/BinaryJavaClass.kt
+        '')
+        # these resolve ambiguously against the identical public ones in ir.util (star-imported next to ir.interpreter.*)
+        (addLast "interpreter-dup-utils" ''
+          sed -i '/^internal fun IrType\.\(isUnsigned\|isFunction\|isKFunction\|isTypeParameter\|isThrowable\)() = /d' compiler/ir/ir.interpreter/src/org/jetbrains/kotlin/ir/interpreter/Utils.kt
+          ! grep -q 'fun IrType.isThrowable' compiler/ir/ir.interpreter/src/org/jetbrains/kotlin/ir/interpreter/Utils.kt
+        '')
+        (ops.replace "compiler-dirs" (compilerDirs dirs1531))
+        # the FIR entry point moved to its own file
+        (ops.replace "no-fir" ''
+          rm compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/FirKotlinToJvmBytecodeCompiler.kt
+          rm -r compiler/cli/src/org/jetbrains/kotlin/cli/common/fir
+          f=compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
+          perl -0pi -e 's/return FirKotlinToJvmBytecodeCompiler\.compileModulesUsingFrontendIR\([^\n]*\)/throw UnsupportedOperationException("FIR is not part of the bootstrap build")/' $f
+          grep -q 'not part of the bootstrap build' $f
+          ! grep -rq 'kotlin\.fir\.' compiler/cli/src
+        '')
         (ops.replace "compiler-version-150" ''
           echo -n "1.5.31" > compiler/compiler.version/resources/META-INF/compiler.version
         '')
@@ -1805,6 +1825,13 @@ let
     ! grep -q 'kotlin\.fir\.' $f
     sed -i '/org\.jetbrains\.kotlin\.fir\./d' compiler/cli/resources/META-INF/services/org.jetbrains.kotlin.diagnostics.rendering.DefaultErrorMessages\$Extension
   '';
+
+  dirs1531 = dirs1432 ++ [
+    "compiler/frontend/cfg/src"
+    "compiler/ir/backend.jvm/entrypoint/src"
+    "compiler/ir/ir.tree.persistent/gen"
+    "js/js.sourcemap/src"
+  ];
 
   dirs1432 = [
     "build-common/src"
