@@ -13,8 +13,8 @@
 
 let
   # embeddable.kt: packagesToRelocate (+ protobuf, intellij, javax.inject)
-  prefix = "org.jetbrains.kotlin";
-  packages = [
+  defaultPrefix = "org.jetbrains.kotlin";
+  defaultPackages = [
     "com.google"
     "com.sampullara"
     "org.apache"
@@ -34,7 +34,7 @@ let
     "javax.inject"
     "com.intellij"
   ];
-  keep = [
+  defaultKeep = [
     "com.intellij.projectService"
     "com.intellij.applicationService"
     "org.fusesource.jansi.internal.CLibrary"
@@ -47,6 +47,9 @@ in
       name,
       jars,
       exclude ? [ ],
+      prefix ? defaultPrefix,
+      packages ? defaultPackages,
+      keep ? defaultKeep,
     }:
     stdenv.mkDerivation {
       pname = name;
@@ -63,7 +66,7 @@ in
         cp ${./Relocate.java} Relocate.java
         javac -nowarn -d cls Relocate.java
         java -Xmx8g -cp "cls:$CLASSPATH" Relocate ${prefix} ${lib.concatStringsSep "," packages} \
-          ${lib.concatStringsSep "," keep} ${lib.concatStringsSep "," exclude} relocated.jar ${lib.concatStringsSep " " jars}
+          '${lib.concatStringsSep "," keep}' '${lib.concatStringsSep "," exclude}' relocated.jar ${lib.concatStringsSep " " jars}
       '';
       installPhase = ''
         mkdir -p $out/share/java

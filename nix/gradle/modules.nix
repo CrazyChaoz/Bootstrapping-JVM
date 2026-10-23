@@ -16,6 +16,7 @@
   gradleLibs,
   gradleGroovy,
   kotlinPlugins,
+  kotlinAsm,
   kotlinCompiler, # a built Kotlin distribution (lib/kotlin-compiler.jar, ...)
   extraLibs ? { },
 }:
@@ -131,7 +132,7 @@ let
       --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED \
       --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED \
       --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.desktop/java.awt.font=ALL-UNNAMED \
-      -cp $k/kotlin-compiler.jar:$k/kotlin-stdlib.jar:$k/kotlin-reflect.jar:$k/kotlin-script-runtime.jar \
+      -cp ${kotlinAsm}/share/java/kotlin-asm.jar:$k/kotlin-compiler.jar:$k/kotlin-stdlib.jar:$k/kotlin-reflect.jar:$k/kotlin-script-runtime.jar \
       org.jetbrains.kotlin.cli.jvm.K2JVMCompiler "$@"
   '';
 

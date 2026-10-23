@@ -77,6 +77,15 @@ pkgs.lib.makeScope pkgs.newScope (self: {
     ];
   };
 
+  # a newer ASM than the one bundled in the compiler (which cannot read sealed classes), under the compiler's package names
+  kotlinAsm = self.kotlinEmbeddable.relocate {
+    name = "kotlin-asm";
+    prefix = "org.jetbrains";
+    packages = [ "org.objectweb" ];
+    keep = [ ];
+    jars = map (a: "${a}/share/java/${a.pname}.jar") (with self.gradleLibs; [ asm-lenient asm-tree asm-commons asm-util asm-analysis ]);
+  };
+
   kotlinPlugins = self.callPackage ./gradle/kotlin-plugins.nix {
     jdk = self.jdk21;
     kotlinSrc = self.kotlinSources."2.4.0";
@@ -89,7 +98,7 @@ pkgs.lib.makeScope pkgs.newScope (self: {
     inherit (self.javaLib21) classpathOf closureOf;
     inherit (self) gradleSrc gradleLibs gradleGroovy;
     kotlinCompiler = self.kotlin."2.4.0";
-    inherit (self) kotlinPlugins;
+    inherit (self) kotlinPlugins kotlinAsm;
     extraLibs = {
       fastutil = self.java.fastutil;
       kotlinStdlib = self.kotlinJar "kotlin-stdlib";

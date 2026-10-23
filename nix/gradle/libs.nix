@@ -167,6 +167,19 @@ lib.fix (self: {
     src = asmSrc;
     sourceDirs = [ "asm/src/main/java" ];
   };
+  # for the Kotlin compiler built here, which reads classes with an older ASM api level
+  asm-lenient = mk {
+    pname = "asm";
+    version = "9.10.1";
+    src = asmSrc;
+    nativeBuildInputs = [ perl ];
+    postPatch = ''
+      sed -i '/api < Opcodes.ASM9/,/^    }/d' asm/src/main/java/org/objectweb/asm/ClassVisitor.java
+      # (the pre-release API the compiler's own ASM fork was compiled with)
+      perl -0pi -e 's/(  public void visitPermittedSubclass)/  public void visitPermittedSubtypeExperimental(final String permittedSubclass) {\n    visitPermittedSubclass(permittedSubclass);\n  }\n\n$1/' asm/src/main/java/org/objectweb/asm/ClassVisitor.java
+    '';
+    sourceDirs = [ "asm/src/main/java" ];
+  };
   asm-tree = mk {
     pname = "asm-tree";
     version = "9.10.1";
