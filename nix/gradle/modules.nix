@@ -203,7 +203,7 @@ let
           find $d/src/main/kotlin ${lib.optionalString hasJava "$d/src/main/java"} \( -name '*.kt' -o -name '*.java' \) > build/ksources
           ${kotlinRun} -no-stdlib -no-reflect -nowarn \
             -language-version 2.2 -api-version 2.2 -jvm-target ${if release < 9 then "1.${toString release}" else toString release} \
-            -Xjsr305=strict -Xjspecify-annotations=strict -java-parameters -Xsam-conversions=class \
+            -Xskip-prerelease-check -Xjsr305=strict -Xjspecify-annotations=strict -java-parameters -Xsam-conversions=class \
             -opt-in=kotlin.contracts.ExperimentalContracts \
             ${lib.optionalString serialization "-Xplugin=${kotlinPlugins.serialization}/share/java/kotlinx-serialization-compiler-plugin.jar"} \
             ${lib.optionalString samWithReceiver "-Xplugin=${kotlinPlugins.samWithReceiver}/share/java/kotlin-sam-with-receiver-compiler-plugin.jar -P plugin:org.jetbrains.kotlin.samWithReceiver:annotation=org.gradle.api.HasImplicitReceiver"} \

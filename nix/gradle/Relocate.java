@@ -31,6 +31,8 @@ public class Relocate {
     return relocateSlash(n.replace('.', '/')).replace('/', '.');
   }
 
+  static final java.util.regex.Pattern DESCRIPTOR = java.util.regex.Pattern.compile("(^|[(\\[;)<>+*-])L([A-Za-z0-9_$/]+)");
+
   static final Remapper remapper = new Remapper() {
     @Override public String map(String internalName) { return relocateSlash(internalName); }
     @Override public Object mapValue(Object v) {
@@ -38,6 +40,8 @@ public class Relocate {
         String s = (String) v;
         if (s.indexOf(' ') >= 0 || s.isEmpty()) return super.mapValue(v);
         String r = s.indexOf('/') >= 0 ? relocateSlash(s) : relocateDotted(s);
+        // JVM descriptors / signatures (also in Kotlin metadata strings): ...Lcom/intellij/Foo;...
+        if (r.equals(s) && s.indexOf('/') >= 0 && s.indexOf(';') >= 0) r = DESCRIPTOR.matcher(s).replaceAll(m -> java.util.regex.Matcher.quoteReplacement(m.group(1) + "L" + relocateSlash(m.group(2))));
         return r;
       }
       return super.mapValue(v);

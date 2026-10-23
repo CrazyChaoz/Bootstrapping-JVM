@@ -101,7 +101,8 @@ let
       '';
       installPhase = ''
         mkdir -p $out/share/java
-        jar cf $out/share/java/${name}.jar -C build/classes .
+        printf 'Manifest-Version: 1.0\nImplementation-Version: 1.11.0\nBundle-Version: 1.11.0\nBundle-SymbolicName: ${name}\n' > manifest
+        jar cfm $out/share/java/${name}.jar manifest -C build/classes .
       '';
     };
 
