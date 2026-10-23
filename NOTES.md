@@ -144,3 +144,21 @@ javaparser-core 3.17.0, qdox 1.12.1.
 `lib/plugins` adds optional ones (AWS, GCS, BouncyCastle, JGit, sshd, Maven
 model/settings, Ivy, TestNG, JUnit Platform, bsh, snakeyaml, ...), many of
 which can be dropped for a first minimal distribution.
+
+## Kotlin 2.1.0 → 2.4.0 (done)
+
+Chain: 2.0.0 (K1 only) → 2.1.0 (FIR, built by 2.0.0) → 2.1.20 (bridge: first with named
+context parameters) → 2.2.0 → 2.3.0 → 2.4.0 (`nix build .#kotlin."2.4.0"`).
+Things worth knowing:
+* FIR needs `ANT_OPTS=-Xmx14g`; the stdlib/builtins/reflect are compiled from source by K2.
+* 2.3 split/merged many modules (psi, cli-common, ...) and 2.4 moved more (core/names,
+  core/language.*, cli-jvm, cli-metadata): `relocate-modules*` steps move files back to
+  where the inherited patch steps expect them; new module dirs are added in the dir lists.
+* The 2.3.0 compiler ignores `-Xopt-in` for some args (use `-opt-in`), and cannot compile
+  explicit backing fields on overrides / `return` in expression bodies: patched in 2.4 sources.
+* 2.4's JS parser is ANTLR-generated: regenerated with the tunnelvisionlabs ANTLR 4.7.4 chain
+  (nix/java/antlr.nix) instead of the committed 4.13.2 output.
+* CRI (kotlinx.serialization plugin) is dropped; Ant tasks are gone since 2.3 (kotlin-ant.jar is
+  handed down from the bootstrap).
+Next: Gradle 9.8.0 (~10.5k Java, 770 Kotlin, 110 Groovy main sources in ~190 modules; see the
+8.14.3 survey above) compiled module by module with javac/groovyc/kotlinc.
