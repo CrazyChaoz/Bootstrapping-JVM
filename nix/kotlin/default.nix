@@ -1438,7 +1438,11 @@ let
 
     "1.5.0-RC" = step k."1.5.0-M2" "1.5.0-RC" [ ] {
       steps = lib.flip lib.pipe [
-        (ops.delete "suppress-api-not-available")
+        # the 1.5.0-M2 compiler emits invalid invokedynamic method handles for bound references to interface methods
+        (addLast "sam-conversions-class" ''
+          sed -i -e 's|-jvm-target 1.8|-jvm-target 1.8 -Xsam-conversions=class|' build.xml
+          grep -q 'sam-conversions=class' build.xml
+        '')
         (ops.replace "compiler-version-150" ''
           echo -n "1.5.0-RC" > compiler/compiler.version/resources/META-INF/compiler.version
         '')
@@ -1447,7 +1451,6 @@ let
 
     "1.5.0" = step k."1.5.0-RC" "1.5.0" [ ] {
       steps = lib.flip lib.pipe [
-        (ops.delete "suppress-api-not-available")
         (ops.replace "compiler-version-150" ''
           echo -n "1.5.0" > compiler/compiler.version/resources/META-INF/compiler.version
         '')
@@ -1456,7 +1459,6 @@ let
 
     "1.5.31" = step k."1.5.0" "1.5.31" [ ] {
       steps = lib.flip lib.pipe [
-        (ops.delete "suppress-api-not-available")
         (ops.replace "compiler-version-150" ''
           echo -n "1.5.31" > compiler/compiler.version/resources/META-INF/compiler.version
         '')
