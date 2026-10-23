@@ -94,8 +94,8 @@ def plugins(text):
     if not m:
         return []
     out = []
-    for pm in re.finditer(r'id\("([^"]+)"\)|`([\w-]+)`|alias\(([\w.]+)\)', m.group(1)):
-        out.append(pm.group(1) or pm.group(2) or pm.group(3))
+    for pm in re.finditer(r'id\("([^"]+)"\)|`([\w-]+)`|alias\(([\w.]+)\)|embeddedKotlin\("([^"]+)"\)', m.group(1)):
+        out.append(pm.group(1) or pm.group(2) or pm.group(3) or "kotlin." + pm.group(4))
     return out
 
 

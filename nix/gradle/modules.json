@@ -2712,7 +2712,8 @@
   "plugins": [
    "gradlebuild.distribution.implementation-kotlin",
    "gradlebuild.publish-public-libraries",
-   "gradlebuild.kotlin-dsl-plugin-bundle-integ-tests"
+   "gradlebuild.kotlin-dsl-plugin-bundle-integ-tests",
+   "kotlin.plugin.serialization"
   ],
   "runtimes": {
    "client": true,
@@ -2737,7 +2738,8 @@
   "main": {},
   "plugins": [
    "gradlebuild.distribution.implementation-kotlin",
-   "gradlebuild.publish-public-libraries"
+   "gradlebuild.publish-public-libraries",
+   "kotlin.plugin.serialization"
   ],
   "runtimes": {
    "client": true,

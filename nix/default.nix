@@ -61,11 +61,18 @@ pkgs.lib.makeScope pkgs.newScope (self: {
       ln -s ${self.kotlin."2.4.0"}/lib/${name}.jar $out/share/java/${name}.jar
     '';
 
+  kotlinPlugins = self.callPackage ./gradle/kotlin-plugins.nix {
+    jdk = self.jdk21;
+    kotlinSrc = self.kotlinSources."2.4.0";
+    kotlinCompiler = self.kotlin."2.4.0";
+  };
+
   gradleModules = self.callPackage ./gradle/modules.nix {
     jdk = self.jdk21;
     inherit (self.javaLib21) classpathOf closureOf;
     inherit (self) gradleSrc gradleLibs gradleGroovy;
     kotlinCompiler = self.kotlin."2.4.0";
+    inherit (self) kotlinPlugins;
     extraLibs = {
       fastutil = self.java.fastutil;
       kotlinStdlib = self.kotlinJar "kotlin-stdlib";

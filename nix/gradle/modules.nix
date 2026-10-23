@@ -15,6 +15,7 @@
   gradleSrc,
   gradleLibs,
   gradleGroovy,
+  kotlinPlugins,
   kotlinCompiler, # a built Kotlin distribution (lib/kotlin-compiler.jar, ...)
   extraLibs ? { },
 }:
@@ -78,12 +79,13 @@ let
       junitPlatform = junit-platform-launcher;
       junitPlatformEngine = junit-platform-engine;
       testng = testng;
+      kotlinxSerializationCore = kotlinPlugins.kotlinx-serialization-core;
+      kotlinxSerializationJson = kotlinPlugins.kotlinx-serialization-json;
       tomlj = tomlj;
       antlr = antlr2;
       jsch = jsch;
       plexusClassworlds = plexus-classworlds;
       maven3Artifact = maven-artifact;
-      maven3PluginApi = maven-plugin-api;
       mavenResolverApi = maven-resolver-api;
     }
     // (with gradleGroovy; {
@@ -142,7 +144,7 @@ let
       jar cf $out/share/java/missing-${lib.removePrefix "lib:" d}.jar -C x .
     '';
 
-  self = lib.mapAttrs (n: _: mkModule n) modules;
+  self = (lib.mapAttrs (n: _: mkModule n) modules);
 
   # Module and library dependencies of the compile classpath (compileOnly and
   # api/implementation alike; a superset is harmless for javac/kotlinc).
@@ -178,6 +180,8 @@ let
       hasJava = hasDir n "src/main/java";
       hasResources = hasDir n "src/main/resources";
       kotlinStdlib = "${kotlinCompiler}/lib/kotlin-stdlib.jar";
+      serialization = lib.elem "kotlin.plugin.serialization" m.plugins;
+      samWithReceiver = lib.elem "gradlebuild.kotlin-dsl-sam-with-receiver" m.plugins;
     in
     stdenv.mkDerivation {
       pname = "gradle-${n}";
@@ -201,6 +205,8 @@ let
             -language-version 2.2 -api-version 2.2 -jvm-target ${if release < 9 then "1.${toString release}" else toString release} \
             -Xjsr305=strict -Xjspecify-annotations=strict -java-parameters -Xsam-conversions=class \
             -opt-in=kotlin.contracts.ExperimentalContracts \
+            ${lib.optionalString serialization "-Xplugin=${kotlinPlugins.serialization}/share/java/kotlinx-serialization-compiler-plugin.jar"} \
+            ${lib.optionalString samWithReceiver "-Xplugin=${kotlinPlugins.samWithReceiver}/share/java/kotlin-sam-with-receiver-compiler-plugin.jar -P plugin:org.jetbrains.kotlin.samWithReceiver:annotation=org.gradle.api.HasImplicitReceiver"} \
             -module-name gradle-${n} -cp "$CLASSPATH" -d build/classes @build/ksources
           export CLASSPATH="build/classes:$CLASSPATH"
         ''}

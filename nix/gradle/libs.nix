@@ -729,6 +729,12 @@ lib.fix (self: {
     hash = "sha256-8DkKXO4Qdgd/mtuP7d2ZMx/rpKmIfzN5mSuLaye+ZFw=";
   };
 
+  oro = mk {
+    pname = "oro";
+    version = "2.0.8";
+    src = mvn "oro" "oro" "2.0.8" "sha256-+XfMzcf77NcWzewnc9VckYT+7BwUJ/sopg04pfUb9Zc=";
+    sourceDirs = [ "." ];
+  };
   ivy = mk {
     pname = "ivy";
     version = "2.5.3";
@@ -745,12 +751,15 @@ lib.fix (self: {
              plugins/resolver/SFTPResolver.java plugins/resolver/AbstractSshBasedResolver.java \
              plugins/signer/bouncycastle
       cd -
-      grep -rlE 'import (org\.apache\.commons\.(httpclient|vfs)|org\.apache\.http|com\.jcraft|org\.bouncycastle|org\.apache\.oro)' src/java | xargs -r rm -v
+      grep -rlE 'import (org\.apache\.commons\.(httpclient|vfs)|org\.apache\.http|com\.jcraft|org\.bouncycastle)' src/java | xargs -r rm -v
     '';
     sourceDirs = [ "src/java" ];
     copySourceResources = true;
     useRelease = true; # java.util.jar.Pack200
-    deps = [ self.ant ];
+    deps = [
+      self.ant
+      self.oro
+    ];
   };
 
   # --- crypto ------------------------------------------------------------
@@ -758,7 +767,7 @@ lib.fix (self: {
     pname = "bcprov-jdk18on";
     version = "1.85";
     # multi-release extras (Java 9+ variants of some classes)
-    postPatch = "rm -rf META-INF/versions com/jcraft/jsch/JUnixSocketFactory.java com/jcraft/jsch/Log4j2Logger.java com/jcraft/jsch/PageantConnector.java";
+    postPatch = "rm -rf META-INF/versions";
     src = mvn "org.bouncycastle" "bcprov-jdk18on" "1.85" "sha256-HiI4dcHwCHdPGrzREHXOiNXulv3QD2MvFneHGQlhQd4=";
     sourceDirs = [ "." ];
     copySourceResources = true;
@@ -766,7 +775,7 @@ lib.fix (self: {
   bcutil = mk {
     pname = "bcutil-jdk18on";
     version = "1.85";
-    postPatch = "rm -rf META-INF/versions com/jcraft/jsch/JUnixSocketFactory.java com/jcraft/jsch/Log4j2Logger.java com/jcraft/jsch/PageantConnector.java";
+    postPatch = "rm -rf META-INF/versions";
     src = mvn "org.bouncycastle" "bcutil-jdk18on" "1.85" "sha256-+BobUZ3LeTENY4DSPpEikqJRVYMmjTmI0houVrzOzaw=";
     sourceDirs = [ "." ];
     deps = [ self.bcprov ];
@@ -774,7 +783,7 @@ lib.fix (self: {
   bcpg = mk {
     pname = "bcpg-jdk18on";
     version = "1.85";
-    postPatch = "rm -rf META-INF/versions com/jcraft/jsch/JUnixSocketFactory.java com/jcraft/jsch/Log4j2Logger.java com/jcraft/jsch/PageantConnector.java";
+    postPatch = "rm -rf META-INF/versions";
     src = mvn "org.bouncycastle" "bcpg-jdk18on" "1.85" "sha256-pspoKvNrHz9bWAGpbZdrtgI5h8xaFM0cjp8x+fqu6+8=";
     sourceDirs = [ "." ];
     deps = [ self.bcprov self.bcutil ];
