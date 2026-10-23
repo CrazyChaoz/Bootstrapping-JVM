@@ -139,4 +139,16 @@ in
       sourceDirs = [ "kotlinx-coroutines-core/src/main/kotlin" ];
       kotlincFlags = [ "-Xcoroutines=enable" ];
     };
+
+  # kotlinx.collections.immutable (JVM, common + jvm sources); used by the FIR modules
+  kotlinx-collections-immutable =
+    kotlin:
+    mkKotlinJar {
+      pname = "kotlinx-collections-immutable";
+      version = "0.3.7";
+      src = gh "Kotlin" "kotlinx.collections.immutable" "v0.3.7" "sha256-ldMBZsyi2nolxUxnkn9alv7t1j5wVCZwRSzIXRzhOhs=";
+      inherit kotlin;
+      sourceDirs = [ "core/commonMain/src" "core/jvmMain/src" ];
+      kotlincFlags = [ "-Xmulti-platform" "-Xcommon-sources=core/commonMain/src" "-Xopt-in=kotlin.RequiresOptIn" "-Xno-call-assertions" "-Xno-param-assertions" ];
+    };
 }

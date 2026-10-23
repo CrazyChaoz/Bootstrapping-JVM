@@ -124,4 +124,5 @@
   "1.9.0" = fetchKotlin { rev = "v1.9.0"; hash = "sha256-DHohEu7eXu+CS0QGw0Lvps/T3JiIy7BnwSGuFXXbRDs="; };
   "2.0.0" = fetchKotlin { rev = "v2.0.0"; hash = "sha256-fuYzsTNchSsQBarjv/JeAYCL+SmHRcD3OcW8ql5+X+0="; };
   "2.1.0" = fetchKotlin { rev = "v2.1.0"; hash = "sha256-3mKisWdC9I7Raa/ZfxonqGB0no+ILfSc2dcMWP3IZB4="; };
+  "2.2.0" = fetchKotlin { rev = "v2.2.0"; hash = "sha256-NbBDGuItXkNmuBUz6d3ljX5NLZgHmWErYnBdw7O4jJs="; };
 }

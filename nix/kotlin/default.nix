@@ -1462,10 +1462,44 @@ let
       ];
     };
 
+    "2.2.0" = step k."2.1.0" "2.2.0" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "compiler-dirs" (compilerDirs (dirs220 ++ firDirs220)))
+        (ops.replace "no-scripting-plugin" ''
+          f=compiler/daemon/src/org/jetbrains/kotlin/daemon/KotlinRemoteReplService.kt
+          sed -i '/^import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptingCompilerConfigurationComponentRegistrar$/d' $f
+          sed -i 's|ScriptingCompilerConfigurationComponentRegistrar()|Class.forName("org.jetbrains.kotlin.scripting.compiler.plugin.ScriptingCompilerConfigurationComponentRegistrar").newInstance() as ComponentRegistrar|' $f
+        '')
+        (ops.replace "no-202-api" ''
+          d=compiler/resolution.common.jvm/src/org/jetbrains/kotlin/load/java/structure/impl
+          sed -i 's|psi.permitsListTypes|arrayOf<com.intellij.psi.PsiClassType>()|' $d/JavaClassImpl.kt
+          sed -i 's|return owner.getPsi().hasModifierProperty(PsiModifier.SEALED);|return false;|' $d/JavaElementUtil.java
+          sed -i 's|return createTypeSource(psiTypeParameterSource.psi.permitsListTypes\[permittedTypeIndex\])|throw UnsupportedOperationException("sealed Java classes")|' $d/source/JavaElementSourceFactory.kt
+          if grep -rq 'PsiModifier.SEALED' $d; then exit 1; fi
+        '')
+        (addLast "immutable-collections" ''
+          ln -sf ${jar (kotlinLibs.kotlinx-collections-immutable k."2.1.0")} ideaSDK/core/kotlinx-collections-immutable.jar
+          sed -i 's|^\( *\)<zipfileset src="''${basedir}/ideaSDK/core/trove4j.jar"/>|&\n\1<zipfileset src="''${basedir}/ideaSDK/core/kotlinx-collections-immutable.jar"/>|' build.xml
+          grep -q 'core/kotlinx-collections-immutable.jar' build.xml
+        '')
+        (ops.replace "compiler-version-150" ''
+          echo -n "2.2.0" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+      ];
+    };
+
     "2.1.0" = step k."2.0.0" "2.1.0" [ ] {
       steps = lib.flip lib.pipe [
-        (ops.replace "compiler-dirs" (compilerDirs dirs210))
+        (ops.replace "compiler-dirs" (compilerDirs (dirs210 ++ firDirs210)))
         (ops.delete "duplicate-javaslang")
+        # real K2: FIR is built (by the K1-only 2.0.0), so the K1-only stubs go away
+        (ops.delete "no-fir")
+        (ops.delete "k1-only")
+        (addLast "immutable-collections" ''
+          ln -sf ${jar (kotlinLibs.kotlinx-collections-immutable k."2.0.0")} ideaSDK/core/kotlinx-collections-immutable.jar
+          sed -i 's|^\( *\)<zipfileset src="''${basedir}/ideaSDK/core/trove4j.jar"/>|&\n\1<zipfileset src="''${basedir}/ideaSDK/core/kotlinx-collections-immutable.jar"/>|' build.xml
+          grep -q 'core/kotlinx-collections-immutable.jar' build.xml
+        '')
         (ops.replace "no-213-api" ''
           perl -0pi -e 's/(ExtensionPoint\.Kind\.INTERFACE),\s*false/$1/' compiler/util/src/org/jetbrains/kotlin/extensions/ProjectExtensionDescriptor.kt compiler/util/src/org/jetbrains/kotlin/extensions/ApplicationExtensionDescriptor.kt
           rm compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/DummyJavaFileCodeStyleFacadeFactory.kt
@@ -1476,17 +1510,6 @@ let
           f=wasm/wasm.ir/src/org/jetbrains/kotlin/wasm/ir/convertors/WasmIrToBinary.kt
           sed -i '/import kotlinx.collections.immutable/d; s|private var offsets = persistentListOf<Box>()|private var offsets: List<Box> = emptyList()|' $f
           rm -rf compiler/ir/serialization.js/src/org/jetbrains/kotlin/fir
-        '')
-        # K1 asserts that kotlin.* members are deserialized builtins; compiling the stdlib from sources violates that
-        (addLast "no-assertions" ''
-          perl -0pi -e 's/\s*<assertions>\s*<enable\/>\s*<\/assertions>//g' build.xml
-          if grep -q '<assertions>' build.xml; then exit 1; fi
-        '')
-        # The 2.1 stdlib needs K2 (K1 cannot compile the source builtins any more): reuse the bootstrap stdlib classes
-        (addLast "stdlib-from-bootstrap" ''
-          perl -0pi -e 's|<target name="builtins">.*?</target>|<target name="builtins"><mkdir dir="\$\{output}/classes/builtins"/><unzip src="\$\{bootstrap.runtime}" dest="\$\{output}/classes/builtins"><patternset excludes="META-INF/MANIFEST.MF,META-INF/build.txt,**/*.kotlin_builtins"/></unzip></target>|s' build.xml
-          perl -0pi -e 's|<target name="serialize-builtins">.*?</target>|<target name="serialize-builtins"><mkdir dir="\$\{output}/builtins"/><unzip src="\$\{bootstrap.runtime}" dest="\$\{output}/builtins"><patternset includes="**/*.kotlin_builtins"/></unzip></target>|s' build.xml
-          grep -q 'unzip src=.*bootstrap.runtime' build.xml
         '')
         (addLast "vavr" ''
           ln -s ${jar java.vavr} dependencies/vavr-0.10.4.jar
@@ -1551,62 +1574,38 @@ let
           sed -i 's|Interner.createStringInterner()|com.intellij.util.containers.StringInterner()|; s|MultiMap.createConcurrent<K, V>()|MultiMap.createConcurrentSet<K, V>()|' compiler/util/src/org/jetbrains/kotlin/utils/platformUtils.kt
           grep -q StringInterner compiler/util/src/org/jetbrains/kotlin/utils/platformUtils.kt
         '')
-        (ops.replace "no-fir" ''
-          d=compiler/cli/src/org/jetbrains/kotlin/cli
-          rm -r $d/jvm/compiler/pipeline
-          rm $d/common/FirSessionConstructionUtils.kt $d/metadata/AbstractFirMetadataSerializer.kt $d/metadata/FirKlibMetadataSerializer.kt $d/metadata/FirLegacyMetadataSerializer.kt
-          rm compiler/builtins-serializer/src/org/jetbrains/kotlin/serialization/builtins/FirBuiltInsSerializer.kt
-          rm $d/jvm/compiler/FirKotlinToJvmBytecodeCompiler.kt $d/jvm/compiler/VfsBasedProjectEnvironment.kt $d/jvm/compiler/firFindMainClass.kt
-          rm compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/IncrementalFirJvmCompilerRunner.kt
-          rm compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/incrementalFirCacheUtils.kt
-          stub='throw UnsupportedOperationException("FIR is not part of the bootstrap build")'
-          # the diagnostics reporter is shared with K1; drop its FIR error factories
-          f=$d/common/fir/FirDiagnosticsCompilerResultsReporter.kt
-          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/diagnosticsCollector\.diagnostics\.any \{ it\.factory == FirErrors\.\w+ \}/false/g' $f
-          # utils.kt: light tree package check
-          f=$d/common/utils.kt
-          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/\nfun checkKotlinPackageUsageForLightTree\(.*?(\nfun <PathProvider)/$1/s' $f
-          # cliCompilerUtils.kt: FIR session helpers
-          f=$d/jvm/compiler/cliCompilerUtils.kt
-          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/\nfun createContextForIncrementalCompilation\(.*\z/\n/s' $f
-          STUB="$stub" perl -0pi -e 's/true -> when \(arguments\.legacyMetadataJar\) \{.*?\n                \}/true -> $ENV{STUB}/s' $d/metadata/KotlinMetadataCompiler.kt
-          STUB="$stub" perl -0pi -e 's/true -> FirBuiltInsSerializer\(configuration, environment\)/true -> $ENV{STUB}/' compiler/builtins-serializer/src/org/jetbrains/kotlin/serialization/builtins/BuiltInsSerializer.kt
-          # KotlinToJVMBytecodeCompiler: classic frontend only
-          f=$d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
-          STUB="$stub" perl -0pi -e 's/^import [^\n]*(?:\.fir\.|FirKotlinToJvmBytecodeCompiler|\.pipeline\.)[^\n]*\n//mg; s/if \(useFrontendIR\) \{.*?\n        \} else \{/if (useFrontendIR) {\n            $ENV{STUB}\n        } else {/s; s/    private fun runFrontendAndGenerateIrForMultiModuleChunkUsingFrontendIR\(.*?(    private fun runFrontendAndGenerateIrUsingClassicFrontend)/$1/s; s/    (?:private|internal) fun Fir2IrActualizedResult\.codegenFactoryWithJvmIrBackendInput\(.*?\n    \}\n\n//s; s/: Fir(?:JvmBackendClassResolver|JvmBackendExtension)\?/: Nothing?/g; s/        FirDiagnosticsCompilerResultsReporter/        org.jetbrains.kotlin.cli.common.fir.FirDiagnosticsCompilerResultsReporter/' $f
-          f=$d/jvm/K2JVMCompiler.kt
-          STUB="$stub" perl -0pi -e 's/^import [^\n]*\.pipeline\.[^\n]*\n//mg; s/if \(configuration\.getBoolean\(CommonConfigurationKeys\.USE_FIR\) &&\s*configuration\.getBoolean\(CommonConfigurationKeys\.USE_LIGHT_TREE\)\s*\) \{.*?\} else \{/if (false) {\n                $ENV{STUB}\n            } else {/s' $f
-          f=compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/CompilerRunnerUtils.kt
-          STUB="$stub" perl -0pi -e 's/if \(useK2 && args\.useFirIC && args\.useFirLT[^\n]*\{\n\s*IncrementalFirJvmCompilerRunner\(.*?\n\s*\)\n(\s*)\} else \{/if (false) {\n$ENV{STUB}\n$1} else {/s' $f
-          # JS: K1 only
-          f=compiler/cli/cli-js/src/org/jetbrains/kotlin/cli/js/K2JSCompiler.kt
-          STUB="$stub" perl -0pi -e 's/^import [^\n]*Fir2KlibMetadataSerializer\n//m; s/(    private fun processSourceModuleWithK2\([^)]*\): ModulesStructure \{\n).*?(\n    class IcCachesArtifacts)/$1        $ENV{STUB}\n    }\n$2/s' $f
-          f=compiler/cli/cli-js/src/org/jetbrains/kotlin/cli/js/klib/jsCompilerPipeline.kt
-          cat > $f <<'KT'
-          package org.jetbrains.kotlin.cli.js.klib
-
-          import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
-          import org.jetbrains.kotlin.cli.common.fir.FirDiagnosticsCompilerResultsReporter
-          import org.jetbrains.kotlin.cli.common.messages.MessageCollector
-          import org.jetbrains.kotlin.config.CompilerConfiguration
-          import org.jetbrains.kotlin.diagnostics.impl.BaseDiagnosticsCollector
-
-          internal fun reportCollectedDiagnostics(
-              compilerConfiguration: CompilerConfiguration,
-              diagnosticsReporter: BaseDiagnosticsCollector,
-              messageCollector: MessageCollector
-          ) {
-              val renderName = compilerConfiguration.getBoolean(CLIConfigurationKeys.RENDER_DIAGNOSTIC_INTERNAL_NAME)
-              FirDiagnosticsCompilerResultsReporter.reportToMessageCollector(diagnosticsReporter, messageCollector, renderName)
-          }
-          KT
-          # native serialization: no Fir2Ir lazy declarations
-          f=compiler/ir/serialization.native/src/org/jetbrains/kotlin/backend/konan/serialization/KonanFakeOverrideClassFilter.kt
-          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/return this\.isBound && this\.owner is Fir2IrLazyClass[^\n]*/return false/' $f
-          f=compiler/ir/serialization.native/src/org/jetbrains/kotlin/backend/konan/serialization/IrUtils.kt
-          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/this\.isFromFirDeserializedInteropLibrary\(\) \|\| //; s/private fun DeclarationDescriptor\.isFromFirDeserializedInteropLibrary\(\).*?\n\}\n\n//s' $f
-          grep -q 'not part of the bootstrap build' $d/jvm/K2JVMCompiler.kt $d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt compiler/cli/cli-js/src/org/jetbrains/kotlin/cli/js/K2JSCompiler.kt compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/CompilerRunnerUtils.kt
-          ! grep -rq 'kotlin\.fir\.\(declarations\|lazy\|pipeline\|session\|backend\|analysis\|packageFqName\)\|IncrementalFirJvm\|\.pipeline\.\|FirMetadataSerializer\|FirKlibMetadataSerializer\|FirBuiltInsSerializer\|FirKotlinToJvm' $d compiler/incremental-compilation-impl/src compiler/cli/cli-js/src compiler/ir/serialization.native/src
+        # the FIR modules need far more than 5g (the JVM thrashes in GC otherwise)
+        (addLast "more-heap-fir" ''export ANT_OPTS="$ANT_OPTS -Xmx14g"'')
+        # the stdlib is compiled by K2 itself, with the flags of libraries/stdlib/build.gradle.kts
+        (addLast "stdlib-k2-flags" ''
+          sed -i 's|-Xbuiltins-from-sources|-Xstdlib-compilation -Xdont-warn-on-error-suppression -Xexpect-actual-classes -Xsuppress-missing-builtins-error -Xno-new-java-annotation-targets -Xallow-kotlin-package|' build.xml
+          grep -q 'Xstdlib-compilation' build.xml
+          # as in libraries/stdlib/build.gradle.kts the builtins (jvm/builtins) are only serialized, not compiled with the stdlib
+          sed -i '/<include name="libraries\/stdlib\/jvm\/builtins"\/>/d' build.xml
+          if grep -q 'include name="libraries/stdlib/jvm/builtins"' build.xml; then exit 1; fi
+        '')
+        # FIR sources compiled by the K1-only 2.0.0 and against SDK 201
+        (addLast "fir-by-k1" ''
+          sed -i 's|-Xopt-in=org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi|& -Xopt-in=org.jetbrains.kotlin.fir.symbols.SymbolInternals -Xopt-in=org.jetbrains.kotlin.types.model.K2Only|' build.xml
+          grep -q 'fir.symbols.SymbolInternals' build.xml
+          f=compiler/fir/resolve/src/org/jetbrains/kotlin/fir/resolve/transformers/body/resolve/FirExpressionsResolveTransformer.kt
+          perl -0pi -e 's/when \(data\) \{\n(\s*)is ResolutionMode\.WithExpectedType if data\.arrayLiteralPosition != null ->/when {\n$1data is ResolutionMode.WithExpectedType && data.arrayLiteralPosition != null ->/' $f
+          grep -q 'data is ResolutionMode.WithExpectedType && data.arrayLiteralPosition' $f
+          f=compiler/cli/src/org/jetbrains/kotlin/cli/metadata/FirLegacyMetadataSerializer.kt
+          sed -i 's|content.membersPerFile.getOrPut(firFile) { mutableListOf() } += declaration|content.membersPerFile.getOrPut(firFile) { mutableListOf() }.add(declaration as FirMemberDeclaration)|' $f
+          grep -q 'declaration as FirMemberDeclaration' $f
+          grep -q '^import org.jetbrains.kotlin.fir.declarations.FirMemberDeclaration' $f || sed -i '0,/^import org.jetbrains.kotlin.fir.declarations/s//import org.jetbrains.kotlin.fir.declarations.FirMemberDeclaration\n&/' $f
+          f=compiler/fir/java/src/org/jetbrains/kotlin/fir/java/FirJavaElementFinder.kt
+          sed -i 's|override fun getType(): TypeInfo {|override fun getType(doResolve: Boolean): TypeInfo {|' $f
+          f=compiler/fir/java/src/org/jetbrains/kotlin/fir/java/FirJavaFacade.kt
+          sed -i 's#source?.psi.let { it is PsiMethod \&\& JavaPsiRecordUtil.isCanonicalConstructor(it) }#false#' $f
+          sed -i 's|collectSources(compilerConfiguration, projectEnvironment, messageCollector)|collectSources(compilerConfiguration, projectEnvironment.project, messageCollector)|' compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/pipeline/jvmCompilerPipelineLightTree.kt
+          sed -i 's|collectSources(configuration, projectEnvironment, messageCollector)|collectSources(configuration, projectEnvironment.project, messageCollector)|' compiler/cli/src/org/jetbrains/kotlin/cli/metadata/AbstractFirMetadataSerializer.kt
+          sed -i 's|convertConstructorDelegationCall(delegatedConstructorNode, classWrapper, isExpect)|convertConstructorDelegationCall(delegatedConstructorNode!!, classWrapper, isExpect)|' compiler/fir/raw-fir/light-tree2fir/src/org/jetbrains/kotlin/fir/lightTree/converter/LightTreeRawFirDeclarationBuilder.kt
+          grep -q 'delegatedConstructorNode!!' compiler/fir/raw-fir/light-tree2fir/src/org/jetbrains/kotlin/fir/lightTree/converter/LightTreeRawFirDeclarationBuilder.kt
+          f=compiler/fir/java/src/org/jetbrains/kotlin/fir/java/enhancement/SignatureEnhancement.kt
+          sed -i 's|typeParameterSubstitutor.substituteOrNull(newReturnTypeRef.coneType)|typeParameterSubstitutor!!.substituteOrNull(newReturnTypeRef.coneType)|' $f
+          grep -q 'typeParameterSubstitutor!!' $f
         '')
         # IrDeclarationOriginImpl implements an interface with a default method, so initializing it first
         # initializes IrDeclarationOrigin, whose companion reads IrDeclarationOriginImpl.Companion (still null)
@@ -2407,6 +2406,77 @@ KT
   dirs180 = (lib.subtractLists [ "compiler/ir/ir.tree.impl/src" ] dirs170)
     ++ [ "analysis/light-classes-base/src" "compiler/ir/ir.tree/gen" ];
 
+  dirs220 = lib.subtractLists [ "compiler/builtins-serializer/src" "js/js.dce/src" "js/js.inliner/src" ] dirs210
+    ++ [ "compiler/arguments.common/src" "compiler/ir/backend.native/src" "js/js.frontend.common/src" "native/base/src" ];
+  firDirs210 = [
+    "compiler/fir/raw-fir/light-tree2fir/src"
+    "compiler/fir/cones/src"
+    "compiler/fir/providers/src"
+    "compiler/fir/semantics/src"
+    "compiler/fir/resolve/src"
+    "compiler/fir/fir-serialization/src"
+    "compiler/fir/fir-deserialization/src"
+    "compiler/fir/plugin-utils/src"
+    "compiler/fir/tree/src"
+    "compiler/fir/tree/gen"
+    "compiler/fir/java/src"
+    "compiler/fir/native/src"
+    "compiler/fir/raw-fir/raw-fir.common/src"
+    "compiler/fir/raw-fir/raw-fir.common/gen"
+    "compiler/fir/raw-fir/psi2fir/src"
+    "compiler/fir/checkers/src"
+    "compiler/fir/checkers/gen"
+    "compiler/fir/checkers/checkers.jvm/src"
+    "compiler/fir/checkers/checkers.jvm/gen"
+    "compiler/fir/checkers/checkers.js/src"
+    "compiler/fir/checkers/checkers.js/gen"
+    "compiler/fir/checkers/checkers.native/src"
+    "compiler/fir/checkers/checkers.native/gen"
+    "compiler/fir/checkers/checkers.wasm/src"
+    "compiler/fir/checkers/checkers.wasm/gen"
+    "compiler/fir/checkers/checkers.web.common/src"
+    "compiler/fir/checkers/checkers.web.common/gen"
+    "compiler/fir/entrypoint/src"
+    "compiler/fir/fir2ir/src"
+    "compiler/fir/fir2ir/jvm-backend/src"
+  ];
+  firDirs220 = [
+    "compiler/config/gen"
+    "compiler/config.jvm/gen"
+    "compiler/cli/cli-base/gen"
+    "js/js.frontend/gen"
+    "compiler/fir/cones/src"
+    "compiler/fir/providers/src"
+    "compiler/fir/semantics/src"
+    "compiler/fir/resolve/src"
+    "compiler/fir/fir-serialization/src"
+    "compiler/fir/fir-deserialization/src"
+    "compiler/fir/plugin-utils/src"
+    "compiler/fir/tree/src"
+    "compiler/fir/tree/gen"
+    "compiler/fir/fir-jvm/src"
+    "compiler/fir/fir-js/src"
+    "compiler/fir/fir-native/src"
+    "compiler/fir/raw-fir/raw-fir.common/src"
+    "compiler/fir/raw-fir/raw-fir.common/gen"
+    "compiler/fir/raw-fir/psi2fir/src"
+    "compiler/fir/raw-fir/light-tree2fir/src"
+    "compiler/fir/checkers/src"
+    "compiler/fir/checkers/gen"
+    "compiler/fir/checkers/checkers.jvm/src"
+    "compiler/fir/checkers/checkers.jvm/gen"
+    "compiler/fir/checkers/checkers.js/src"
+    "compiler/fir/checkers/checkers.js/gen"
+    "compiler/fir/checkers/checkers.native/src"
+    "compiler/fir/checkers/checkers.native/gen"
+    "compiler/fir/checkers/checkers.wasm/src"
+    "compiler/fir/checkers/checkers.wasm/gen"
+    "compiler/fir/checkers/checkers.web.common/src"
+    "compiler/fir/checkers/checkers.web.common/gen"
+    "compiler/fir/entrypoint/src"
+    "compiler/fir/fir2ir/src"
+    "compiler/fir/fir2ir/jvm-backend/src"
+  ];
   dirs210 = lib.subtractLists [ "analysis/project-structure/src" ] dirs200 ++ [ "compiler/build-tools/kotlin-build-tools-jdk-utils/src/main/kotlin" ];
   dirs200 = dirs190 ++ [
     "compiler/build-tools/kotlin-build-tools-api/src/main/kotlin"
