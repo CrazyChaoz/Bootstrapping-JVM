@@ -1462,6 +1462,177 @@ let
       ];
     };
 
+    "2.1.0" = step k."2.0.0" "2.1.0" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.replace "compiler-dirs" (compilerDirs dirs210))
+        (ops.delete "duplicate-javaslang")
+        (ops.replace "no-213-api" ''
+          perl -0pi -e 's/(ExtensionPoint\.Kind\.INTERFACE),\s*false/$1/' compiler/util/src/org/jetbrains/kotlin/extensions/ProjectExtensionDescriptor.kt compiler/util/src/org/jetbrains/kotlin/extensions/ApplicationExtensionDescriptor.kt
+          rm compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/DummyJavaFileCodeStyleFacadeFactory.kt
+          sed -i '/JavaFileCodeStyleFacade/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreApplicationEnvironment.kt
+          sed -i '/hasConfiguredAnnotationRoot/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/MockExternalAnnotationsManager.kt
+          f=build-common/src/org/jetbrains/kotlin/incremental/storage/LazyStorage.kt
+          sed -i '/import com.intellij.util.io.AppendablePersistentMap/d; s|AppendablePersistentMap.ValueDataAppender|PersistentHashMap.ValueDataAppender|' $f
+          f=wasm/wasm.ir/src/org/jetbrains/kotlin/wasm/ir/convertors/WasmIrToBinary.kt
+          sed -i '/import kotlinx.collections.immutable/d; s|private var offsets = persistentListOf<Box>()|private var offsets: List<Box> = emptyList()|' $f
+          rm -rf compiler/ir/serialization.js/src/org/jetbrains/kotlin/fir
+        '')
+        # K1 asserts that kotlin.* members are deserialized builtins; compiling the stdlib from sources violates that
+        (addLast "no-assertions" ''
+          perl -0pi -e 's/\s*<assertions>\s*<enable\/>\s*<\/assertions>//g' build.xml
+          if grep -q '<assertions>' build.xml; then exit 1; fi
+        '')
+        # The 2.1 stdlib needs K2 (K1 cannot compile the source builtins any more): reuse the bootstrap stdlib classes
+        (addLast "stdlib-from-bootstrap" ''
+          perl -0pi -e 's|<target name="builtins">.*?</target>|<target name="builtins"><mkdir dir="\$\{output}/classes/builtins"/><unzip src="\$\{bootstrap.runtime}" dest="\$\{output}/classes/builtins"><patternset excludes="META-INF/MANIFEST.MF,META-INF/build.txt,**/*.kotlin_builtins"/></unzip></target>|s' build.xml
+          perl -0pi -e 's|<target name="serialize-builtins">.*?</target>|<target name="serialize-builtins"><mkdir dir="\$\{output}/builtins"/><unzip src="\$\{bootstrap.runtime}" dest="\$\{output}/builtins"><patternset includes="**/*.kotlin_builtins"/></unzip></target>|s' build.xml
+          grep -q 'unzip src=.*bootstrap.runtime' build.xml
+        '')
+        (addLast "vavr" ''
+          ln -s ${jar java.vavr} dependencies/vavr-0.10.4.jar
+          sed -i 's|javaslang-2.0.6.jar|vavr-0.10.4.jar|g' build.xml
+          rm compiler/frontend/src/org/jetbrains/kotlin/util/vavr/vavrAdapters.kt
+          grep -q 'vavr-0.10.4.jar' build.xml
+        '')
+        (addLast "no-223-api" ''
+          # `when` guard conditions are a 2.1 language feature
+          sed -i "s|'\\.' if !isBacktick -> return index|'.' -> if (!isBacktick) return index|" core/compiler.common/src/org/jetbrains/kotlin/name/FqNameUnsafe.kt
+          if grep -q "if !isBacktick ->" core/compiler.common/src/org/jetbrains/kotlin/name/FqNameUnsafe.kt; then exit 1; fi
+          # PsiTypes replaced the PsiType constants
+          for f in $(grep -rl 'PsiTypes' --include=*.kt --include=*.java analysis compiler core | grep -v '/tests\?/'); do
+            sed -i -E 's/PsiTypes\.(boolean|byte|char|double|float|int|long|short|void|null)Type\(\)/PsiType.\U\1/g; s/import com\.intellij\.psi\.PsiTypes$/import com.intellij.psi.PsiType/' $f
+          done
+          if grep -rq 'PsiTypes' --include=*.kt analysis/light-classes-base compiler/light-classes compiler/util; then
+            grep -rn 'PsiTypes' --include=*.kt analysis/light-classes-base compiler/light-classes compiler/util; exit 1
+          fi
+          for f in $(grep -rl 'import com.intellij.psi.PsiType$' --include=*.kt analysis/light-classes-base compiler/light-classes compiler/util); do
+            awk '!(/^import / && seen[$0]++)' $f > $f.new && mv $f.new $f
+          done
+          sed -i 's|ClassLoader.getPlatformClassLoader()|(ClassLoader::class.java.getMethod("getPlatformClassLoader").invoke(null) as ClassLoader)|' compiler/build-tools/kotlin-build-tools-jdk-utils/src/main/kotlin/org/jetbrains/kotlin/buildtools/internal/classLoaderUtils.kt
+          rm compiler/cli/cli-base/src/com/intellij/openapi/util/ObjectNode.java
+          sed -i '/import com.intellij.util.containers.CollectionFactory;/d; s|CollectionFactory.createFilePathSet()|new java.util.HashSet<String>()|' compiler/util/src/org/jetbrains/kotlin/utils/JavaSdkUtil.java
+          grep -rl 'IntellijInternalApi' --include=*.kt analysis compiler | xargs -r sed -i '/IntellijInternalApi/d'
+          f=analysis/light-classes-base/src/org/jetbrains/kotlin/asJava/classes/ClassContentFinderCache.kt
+          perl -0pi -e 's/^import [^\n]*thisLogger\n//m; s/thisLogger\(\)\.logErrorWithAttachment\("([^"]*)"\) \{.*?\n\s*\}/com.intellij.openapi.diagnostic.Logger.getInstance(ClassContentFinderCache::class.java).error("$1")/s' $f
+          f=compiler/frontend.common-psi/src/org/jetbrains/kotlin/diagnostics/PositioningStrategies.kt
+          sed -i '/^import com.intellij.psi.util.descendants$/d' $f
+          printf '\nprivate fun PsiElement.descendants(): Sequence<PsiElement> = children.asSequence().flatMap { sequenceOf(it) + it.descendants() }\n' >> $f
+          rm compiler/cli/cli-base/src/com/intellij/openapi/vfs/virtualFileSetFactory.kt
+          sed -i '/VirtualFileSetFactory\|InternalPersistentJavaLanguageLevelReaderService/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreEnvironment.kt
+          sed -i 's/override fun getNioPath/fun getNioPath/; s/override fun findFileByNioFile/fun findFileByNioFile/' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/common/localfs/KotlinLocalFileSystem.kt
+          f=compiler/light-classes/src/org/jetbrains/kotlin/asJava/classes/ultraLightUtils.kt
+          perl -0pi -e 's/StubBuildingVisitor\.GUESSING_PROVIDER/StubBuildingVisitor.GUESSING_MAPPER/; s/SignatureParsing\.CharIterator\(canonicalSignature\)/java.text.StringCharacterIterator(canonicalSignature)/; s/val typeInfo = SignatureParsing\.parseTypeStringToTypeInfo\(signature, GUESSING_PROVIDER\)\n\s*val typeText = typeInfo\.text\(\) \?: return PsiType\.NULL/val typeText = SignatureParsing.parseTypeString(signature, GUESSING_MAPPER) ?: return PsiType.NULL/' $f
+          sed -i 's/GUESSING_PROVIDER/GUESSING_MAPPER/' $f
+          sed -i 's|containerSource ?: super.source|containerSource ?: SourceElement.NO_SOURCE|' compiler/util-klib-metadata/src/org/jetbrains/kotlin/library/metadata/KlibMetadataPackageFragment.kt
+          f=compiler/ir/serialization.native/src/org/jetbrains/kotlin/backend/konan/serialization/IrUtils.kt
+          perl -0pi -e 's/val containerSource = if \(topLevelDeclaration is AbstractFir2IrLazyDeclaration<\*>\)\n\s*getSourceElementFromFir\(topLevelDeclaration\)\n\s*else\n\s*getSourceElementFromDescriptor\(topLevelDeclaration\)/val containerSource = getSourceElementFromDescriptor(topLevelDeclaration)/; s/private fun getSourceElementFromFir\(.*?\n    \}\n\n//s' $f
+          sed -i 's|-Xopt-in=org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi|& -Xopt-in=org.jetbrains.kotlin.ir.util.JvmIrInlineExperimental|' build.xml
+          grep -q JvmIrInlineExperimental build.xml
+        '')
+        # core/builtins and core/runtime.jvm are gone: the builtins live in the stdlib sources (as `actual`s)
+        (addLast "builtins-in-stdlib" ''
+          mkdir -p builtins-native builtins-native-src/annotation builtins-native-src/internal
+          for f in libraries/stdlib/jvm/builtins/*.kt; do
+            sed 's/\bactual //' $f > builtins-native/$(basename $f)
+          done
+          for f in Unit.kt ArrayIntrinsics.kt; do sed 's/\bactual //' libraries/stdlib/jvm/src/kotlin/$f > builtins-native-src/$f; done
+          cp libraries/stdlib/src/kotlin/Function.kt libraries/stdlib/src/kotlin/Annotations.kt builtins-native-src/
+          cp libraries/stdlib/src/kotlin/annotation/Annotations.kt builtins-native-src/annotation/
+          cp libraries/stdlib/src/kotlin/internal/AnnotationsBuiltin.kt builtins-native-src/internal/
+          sed -i 's|<arg value="core/builtins/native"/>|<arg value="builtins-native"/>|; s|<arg value="core/builtins/src"/>|<arg value="builtins-native-src"/>|; s|<include name="core/builtins/src"/>|<include name="libraries/stdlib/jvm/builtins"/>|; /<include name="core\/runtime.jvm\/src"\/>/d' build.xml
+          if grep -q 'core/builtins\|runtime.jvm/src"' build.xml; then exit 1; fi
+        '')
+        (ops.replace "no-203-api" ''
+          f=compiler/light-classes/src/org/jetbrains/kotlin/asJava/classes/KotlinClassInnerStuffCache.kt
+          sed -i 's|PsiKeyword.SEALED|"sealed"|; s|PsiAugmentProvider.collectAugments(element, type, null)|PsiAugmentProvider.collectAugments(element, type)|' $f
+          if grep -q 'PsiKeyword.SEALED\|element, type, null' $f; then exit 1; fi
+        '')
+        (ops.replace "no-202-api-2" ''
+          sed -i 's|Interner.createStringInterner()|com.intellij.util.containers.StringInterner()|; s|MultiMap.createConcurrent<K, V>()|MultiMap.createConcurrentSet<K, V>()|' compiler/util/src/org/jetbrains/kotlin/utils/platformUtils.kt
+          grep -q StringInterner compiler/util/src/org/jetbrains/kotlin/utils/platformUtils.kt
+        '')
+        (ops.replace "no-fir" ''
+          d=compiler/cli/src/org/jetbrains/kotlin/cli
+          rm -r $d/jvm/compiler/pipeline
+          rm $d/common/FirSessionConstructionUtils.kt $d/metadata/AbstractFirMetadataSerializer.kt $d/metadata/FirKlibMetadataSerializer.kt $d/metadata/FirLegacyMetadataSerializer.kt
+          rm compiler/builtins-serializer/src/org/jetbrains/kotlin/serialization/builtins/FirBuiltInsSerializer.kt
+          rm $d/jvm/compiler/FirKotlinToJvmBytecodeCompiler.kt $d/jvm/compiler/VfsBasedProjectEnvironment.kt $d/jvm/compiler/firFindMainClass.kt
+          rm compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/IncrementalFirJvmCompilerRunner.kt
+          rm compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/incrementalFirCacheUtils.kt
+          stub='throw UnsupportedOperationException("FIR is not part of the bootstrap build")'
+          # the diagnostics reporter is shared with K1; drop its FIR error factories
+          f=$d/common/fir/FirDiagnosticsCompilerResultsReporter.kt
+          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/diagnosticsCollector\.diagnostics\.any \{ it\.factory == FirErrors\.\w+ \}/false/g' $f
+          # utils.kt: light tree package check
+          f=$d/common/utils.kt
+          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/\nfun checkKotlinPackageUsageForLightTree\(.*?(\nfun <PathProvider)/$1/s' $f
+          # cliCompilerUtils.kt: FIR session helpers
+          f=$d/jvm/compiler/cliCompilerUtils.kt
+          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/\nfun createContextForIncrementalCompilation\(.*\z/\n/s' $f
+          STUB="$stub" perl -0pi -e 's/true -> when \(arguments\.legacyMetadataJar\) \{.*?\n                \}/true -> $ENV{STUB}/s' $d/metadata/KotlinMetadataCompiler.kt
+          STUB="$stub" perl -0pi -e 's/true -> FirBuiltInsSerializer\(configuration, environment\)/true -> $ENV{STUB}/' compiler/builtins-serializer/src/org/jetbrains/kotlin/serialization/builtins/BuiltInsSerializer.kt
+          # KotlinToJVMBytecodeCompiler: classic frontend only
+          f=$d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
+          STUB="$stub" perl -0pi -e 's/^import [^\n]*(?:\.fir\.|FirKotlinToJvmBytecodeCompiler|\.pipeline\.)[^\n]*\n//mg; s/if \(useFrontendIR\) \{.*?\n        \} else \{/if (useFrontendIR) {\n            $ENV{STUB}\n        } else {/s; s/    private fun runFrontendAndGenerateIrForMultiModuleChunkUsingFrontendIR\(.*?(    private fun runFrontendAndGenerateIrUsingClassicFrontend)/$1/s; s/    (?:private|internal) fun Fir2IrActualizedResult\.codegenFactoryWithJvmIrBackendInput\(.*?\n    \}\n\n//s; s/: Fir(?:JvmBackendClassResolver|JvmBackendExtension)\?/: Nothing?/g; s/        FirDiagnosticsCompilerResultsReporter/        org.jetbrains.kotlin.cli.common.fir.FirDiagnosticsCompilerResultsReporter/' $f
+          f=$d/jvm/K2JVMCompiler.kt
+          STUB="$stub" perl -0pi -e 's/^import [^\n]*\.pipeline\.[^\n]*\n//mg; s/if \(configuration\.getBoolean\(CommonConfigurationKeys\.USE_FIR\) &&\s*configuration\.getBoolean\(CommonConfigurationKeys\.USE_LIGHT_TREE\)\s*\) \{.*?\} else \{/if (false) {\n                $ENV{STUB}\n            } else {/s' $f
+          f=compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/CompilerRunnerUtils.kt
+          STUB="$stub" perl -0pi -e 's/if \(useK2 && args\.useFirIC && args\.useFirLT[^\n]*\{\n\s*IncrementalFirJvmCompilerRunner\(.*?\n\s*\)\n(\s*)\} else \{/if (false) {\n$ENV{STUB}\n$1} else {/s' $f
+          # JS: K1 only
+          f=compiler/cli/cli-js/src/org/jetbrains/kotlin/cli/js/K2JSCompiler.kt
+          STUB="$stub" perl -0pi -e 's/^import [^\n]*Fir2KlibMetadataSerializer\n//m; s/(    private fun processSourceModuleWithK2\([^)]*\): ModulesStructure \{\n).*?(\n    class IcCachesArtifacts)/$1        $ENV{STUB}\n    }\n$2/s' $f
+          f=compiler/cli/cli-js/src/org/jetbrains/kotlin/cli/js/klib/jsCompilerPipeline.kt
+          cat > $f <<'KT'
+          package org.jetbrains.kotlin.cli.js.klib
+
+          import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
+          import org.jetbrains.kotlin.cli.common.fir.FirDiagnosticsCompilerResultsReporter
+          import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+          import org.jetbrains.kotlin.config.CompilerConfiguration
+          import org.jetbrains.kotlin.diagnostics.impl.BaseDiagnosticsCollector
+
+          internal fun reportCollectedDiagnostics(
+              compilerConfiguration: CompilerConfiguration,
+              diagnosticsReporter: BaseDiagnosticsCollector,
+              messageCollector: MessageCollector
+          ) {
+              val renderName = compilerConfiguration.getBoolean(CLIConfigurationKeys.RENDER_DIAGNOSTIC_INTERNAL_NAME)
+              FirDiagnosticsCompilerResultsReporter.reportToMessageCollector(diagnosticsReporter, messageCollector, renderName)
+          }
+          KT
+          # native serialization: no Fir2Ir lazy declarations
+          f=compiler/ir/serialization.native/src/org/jetbrains/kotlin/backend/konan/serialization/KonanFakeOverrideClassFilter.kt
+          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/return this\.isBound && this\.owner is Fir2IrLazyClass[^\n]*/return false/' $f
+          f=compiler/ir/serialization.native/src/org/jetbrains/kotlin/backend/konan/serialization/IrUtils.kt
+          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/this\.isFromFirDeserializedInteropLibrary\(\) \|\| //; s/private fun DeclarationDescriptor\.isFromFirDeserializedInteropLibrary\(\).*?\n\}\n\n//s' $f
+          grep -q 'not part of the bootstrap build' $d/jvm/K2JVMCompiler.kt $d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt compiler/cli/cli-js/src/org/jetbrains/kotlin/cli/js/K2JSCompiler.kt compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/CompilerRunnerUtils.kt
+          ! grep -rq 'kotlin\.fir\.\(declarations\|lazy\|pipeline\|session\|backend\|analysis\|packageFqName\)\|IncrementalFirJvm\|\.pipeline\.\|FirMetadataSerializer\|FirKlibMetadataSerializer\|FirBuiltInsSerializer\|FirKotlinToJvm' $d compiler/incremental-compilation-impl/src compiler/cli/cli-js/src compiler/ir/serialization.native/src
+        '')
+        # IrDeclarationOriginImpl implements an interface with a default method, so initializing it first
+        # initializes IrDeclarationOrigin, whose companion reads IrDeclarationOriginImpl.Companion (still null)
+        (addLast "origin-init-cycle" ''
+          f=compiler/ir/ir.tree/src/org/jetbrains/kotlin/ir/declarations/IrDeclarationOrigin.kt
+          sed -i -e 's# by IrDeclarationOriginImpl\.Synthetic$# by SyntheticOriginDelegate#' -e 's# by IrDeclarationOriginImpl$# by OriginDelegate#' $f
+          cat >> $f <<'KT'
+
+object OriginDelegate : PropertyDelegateProvider<Any?, ReadOnlyProperty<Any?, IrDeclarationOriginImpl>> {
+    override fun provideDelegate(thisRef: Any?, property: KProperty<*>): ReadOnlyProperty<Any?, IrDeclarationOriginImpl> =
+        IrDeclarationOriginImpl(property.name)
+}
+
+object SyntheticOriginDelegate : PropertyDelegateProvider<Any?, ReadOnlyProperty<Any?, IrDeclarationOriginImpl>> {
+    override fun provideDelegate(thisRef: Any?, property: KProperty<*>): ReadOnlyProperty<Any?, IrDeclarationOriginImpl> =
+        IrDeclarationOriginImpl(property.name, isSynthetic = true)
+}
+KT
+          if grep -q ' by IrDeclarationOriginImpl' $f; then exit 1; fi
+        '')
+        (ops.replace "compiler-version-150" ''
+          echo -n "2.1.0" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+      ];
+    };
+
     "2.0.0" = step k."1.9.0" "2.0.0" [ ] {
       steps = lib.flip lib.pipe [
         (ops.replace "compiler-dirs" (compilerDirs dirs200))
@@ -2236,6 +2407,7 @@ let
   dirs180 = (lib.subtractLists [ "compiler/ir/ir.tree.impl/src" ] dirs170)
     ++ [ "analysis/light-classes-base/src" "compiler/ir/ir.tree/gen" ];
 
+  dirs210 = lib.subtractLists [ "analysis/project-structure/src" ] dirs200 ++ [ "compiler/build-tools/kotlin-build-tools-jdk-utils/src/main/kotlin" ];
   dirs200 = dirs190 ++ [
     "compiler/build-tools/kotlin-build-tools-api/src/main/kotlin"
     "compiler/ir/ir.actualization/src"

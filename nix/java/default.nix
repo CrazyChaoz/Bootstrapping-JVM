@@ -658,6 +658,28 @@ lib.fix (self: {
     javaRelease = "1.8";
   };
 
+  # Kotlin >= 2.1 (javaslang's successor); src-gen is committed
+  vavr-match = mkJar {
+    pname = "vavr-match";
+    version = "0.10.4";
+    src = gh "vavr-io" "vavr" "v0.10.4" "sha256-24UQP0XUe5XR2AWqsPYyt6UsFxcTdB93Ij+sd9NZE4E=";
+    sourceDirs = [ "vavr-match/src/main/java" ];
+    javaRelease = "1.8";
+  };
+
+  vavr = mkJar {
+    pname = "vavr";
+    version = "0.10.4";
+    inherit (self.vavr-match) src;
+    sourceDirs = [
+      "vavr/src/main/java"
+      "vavr/src-gen/main/java"
+    ];
+    preBuild = "export LC_ALL=C.UTF-8";
+    buildDeps = [ self.vavr-match ];
+    javaRelease = "1.8";
+  };
+
   ant-contrib = mkJar {
     pname = "ant-contrib";
     version = "1.0b3";
