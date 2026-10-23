@@ -484,6 +484,18 @@ lib.fix (self: {
     javaRelease = "1.6";
   };
 
+  gson = mkJar {
+    pname = "gson";
+    version = "2.8.6";
+    src = gh "google" "gson" "gson-parent-2.8.6" "sha256-Y96Xx01C7t2vrM/WUgiu9tG5Lst2fhrgBatBFve4ZU4=";
+    sourceDirs = [ "gson/src/main/java" ];
+    preBuild = ''
+      rm gson/src/main/java/module-info.java
+      sed 's/''${project.version}/2.8.6/' gson/src/main/java-templates/com/google/gson/internal/GsonBuildConfig.java > gson/src/main/java/com/google/gson/internal/GsonBuildConfig.java
+    '';
+    javaRelease = "1.7";
+  };
+
   jna-5 = mkJar {
     pname = "jna";
     version = "5.3.1";

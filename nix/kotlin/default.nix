@@ -1462,6 +1462,36 @@ let
       ];
     };
 
+    "1.6.21" = step k."1.6.0" "1.6.21" [ ] {
+      steps = lib.flip lib.pipe [
+        (ops.delete "minby-or-null")
+        (addLast "language-1.6" ''
+          sed -i 's|-language-version 1.5 -api-version 1.5|-language-version 1.6 -api-version 1.6|' build.xml
+          grep -q 'api-version 1.6' build.xml
+        '')
+        (addLast "gson" ''
+          ln -sf ${jar java.gson} ideaSDK/core/gson.jar
+        '')
+        # ASM 8 / SDK 201 instead of ASM 9 / SDK 203
+        (addLast "no-asm9-api-2" ''
+          sed -i 's|Opcodes\.V16|60|g' compiler/config.jvm/src/org/jetbrains/kotlin/config/JvmTarget.kt
+          sed -i 's|classVisitor.visitPermittedSubclass(|classVisitor.visitPermittedSubtypeExperimental(|' compiler/ir/backend.jvm/codegen/src/org/jetbrains/kotlin/backend/jvm/codegen/ClassCodegen.kt
+          f=build-common/src/org/jetbrains/kotlin/incremental/IncrementalJvmCache.kt
+          sed -i '/^import com.intellij.util.containers.CollectionFactory$/d; s|THashSet(CollectionFactory.createFilePathSet())|THashSet<String>()|' $f
+          ! grep -q CollectionFactory $f
+        '')
+        (addLast "no-fir-reporter" ''
+          f=compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
+          sed -i '/FirDiagnosticsCompilerResultsReporter/d' $f
+          ! grep -q FirDiagnosticsCompilerResultsReporter $f
+        '')
+        (ops.replace "compiler-dirs" (compilerDirs dirs1621))
+        (ops.replace "compiler-version-150" ''
+          echo -n "1.6.21" > compiler/compiler.version/resources/META-INF/compiler.version
+        '')
+      ];
+    };
+
     "1.6.0" = step k."1.5.31" "1.6.0" [ ] {
       steps = lib.flip lib.pipe [
         (ops.delete "explicit-ir-function-type")
@@ -1869,6 +1899,11 @@ let
   ];
 
   dirs160 = dirs1531 ++ [ "compiler/ir/backend.jvm/lower/src" ];
+
+  dirs1621 = dirs160 ++ [
+    "compiler/frontend.common-psi/src"
+    "compiler/ir/backend.jvm/codegen/src"
+  ];
 
   dirs1432 = [
     "build-common/src"

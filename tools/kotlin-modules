@@ -18,12 +18,16 @@ for m in re.finditer(r'''project\(\s*["']([^"']+)["']\s*\)\.projectDir\s*=\s*(?:
 
 root = read('build.gradle.kts')
 m = re.search(r'extra\["compilerModules"\]\s*=\s*arrayOf\(', root)
-depth, i = 1, m.end()
-while depth:
-    depth += {'(': 1, ')': -1}.get(root[i], 0); i += 1
-body = root[m.end():i - 1]
-# optional (disabled by default) groups: `*if (property) { arrayOf(...) } else { emptyArray() }`
-body = re.sub(r'\*if\s*\(.*?\)\s*\{.*?\}\s*else\s*\{.*?\}', '', body, flags=re.S)
+if m:
+    depth, i = 1, m.end()
+    while depth:
+        depth += {'(': 1, ')': -1}.get(root[i], 0); i += 1
+    body = root[m.end():i - 1]
+    # optional (disabled by default) groups: `*if (property) { arrayOf(...) } else { emptyArray() }`
+    body = re.sub(r'\*if\s*\(.*?\)\s*\{.*?\}\s*else\s*\{.*?\}', '', body, flags=re.S)
+else:
+    # 1.6.x: separate lists (the FIR ones are left out)
+    body = ''.join(re.findall(r'val (?:ir|common|fe10)CompilerModules = arrayOf\((.*?)\)\.also', root, re.S))
 mods = re.findall(r'"([^"]+)"', body) + extra
 
 def projdir(p):
