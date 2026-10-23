@@ -346,6 +346,92 @@ lib.fix (self: {
     deps = [ self.slf4j-api ];
   };
 
+  # --- batch 3 -----------------------------------------------------------
+  tomlj = mk {
+    pname = "tomlj";
+    version = "1.0.0";
+    src = gh "tomlj" "tomlj" "refs/tags/1.0.0" "sha256-vmX2d66S/jIqSMojFYZT6v5AF5HS1VKkkqdroPeb6GQ=";
+    nativeBuildInputs = [ self.antlr4 ];
+    preBuild = ''
+      mkdir -p gen/org/tomlj/internal
+      (cd src/main/antlr/org/tomlj/internal && antlr4 -visitor -no-listener \
+        -o $OLDPWD/gen/org/tomlj/internal TomlLexer.g4 TomlParser.g4)
+      rm -f gen/org/tomlj/internal/*.tokens gen/org/tomlj/internal/*.interp
+    '';
+    sourceDirs = [
+      "src/main/java"
+      "gen"
+    ];
+    deps = [
+      self.antlr4-runtime
+      self.checker-qual
+      self.jsr305
+    ];
+  };
+  antlr2 = mk {
+    pname = "antlr";
+    version = "2.7.7";
+    src = fetchzip {
+      url = "https://www.antlr2.org/download/antlr-2.7.7.tar.gz";
+      hash = "sha256-jOg8Eg4ZBG6kTht9m0HRbmIa63aJCbF3FeJSVpbgK1k=";
+    };
+    sourceDirs = [ "antlr" ];
+  };
+  jsch = mk {
+    pname = "jsch";
+    version = "0.2.16";
+    src = mvn "com.github.mwiede" "jsch" "0.2.16" "sha256-hlYwvTDC/oynWhRNtQoTGUTI/nCtgjBsE/O6AbXHPFo=";
+    sourceDirs = [ "." ];
+    useRelease = true;
+    nativeBuildInputs = [ perl ];
+    postPatch = ''
+      rm -rf META-INF/versions com/jcraft/jsch/JUnixSocketFactory.java com/jcraft/jsch/Log4j2Logger.java com/jcraft/jsch/PageantConnector.java
+      perl -0pi -e 's/try \{\s*return new JUnixSocketFactory\(\);.*?\n      \}\n    \}\n  \}/throw e;\n    }\n  }/s' com/jcraft/jsch/SSHAgentConnector.java
+    '';
+    deps = [
+      self.slf4j-api
+      self.bcprov
+    ];
+    copySourceResources = true;
+  };
+  plexus-classworlds = mk {
+    pname = "plexus-classworlds";
+    version = "2.7.0";
+    src = mvn "org.codehaus.plexus" "plexus-classworlds" "2.7.0" "sha256-sGoU/WKD8Q49Hp97ys1WybTThZ4v0+tTzMM8DLrdG0c=";
+    sourceDirs = [ "." ];
+    copySourceResources = true;
+  };
+  maven-artifact = mk {
+    pname = "maven-artifact";
+    version = "3.9.5";
+    src = mvn "org.apache.maven" "maven-artifact" "3.9.5" "sha256-9AGscnM6IuVDCsWiZje75/zwQectE+QztcKSCJ2OmfY=";
+    sourceDirs = [ "." ];
+    copySourceResources = true;
+    deps = [
+      self.plexus-utils
+      self.commons-lang3
+    ];
+  };
+  maven-resolver-api = mk {
+    pname = "maven-resolver-api";
+    version = "1.9.16";
+    src = mvn "org.apache.maven.resolver" "maven-resolver-api" "1.9.16" "sha256-YTNkIZcaYnOPXIGf17vXKylFUwz+xI1yvFra7zmnK5E=";
+    sourceDirs = [ "." ];
+  };
+  maven-plugin-api = mk {
+    pname = "maven-plugin-api";
+    version = "3.9.5";
+    src = mvn "org.apache.maven" "maven-plugin-api" "3.9.5" "sha256-Zd97QLplbZgYZAodKzjdUqVmSx+SPYAHLkCdrMvQXLc=";
+    sourceDirs = [ "." ];
+    copySourceResources = true;
+    deps = [
+      self.maven-model
+      self.maven-artifact
+      self.plexus-utils
+      self.javax-inject
+    ];
+  };
+
   # --- misc --------------------------------------------------------------
   gson = mk {
     pname = "gson";
@@ -672,7 +758,7 @@ lib.fix (self: {
     pname = "bcprov-jdk18on";
     version = "1.85";
     # multi-release extras (Java 9+ variants of some classes)
-    postPatch = "rm -rf META-INF/versions";
+    postPatch = "rm -rf META-INF/versions com/jcraft/jsch/JUnixSocketFactory.java com/jcraft/jsch/Log4j2Logger.java com/jcraft/jsch/PageantConnector.java";
     src = mvn "org.bouncycastle" "bcprov-jdk18on" "1.85" "sha256-HiI4dcHwCHdPGrzREHXOiNXulv3QD2MvFneHGQlhQd4=";
     sourceDirs = [ "." ];
     copySourceResources = true;
@@ -680,7 +766,7 @@ lib.fix (self: {
   bcutil = mk {
     pname = "bcutil-jdk18on";
     version = "1.85";
-    postPatch = "rm -rf META-INF/versions";
+    postPatch = "rm -rf META-INF/versions com/jcraft/jsch/JUnixSocketFactory.java com/jcraft/jsch/Log4j2Logger.java com/jcraft/jsch/PageantConnector.java";
     src = mvn "org.bouncycastle" "bcutil-jdk18on" "1.85" "sha256-+BobUZ3LeTENY4DSPpEikqJRVYMmjTmI0houVrzOzaw=";
     sourceDirs = [ "." ];
     deps = [ self.bcprov ];
@@ -688,7 +774,7 @@ lib.fix (self: {
   bcpg = mk {
     pname = "bcpg-jdk18on";
     version = "1.85";
-    postPatch = "rm -rf META-INF/versions";
+    postPatch = "rm -rf META-INF/versions com/jcraft/jsch/JUnixSocketFactory.java com/jcraft/jsch/Log4j2Logger.java com/jcraft/jsch/PageantConnector.java";
     src = mvn "org.bouncycastle" "bcpg-jdk18on" "1.85" "sha256-pspoKvNrHz9bWAGpbZdrtgI5h8xaFM0cjp8x+fqu6+8=";
     sourceDirs = [ "." ];
     deps = [ self.bcprov self.bcutil ];
@@ -898,8 +984,82 @@ lib.fix (self: {
     copySourceResources = true;
   };
 
+  # the official 4.13.2 runtime (the fork's differs in API, e.g. a generic ANTLRErrorListener)
+  antlr4-runtime = mk {
+    pname = "antlr4-runtime";
+    version = "4.13.2";
+    src = self.antlr413-git-src;
+    sourceDirs = [ "runtime/Java/src" ];
+  };
+
   # (the antlr.mkAntlr4 recipe of nix/java/antlr.nix, with 4.13's template-based
   # Unicode data generation: a small renderer replaces string-template-maven-plugin)
+  # the official 4.13.2 tool (for grammars compiled against the official runtime)
+  antlr4 =
+    (mk {
+      pname = "antlr4";
+      version = "4.13.2";
+      src = self.antlr413-git-src;
+      nativeBuildInputs = [ antlr.antlr3 ];
+      preBuild = ''
+        cp -r tool/resources/. tool/src/
+        chmod -R u+w tool/src
+        export CLASSPATH="${
+          classpathOf [
+            antlr.antlr3
+            self.antlr4-runtime
+            antlr.stringtemplate4
+            antlr.treelayout
+            antlr.icu4j
+          ]
+        }"
+        mkdir -p $TMPDIR/gen-classes
+        cat > UnicodeRenderer.java <<'EOF'
+        import java.io.*;
+        import java.util.Map;
+        import org.stringtemplate.v4.*;
+        public class UnicodeRenderer {
+          public static void main(String[] a) throws Exception {
+            Map<String, Object> props = org.antlr.v4.unicode.UnicodeDataTemplateController.getProperties();
+            STGroup g = new STGroupDir(a[0]);
+            ST st = g.getInstanceOf("unicodedata");
+            for (Map.Entry<String, Object> e : props.entrySet()) st.add(e.getKey(), e.getValue());
+            try (Writer w = new FileWriter(a[1])) { w.write(st.render()); }
+          }
+        }
+        EOF
+        javac -cp "$CLASSPATH" -d $TMPDIR/gen-classes -nowarn UnicodeRenderer.java \
+          tool/src/org/antlr/v4/unicode/UnicodeDataTemplateController.java
+        java -cp "$CLASSPATH:$TMPDIR/gen-classes" UnicodeRenderer \
+          tool/src/org/antlr/v4/tool/templates tool/src/org/antlr/v4/unicode/UnicodeData.java
+        sed -i 's/\\>/>/g' tool/src/org/antlr/v4/unicode/UnicodeData.java
+        rm UnicodeRenderer.java
+        (cd tool/src/org/antlr/v4/parse
+         for f in ANTLRLexer.g ANTLRParser.g BlockSetTransformer.g GrammarTreeVisitor.g ATNBuilder.g \
+                  ActionSplitter.g LeftRecursiveRuleWalker.g; do antlr3 $f; done)
+        (cd tool/src/org/antlr/v4/codegen && cp ../parse/ANTLRParser.tokens . && antlr3 SourceGenTriggers.g)
+      '';
+      sourceDirs = [ "tool/src" ];
+      copySourceResources = true;
+      deps = [
+        antlr.antlr3
+        self.antlr4-runtime
+        antlr.stringtemplate4
+        antlr.treelayout
+      ];
+      buildDeps = [ antlr.icu4j ];
+    }).overrideAttrs
+      (o: {
+        postInstall = ''
+          mkdir -p $out/bin
+          cat > $out/bin/antlr4 <<EOF
+          #!/bin/sh
+          exec ${jdk}/bin/java -cp $out/share/java/antlr4.jar:${classpathOf o.passthru.javaDeps} org.antlr.v4.Tool "\$@"
+          EOF
+          chmod +x $out/bin/antlr4
+        '';
+      });
+
   antlr413 =
     (mk {
       pname = "antlr4";

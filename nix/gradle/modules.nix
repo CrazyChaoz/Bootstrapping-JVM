@@ -78,6 +78,13 @@ let
       junitPlatform = junit-platform-launcher;
       junitPlatformEngine = junit-platform-engine;
       testng = testng;
+      tomlj = tomlj;
+      antlr = antlr2;
+      jsch = jsch;
+      plexusClassworlds = plexus-classworlds;
+      maven3Artifact = maven-artifact;
+      maven3PluginApi = maven-plugin-api;
+      mavenResolverApi = maven-resolver-api;
     }
     // (with gradleGroovy; {
       groovy = groovy-core;
