@@ -78,7 +78,13 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
     # come from a class file (the previous library), not the source path
     sp=$n/libsp; rm -rf $sp; mkdir -p $n; cp -rs $PWD/src/library $sp; rm $sp/scala/Array.scala
   fi
+  ( cd $L; find . -name '*.class' | sort ) > $n.before-predef
   sc "$ccp" $main $(nopredefs "$ccp") -d $L -classpath $L:classes$fb -sourcepath $sp src/library/scala/Predef.scala src/library/scala/runtime/ScalaRunTime.scala
+  if [ -n "$GENERICS" ]; then
+    # keep only Predef/ScalaRunTime from this step: other classes it compiled on the way are
+    # compiled again below, and stale copies confuse the class path (Stream$cons$$anon$2, 2008-06)
+    ( cd $L; find . -name '*.class' | sort | comm -13 $W/$n.before-predef - | grep -v '^\./scala/Predef\|^\./scala/runtime/ScalaRunTime' | xargs -r rm )
+  fi
   ( cd src/library; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" | grep -v '^scala/Predef.scala$\|^scala/runtime/ScalaRunTime.scala$' ) | sed 's|^|src/library/|' > $n.libscala
   if [ -n "$fb" ]; then
     # library classes an old STARR cannot compile from Scala source (scala.All$/AllRef$,
@@ -109,13 +115,16 @@ if [ -n "${COMPILER_FIRST:-}" ]; then
   echo "== compiler-first"
   P=$(dirname ${PREVCP%%:*}); PREVLIB=$PREVCP; [ -d $P/quick/lib ] && PREVLIB=$P/quick/lib:$P/classes
   comp locker "$PREVCP" $PREVMAIN $PREVLIB
-  lib locker locker/comp:$PREVLIB:classes scala.tools.nsc.Main
+  lib locker locker/comp:$PREVLIB:classes scala.tools.nsc.Main ${GENERICS:+$PREVLIB}
 else
   # locker: classes the STARR insists on but the new library lacks come from the old one
   lib locker "$PREVCP" $PREVMAIN "$PREVCP"
   comp locker "$PREVCP" $PREVMAIN locker/lib"${PREVCP:+:$PREVCP}"
 fi
-lib quick locker/lib:locker/comp:classes scala.tools.nsc.Main ${GENERICS:+locker/lib}
+if [ -n "$GENERICS" ]; then   # only scala.Array (see lib) from locker, nothing else may leak into quick
+  mkdir -p quick/arrayfb/scala; cp locker/lib/scala/Array.class quick/arrayfb/scala/; cp locker/lib/scala/'Array$.class' quick/arrayfb/scala/ 2>/dev/null || true
+fi
+lib quick locker/lib:locker/comp:classes scala.tools.nsc.Main ${GENERICS:+quick/arrayfb}
 comp quick locker/lib:locker/comp:classes scala.tools.nsc.Main quick/lib
 mkdir -p out2; cp -r quick/lib/. out2/; cp -r quick/comp/. out2/
 echo stage done

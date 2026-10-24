@@ -6,6 +6,6 @@ echo "after $s: $(git log -1 --format='%h %ad %s' --date=short $n)"; git show --
 cd /tmp/sc/work
 for m in "" 1; do
   COMPILER_FIRST=$m BUILDER=stage2.sh TAILN=0 ./try.sh bis $n /tmp/sc/st-$s/out2:/tmp/sc/st-$s/classes >/dev/null 2>&1
-  echo "--- CF=$m"; grep -v '^Note\|not applicable\|warning\|^ *\^' /tmp/sc/log-bis.txt | grep -v '^      \|^  [a-z]' | head -${N:-15}
+  echo "--- CF=$m"; grep -v '^Note\|not applicable\|warning\|^ *\^\|signature = \|I assume\|Therefore I wrap\|If that.s not what' /tmp/sc/log-bis.txt | grep -v '^      \|^  [a-z]' | head -${N:-15}
   grep -q 'stage done' /tmp/sc/log-bis.txt && { ./hello2.sh /tmp/sc/st-bis 2>&1 | head -2; break; }
 done
