@@ -52,7 +52,8 @@ def settings_modules():
 
 
 CONFS = ["api", "implementation", "compileOnly", "compileOnlyApi", "runtimeOnly",
-         "annotationProcessor", "shadow", "manifestClasspath"]
+         "annotationProcessor", "shadow", "manifestClasspath", "runtime",
+         "coreRuntimeOnly", "pluginsRuntimeOnly", "agentsRuntimeOnly"]
 
 
 def parse_deps(text):
@@ -77,8 +78,12 @@ def parse_deps(text):
                 dep = "project:" + pm.group(1)
             elif (pm := re.fullmatch(r"(libs|testLibs|buildLibs|providedLibs)\.([\w.]+)", arg)):
                 dep = "lib:" + pm.group(2)
+            elif arg == '"org.gradle:kotlin-dsl-shared-runtime"':
+                dep = "project:kotlin-dsl-shared-runtime"
             elif (pm := re.fullmatch(r'"([^"]+)"', arg)):
                 dep = "coord:" + pm.group(1)
+            elif (pm := re.fullmatch(r"platform\(projects\.([\w.]+)\)", arg)):
+                dep = "project:" + kebab(pm.group(1).split(".")[-1])
             elif (pm := re.fullmatch(r"platform\((.*)\)", arg)):
                 continue
             elif (pm := re.fullmatch(r"testFixtures\((.*)\)", arg)):
@@ -204,5 +209,14 @@ for name, d in settings_modules().items():
         "runtimes": runtimes(text),
         "main": main_compilation(text),
     }
+# a build-logic project that the Kotlin DSL embeds into the distribution
+out["kotlin-dsl-shared-runtime"] = {
+    "dir": "build-logic/kotlin-dsl-shared-runtime",
+    "plugins": [],
+    "deps": {"api": ["lib:kotlinStdlib", "lib:asmTree", "lib:jsr305", "lib:jspecify"]},
+    "src": src_info("build-logic/kotlin-dsl-shared-runtime"),
+    "runtimes": {},
+    "main": {"targetJvmVersion": 8},
+}
 json.dump(out, sys.stdout, indent=1, sort_keys=True)
 print()

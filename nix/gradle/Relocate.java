@@ -21,6 +21,12 @@ public class Relocate {
     for (String k : keep) if (dotted.equals(k) || dotted.startsWith(k + ".")) return n;
     if (n.startsWith("com/google/protobuf/")) return prefix.replace('.', '/') + "/protobuf/" + n.substring("com/google/protobuf/".length());
     for (String p : pkgs) {
+      int eq = p.indexOf('=');
+      if (eq >= 0) {
+        String from = p.substring(0, eq).replace('.', '/'), to = p.substring(eq + 1).replace('.', '/');
+        if (n.startsWith(from + "/")) return to + n.substring(from.length());
+        continue;
+      }
       String ps = p.replace('.', '/');
       if (n.startsWith(ps + "/") || n.equals(ps)) return prefix.replace('.', '/') + "/" + n;
     }

@@ -1379,7 +1379,8 @@
  "classpath": {
   "deps": {
    "annotationProcessor": [
-    "project:internal-instrumentation-processor"
+    "project:internal-instrumentation-processor",
+    "project:distributions-dependencies"
    ],
    "api": [
     "project:base-asm",
@@ -1940,7 +1941,8 @@
  "core": {
   "deps": {
    "annotationProcessor": [
-    "project:internal-instrumentation-processor"
+    "project:internal-instrumentation-processor",
+    "project:distributions-dependencies"
    ],
    "api": [
     "project:ant",
@@ -2213,7 +2215,20 @@
   }
  },
  "core-platform": {
-  "deps": {},
+  "deps": {
+   "runtime": [
+    "project:installation-beacon",
+    "project:api-metadata",
+    "project:base-diagnostics",
+    "project:daemon-server",
+    "project:daemon-main",
+    "project:gradle-cli",
+    "project:gradle-cli-main",
+    "project:tooling-api-provider",
+    "project:kotlin-dsl",
+    "project:declarative-dsl-provider"
+   ]
+  },
   "dir": "packaging/core-platform",
   "main": {},
   "plugins": [
@@ -2992,7 +3007,28 @@
   }
  },
  "distributions-basics": {
-  "deps": {},
+  "deps": {
+   "agentsRuntimeOnly": [
+    "project:instrumentation-agent"
+   ],
+   "coreRuntimeOnly": [
+    "project:core-platform"
+   ],
+   "pluginsRuntimeOnly": [
+    "project:distributions-core",
+    "project:resources-http",
+    "project:resources-sftp",
+    "project:resources-s3",
+    "project:resources-gcs",
+    "project:resources-http",
+    "project:build-cache-http",
+    "project:tooling-api-builders",
+    "project:declarative-dsl-tooling-builders",
+    "project:kotlin-dsl-tooling-builders",
+    "project:test-kit",
+    "project:unit-test-fixtures"
+   ]
+  },
   "dir": "testing/distributions-basics",
   "main": {},
   "plugins": [
@@ -3003,7 +3039,31 @@
   "src": {}
  },
  "distributions-core": {
-  "deps": {},
+  "deps": {
+   "agentsRuntimeOnly": [
+    "project:instrumentation-agent"
+   ],
+   "coreRuntimeOnly": [
+    "project:core-platform"
+   ],
+   "pluginsRuntimeOnly": [
+    "project:plugin-use",
+    "project:dependency-management",
+    "project:software-diagnostics",
+    "project:workers",
+    "project:composite-builds",
+    "project:tooling-api-builders",
+    "project:version-control",
+    "project:configuration-cache",
+    "project:testing-jvm-infrastructure",
+    "project:kotlin-dsl-provider-plugins",
+    "project:instrumentation-declarations",
+    "project:unit-test-fixtures",
+    "project:isolated-action-services",
+    "project:problems-impl",
+    "project:ant-impl"
+   ]
+  },
   "dir": "testing/distributions-core",
   "main": {},
   "plugins": [
@@ -3030,7 +3090,27 @@
   "src": {}
  },
  "distributions-full": {
-  "deps": {},
+  "deps": {
+   "agentsRuntimeOnly": [
+    "project:instrumentation-agent"
+   ],
+   "coreRuntimeOnly": [
+    "project:core-platform"
+   ],
+   "pluginsRuntimeOnly": [
+    "project:distributions-publishing",
+    "project:distributions-jvm",
+    "project:distributions-native",
+    "project:plugin-development",
+    "project:build-configuration",
+    "project:build-init",
+    "project:wrapper-main",
+    "project:build-profile",
+    "project:antlr",
+    "project:enterprise",
+    "project:unit-test-fixtures"
+   ]
+  },
   "dir": "packaging/distributions-full",
   "main": {},
   "plugins": [
@@ -3052,7 +3132,38 @@
   "src": {}
  },
  "distributions-jvm": {
-  "deps": {},
+  "deps": {
+   "agentsRuntimeOnly": [
+    "project:instrumentation-agent"
+   ],
+   "coreRuntimeOnly": [
+    "project:core-platform"
+   ],
+   "pluginsRuntimeOnly": [
+    "project:distributions-basics",
+    "project:distributions-publishing",
+    "project:base-ide-plugins",
+    "project:code-quality",
+    "project:ear",
+    "project:ide",
+    "project:ide-plugins",
+    "project:jacoco",
+    "project:plugins-application",
+    "project:plugins-groovy",
+    "project:plugins-java",
+    "project:plugins-java-base",
+    "project:plugins-java-library",
+    "project:plugins-jvm-test-fixtures",
+    "project:plugins-jvm-test-suite",
+    "project:plugins-test-report-aggregation",
+    "project:plugins-version-catalog",
+    "project:publish",
+    "project:signing",
+    "project:scala",
+    "project:war",
+    "project:java-platform"
+   ]
+  },
   "dir": "platforms/jvm/distributions-jvm",
   "main": {},
   "plugins": [
@@ -3063,7 +3174,23 @@
   "src": {}
  },
  "distributions-native": {
-  "deps": {},
+  "deps": {
+   "agentsRuntimeOnly": [
+    "project:instrumentation-agent"
+   ],
+   "coreRuntimeOnly": [
+    "project:core-platform"
+   ],
+   "pluginsRuntimeOnly": [
+    "project:distributions-jvm",
+    "project:distributions-publishing",
+    "project:language-native",
+    "project:tooling-native",
+    "project:ide-native",
+    "project:testing-native",
+    "project:plugins-model-native"
+   ]
+  },
   "dir": "platforms/native/distributions-native",
   "main": {},
   "plugins": [
@@ -3074,7 +3201,18 @@
   "src": {}
  },
  "distributions-publishing": {
-  "deps": {},
+  "deps": {
+   "agentsRuntimeOnly": [
+    "project:instrumentation-agent"
+   ],
+   "coreRuntimeOnly": [
+    "project:core-platform"
+   ],
+   "pluginsRuntimeOnly": [
+    "project:distributions-basics",
+    "project:signing"
+   ]
+  },
   "dir": "platforms/software/distributions-publishing",
   "main": {},
   "plugins": [
@@ -4532,7 +4670,8 @@
  "instrumentation-declarations": {
   "deps": {
    "annotationProcessor": [
-    "project:internal-instrumentation-processor"
+    "project:internal-instrumentation-processor",
+    "project:distributions-dependencies"
    ],
    "compileOnly": [
     "project:core",
@@ -5557,7 +5696,7 @@
     "project:start-parameter",
     "project:stdlib-java-extensions",
     "project:tooling-api",
-    "coord:org.gradle:kotlin-dsl-shared-runtime",
+    "project:kotlin-dsl-shared-runtime",
     "lib:groovy",
     "lib:guava",
     "lib:kotlinCompilerEmbeddable",
@@ -5737,7 +5876,7 @@
     "project:start-parameter",
     "project:tooling-api",
     "lib:kotlinCompilerEmbeddable",
-    "coord:org.gradle:kotlin-dsl-shared-runtime"
+    "project:kotlin-dsl-shared-runtime"
    ]
   },
   "dir": "platforms/core-configuration/kotlin-dsl-provider-plugins",
@@ -5753,6 +5892,27 @@
     "kt": 19
    },
    "resources": true
+  }
+ },
+ "kotlin-dsl-shared-runtime": {
+  "deps": {
+   "api": [
+    "lib:kotlinStdlib",
+    "lib:asmTree",
+    "lib:jsr305",
+    "lib:jspecify"
+   ]
+  },
+  "dir": "build-logic/kotlin-dsl-shared-runtime",
+  "main": {
+   "targetJvmVersion": 8
+  },
+  "plugins": [],
+  "runtimes": {},
+  "src": {
+   "kotlin": {
+    "kt": 9
+   }
   }
  },
  "kotlin-dsl-tooling-builders": {

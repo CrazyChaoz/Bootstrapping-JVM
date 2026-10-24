@@ -445,6 +445,85 @@ lib.fix (self: {
     ];
   };
 
+  # --- batch 4: git and ssh -----------------------------------------------
+  javaewah = mk {
+    pname = "JavaEWAH";
+    version = "1.2.3";
+    src = mvn "com.googlecode.javaewah" "JavaEWAH" "1.2.3" "sha256-kTNsFoaEFFQo3jAfPS5dWaXwP+JfniEzhI4P8Yr6h00=";
+    sourceDirs = [ "." ];
+  };
+  jgit = mk {
+    pname = "org.eclipse.jgit";
+    version = "7.2.1.202505142326-r";
+    src = mvn "org.eclipse.jgit" "org.eclipse.jgit" "7.2.1.202505142326-r" "sha256-3oiAwcD2B2zoPBewtnEbpcL8G9UkPgjKpfJ0+rcL2Pg=";
+    sourceDirs = [ "." ];
+    copySourceResources = true;
+    javaRelease = "17";
+    deps = [
+      self.slf4j-api
+      self.javaewah
+      self.commons-codec
+    ];
+  };
+  sshd-osgi = mk {
+    pname = "sshd-osgi";
+    version = "2.15.0";
+    postPatch = "rm -rf org/apache/sshd/agent/unix org/apache/sshd/agent/local/ProxyAgentFactory.java";
+    src = mvn "org.apache.sshd" "sshd-osgi" "2.15.0" "sha256-xb0F6cqM5GsZiGS39cVoUo5d4DkMxktyHXwecsrwO9A=";
+    sourceDirs = [ "." ];
+    copySourceResources = true;
+    deps = [
+      self.slf4j-api
+      self.bcprov
+      self.bcutil
+      self.bcpkix
+      self.eddsa
+    ];
+  };
+  eddsa = mk {
+    pname = "eddsa";
+    version = "0.3.0";
+    src = mvn "net.i2p.crypto" "eddsa" "0.3.0" "sha256-5vovDtZjNPL3M8j9pteZatYb9xEWzDiUQC2s/SXJpL4=";
+    sourceDirs = [ "." ];
+    copySourceResources = true;
+  };
+  bcpkix = mk {
+    pname = "bcpkix-jdk18on";
+    version = "1.85";
+    postPatch = "rm -rf META-INF/versions";
+    src = mvn "org.bouncycastle" "bcpkix-jdk18on" "1.85" "sha256-F1Cm5fRK3Tu0qpOmZ8Mra54f27/77Os8I4fsqv0CeDw=";
+    sourceDirs = [ "." ];
+    deps = [
+      self.bcprov
+      self.bcutil
+    ];
+  };
+  sshd-sftp = mk {
+    pname = "sshd-sftp";
+    version = "2.15.0";
+    src = mvn "org.apache.sshd" "sshd-sftp" "2.15.0" "sha256-Tc0GeiOeqng5zgys8u5FDHK0S2icO9Z28OsQCYHRcs8=";
+    sourceDirs = [ "." ];
+    copySourceResources = true;
+    deps = [
+      self.slf4j-api
+      self.sshd-osgi
+    ];
+  };
+  jgit-ssh-apache = mk {
+    pname = "org.eclipse.jgit.ssh.apache";
+    version = "7.2.1.202505142326-r";
+    src = mvn "org.eclipse.jgit" "org.eclipse.jgit.ssh.apache" "7.2.1.202505142326-r" "sha256-dZNJiujVQ2bnFuTuDYvlVftRYkqwoX0Cvw5kYJdu4Xs=";
+    sourceDirs = [ "." ];
+    copySourceResources = true;
+    javaRelease = "17";
+    deps = [
+      self.slf4j-api
+      self.jgit
+      self.sshd-osgi
+      self.sshd-sftp
+    ];
+  };
+
   # --- misc --------------------------------------------------------------
   gson = mk {
     pname = "gson";

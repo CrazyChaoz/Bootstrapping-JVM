@@ -69,7 +69,11 @@ pkgs.lib.makeScope pkgs.newScope (self: {
 
   kotlinCompilerEmbeddable = self.kotlinEmbeddable.relocate {
     name = "kotlin-compiler-embeddable";
-    jars = [ "${self.kotlin."2.4.0"}/lib/kotlin-compiler.jar" ];
+    # (the modern ASM first: it replaces the compiler's bundled one)
+    jars = [
+      "${self.kotlinAsm}/share/java/kotlin-asm.jar"
+      "${self.kotlin."2.4.0"}/lib/kotlin-compiler.jar"
+    ];
     exclude = [
       "com/sun/jna/"
       "org/jetbrains/annotations/"
@@ -90,8 +94,47 @@ pkgs.lib.makeScope pkgs.newScope (self: {
     jdk = self.jdk21;
     kotlinSrc = self.kotlinSources."2.4.0";
     jetbrainsAnnotations = self.gradleLibs.jetbrains-annotations;
+    inherit (self) kotlinAsm;
     kotlinCompiler = self.kotlin."2.4.0";
   };
+
+  # embeddable (relocated) variants of the Kotlin compiler plugins and scripting libraries
+  kotlinRelocated =
+    let
+      jarOf = d: "${d}/share/java/${d.pname}.jar";
+      relocate =
+        name: ds:
+        self.kotlinEmbeddable.relocate {
+          inherit name;
+          jars = map jarOf ds;
+        };
+      p = self.kotlinPlugins;
+    in
+    {
+      kotlinScriptingJvmHost = relocate "kotlin-scripting-jvm-host" [ p.scriptingJvmHost ];
+      kotlinScriptingCompilerEmbeddable = relocate "kotlin-scripting-compiler-embeddable" [
+        p.scriptingCompiler
+        p.powerAssert
+      ];
+      kotlinScriptingCompilerImplEmbeddable = relocate "kotlin-scripting-compiler-impl-embeddable" [
+        p.scriptingCompilerImpl
+      ];
+      kotlinSamWithReceiverCompilerPlugin = relocate "kotlin-sam-with-receiver-compiler-plugin" [
+        p.samWithReceiver
+      ];
+      kotlinAssignmentCompilerEmbeddable = relocate "kotlin-assignment-compiler-plugin-embeddable" [
+        p.assignment
+      ];
+      kotlinMetadataJvm = self.kotlinEmbeddable.relocate {
+        name = "kotlin-metadata-jvm";
+        jars = [ (jarOf p.metadataJvmUnshaded) ];
+        packages = [ "org.jetbrains.kotlin=kotlin.metadata.internal" ];
+        keep = [ ];
+      };
+      kotlinScriptingCommon = p.scriptingCommon;
+      kotlinScriptingJvm = p.scriptingJvm;
+      kotlinBuildToolsApi = p.buildToolsApi;
+    };
 
   gradleModules = self.callPackage ./gradle/modules.nix {
     jdk = self.jdk21;
@@ -105,7 +148,13 @@ pkgs.lib.makeScope pkgs.newScope (self: {
       kotlinReflect = self.kotlinJar "kotlin-reflect";
       kotlinScriptRuntime = self.kotlinJar "kotlin-script-runtime";
       kotlinCompilerEmbeddable = self.kotlinCompilerEmbeddable;
-    };
+    } // self.kotlinRelocated;
+  };
+
+  gradleDist = self.callPackage ./gradle/dist.nix {
+    jdk = self.jdk21;
+    inherit (self.javaLib21) classpathOf;
+    inherit (self) gradleSrc gradleLibs gradleModules;
   };
 
   groovy = self.callPackage ./java/groovy.nix {
