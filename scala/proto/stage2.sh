@@ -16,6 +16,7 @@ if [ -d $TREE/src/library ]; then cp -r $TREE/src src; else
 fi
 chmod -R u+w src
 mkdir -p classes; cp -r $S/st-n0/fjbg-cls/. classes/   # FJBG + MSIL reader
+cp -r $S/deps/jline-cls/. classes/   # jline 1.0 (REPL, from 2007-07), built from source by deps.sh
 . $S/work/nsc-patches.sh
 LOCKER_SKIP=${LOCKER_SKIP:-'^src/library/scala/All\$\.scala$\|^src/library/scala/AllRef\$\.scala$'}
 EXCL=${NSC_EXCLUDES:-'/ant/\|/dbc/\|scala/tools/nsc/doc/'}
