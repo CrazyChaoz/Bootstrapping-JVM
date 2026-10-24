@@ -46,9 +46,9 @@ abstract class GenMSIL extends SubComponent {
 P
 fi
 sc() { local cp=$1 main=$2; shift 2; $J8/bin/java -Xss64m -Xmx3g -cp "$cp" $main -bootclasspath $BOOTJAR "$@"; }
-build() { # build NAME COMPILERCP MAIN [FALLBACKCP]
-  local n=$1 ccp=$2 main=$3 fb=${4:+:$4}; local L=$n/lib C=$n/comp
-  mkdir -p $L $C
+lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
+  local n=$1 ccp=$2 main=$3 fb=${4:+:$4}; local L=$n/lib
+  mkdir -p $L
   ( cd src/library; find . -name '*.java' | sed 's|^\./||' ) > $n.libjava
   if [ -s $n.libjava ]; then
     python3 -I $T/pizza2java.py src/library $n/java-lib --classpath-src src/library --meta-out $n.lib.meta.json $(cat $n.libjava)
@@ -67,18 +67,33 @@ build() { # build NAME COMPILERCP MAIN [FALLBACKCP]
     done
   fi
   sc "$ccp" $main -d $L -classpath $L:classes$fb -sourcepath src/library $(cat $n.libscala)
+}
+comp() { # comp NAME COMPILERCP MAIN LIBCP : compiler into NAME/comp, against LIBCP
+  local n=$1 ccp=$2 main=$3 lcp=$4; local C=$n/comp
+  mkdir -p $C
   ( cd src/compiler; find . -name '*.java' | sed 's|^\./||' ) > $n.compjava
   if [ -s $n.compjava ]; then
     python3 -I $T/pizza2java.py src/compiler $n/java-comp --classpath-src src/compiler --meta-out $n.comp.meta.json $(cat $n.compjava)
-    $J/bin/javac -nowarn -encoding latin1 --release 8 -cp $L:$C:classes -d $C $(find $n/java-comp -name '*.java') > $n.compjava.log 2>&1 || { cat $n.compjava.log; exit 1; }
+    $J/bin/javac -nowarn -encoding latin1 --release 8 -cp $lcp:$C:classes -d $C $(find $n/java-comp -name '*.java') > $n.compjava.log 2>&1 || { cat $n.compjava.log; exit 1; }
     python3 -I $T/pico-classfiles.py $C $n.comp.meta.json
   fi
   echo "== $n: compiler"
   ( cd src/compiler; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" ) | sed 's|^|src/compiler/|' > $n.compscala
-  sc "$ccp" $main -d $C -classpath $L:$C:classes$fb -sourcepath src/compiler $(cat $n.compscala)
+  sc "$ccp" $main -d $C -classpath $lcp:$C:classes -sourcepath src/compiler $(cat $n.compscala)
 }
-# locker: classes the STARR insists on but the new library lacks come from the old one
-build locker "$PREVCP" $PREVMAIN "$PREVCP"
-build quick locker/lib:locker/comp:classes scala.tools.nsc.Main
+if [ -n "${COMPILER_FIRST:-}" ]; then
+  # flag day (the new library needs the new compiler, e.g. Int.box 2007-05):
+  # locker compiler by STARR against the previous library, then the library by it
+  echo "== compiler-first"
+  P=$(dirname ${PREVCP%%:*}); PREVLIB=$PREVCP; [ -d $P/quick/lib ] && PREVLIB=$P/quick/lib:$P/classes
+  comp locker "$PREVCP" $PREVMAIN $PREVLIB
+  lib locker locker/comp:$PREVLIB:classes scala.tools.nsc.Main
+else
+  # locker: classes the STARR insists on but the new library lacks come from the old one
+  lib locker "$PREVCP" $PREVMAIN "$PREVCP"
+  comp locker "$PREVCP" $PREVMAIN locker/lib"${PREVCP:+:$PREVCP}"
+fi
+lib quick locker/lib:locker/comp:classes scala.tools.nsc.Main
+comp quick locker/lib:locker/comp:classes scala.tools.nsc.Main quick/lib
 mkdir -p out2; cp -r quick/lib/. out2/; cp -r quick/comp/. out2/
 echo stage done
