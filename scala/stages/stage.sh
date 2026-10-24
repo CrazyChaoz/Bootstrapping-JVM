@@ -3,18 +3,17 @@
 # compiler for the Scala sources, then rebuild the Scala parts with itself.
 # usage: stage.sh SRCTREE WORKDIR PREVCP [PREVMAIN]
 set -euo pipefail
-T=/home/kemp/ins/development/bootstrapping-gradle/tools
-J=${J:-/nix/store/nkd7mzlsa4d113n0xwh98m4l6dx9bnax-openjdk-headless-21.0.12.1+1}
-J8=${J8:-/nix/store/z2mxh5237w3dd8klbikm94x2wwipgc2y-openjdk-headless-8u504-b01}
-S=/tmp/sc
-BOOTJAR=${BOOTJAR:-/tmp/sc/rt14.jar}
+. "$(dirname "$(readlink -f "$0")")/env.sh"
+BOOTJAR=${BOOTJAR:-$RT14}
 TREE=$1; W=$2; PREVCP=$3; PREVMAIN=${4:-scala.tools.scalac.Main}
 rm -rf $W; mkdir -p $W; cd $W
 cp -r $TREE/sources src; chmod -R u+w src
-cp -r $S/fjbg/src/fjbg fjbg
-cp -r $S/msil/src/msil/. fjbg/
+cp -r $FJBG_SRC fjbg
+cp -r $MSIL_SRC/. fjbg/
+# not needed by the compiler, and not compilable here (VJSAssembly: J# types)
+rm -rf fjbg/ch/epfl/lamp/compiler/msil/tests fjbg/ch/epfl/lamp/compiler/msil/util/VJSAssembly.java
 L=$TREE/config/list
-. $S/work/common-patches.sh
+. $HERE/common-patches.sh
 [ -n "${EXTRA_PATCHES:-}" ] && . $EXTRA_PATCHES
 # meta programs generate Tree.java, Function*.java, ...
 mkdir -p meta-cls
@@ -28,7 +27,7 @@ for l in sys.stdin:
     if os.path.exists(os.path.join("src", p)) or p.endswith(".java") and os.path.exists(os.path.join("src", p + ".tmpl")): print(p)
     else: print("warning: listed file missing:", p, file=sys.stderr)' || true; }
 mkdir -p classes out stubs
-. $S/work/stubs.sh
+. $HERE/stubs.sh
 $J/bin/javac -nowarn -encoding latin1 --release 8 -d classes $(find fjbg stubs -name '*.java')
 sc() { $J8/bin/java -Xss64m -Xmx2g -cp "$1" "$2" ${BOOTJAR:+-bootclasspath $BOOTJAR} "${@:3}"; }
 CP=out:classes

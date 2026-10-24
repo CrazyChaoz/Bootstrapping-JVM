@@ -3,14 +3,11 @@
 # to compile the library and the Scala-written compiler parts.
 # usage: stage-java.sh SRCTREE WORKDIR
 set -euo pipefail
-T=/home/kemp/ins/development/bootstrapping-gradle/tools
-J=${J:-/nix/store/nkd7mzlsa4d113n0xwh98m4l6dx9bnax-openjdk-headless-21.0.12.1+1}
-J8=${J8:-/nix/store/z2mxh5237w3dd8klbikm94x2wwipgc2y-openjdk-headless-8u504-b01}
-S=/tmp/sc
+. "$(dirname "$(readlink -f "$0")")/env.sh"
 TREE=$1; W=$2
 rm -rf $W; mkdir -p $W; cd $W
 cp -r $TREE/sources src; chmod -R u+w src
-cp -r $S/fjbg/src/fjbg fjbg
+cp -r $FJBG_SRC fjbg
 L=$TREE/config/list
 pyreplace() { # file  -- reads python dict of a->b pairs on stdin: tolerant
   python3 -c '

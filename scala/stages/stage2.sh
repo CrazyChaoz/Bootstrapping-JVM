@@ -3,14 +3,11 @@
 # compiler (STARR), then quick with locker.
 # usage: stage2.sh SRCTREE WORKDIR PREVCP [PREVMAIN]
 set -euo pipefail
-T=/home/kemp/ins/development/bootstrapping-gradle/tools
-J=/nix/store/nkd7mzlsa4d113n0xwh98m4l6dx9bnax-openjdk-headless-21.0.12.1+1
-J8=/nix/store/z2mxh5237w3dd8klbikm94x2wwipgc2y-openjdk-headless-8u504-b01
-S=/tmp/sc
+. "$(dirname "$(readlink -f "$0")")/env.sh"
 TREE=$1; W=$2; PREVCP=$3; PREVMAIN=${4:-scala.tools.nsc.Main}
 # from 2007-12 (dual-mode compiler, Predef.Class[T]) Scala is built against the generic Java 5 API
 GENERICS=; grep -q 'type Class\[T\]' $TREE/src/library/scala/Predef.scala 2>/dev/null && GENERICS=1
-if [ -n "$GENERICS" ]; then BOOTJAR=${BOOTJAR:-/tmp/sc/rt15.jar}; else BOOTJAR=${BOOTJAR:-/tmp/sc/rt14b.jar}; fi
+if [ -n "$GENERICS" ]; then BOOTJAR=${BOOTJAR:-$RT15}; else BOOTJAR=${BOOTJAR:-$RT14}; fi
 rm -rf $W; mkdir -p $W; cd $W
 if [ -d $TREE/src/library ]; then cp -r $TREE/src src; else
   # 2005-12/2006-01 layout: sources/ (+ newsources/)
@@ -18,9 +15,9 @@ if [ -d $TREE/src/library ]; then cp -r $TREE/src src; else
   mv src/library/scala/tools src/compiler/scala_tools; mkdir -p src/compiler/scala; mv src/compiler/scala_tools src/compiler/scala/tools
 fi
 chmod -R u+w src
-mkdir -p classes; cp -r $S/st-n0/fjbg-cls/. classes/   # FJBG + MSIL reader
-cp -r $S/deps/jline-cls/. classes/   # jline 1.0 (REPL, from 2007-07), built from source by deps.sh
-. $S/work/nsc-patches.sh
+mkdir -p classes; cp -r $FJBG_CLS/. classes/   # FJBG + MSIL reader
+cp -r $JLINE_CLS/. classes/   # jline 1.0 (REPL, from 2007-07)
+. $HERE/nsc-patches.sh
 LOCKER_SKIP=${LOCKER_SKIP:-'^src/library/scala/All\$\.scala$\|^src/library/scala/AllRef\$\.scala$'}
 EXCL=${NSC_EXCLUDES:-'/ant/\|/dbc/\|scala/tools/nsc/doc/'}
 # the doc generator is needed once Main uses it (2007)

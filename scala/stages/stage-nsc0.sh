@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
 # First Scala 2 compiler: SABBUS steps of 2005-12 (ac84922849~1) with the
 # 1.4 compiler (osc) of stage OSCSTAGE.
-# usage: stage-nsc0.sh SRCTREE WORKDIR OSCSTAGE
+# usage: stage-nsc0.sh SRCTREE WORKDIR OSCSTAGE   (a stage directory, or a name under $S/st-)
 set -euo pipefail
-T=/home/kemp/ins/development/bootstrapping-gradle/tools
-J=/nix/store/nkd7mzlsa4d113n0xwh98m4l6dx9bnax-openjdk-headless-21.0.12.1+1
-J8=/nix/store/z2mxh5237w3dd8klbikm94x2wwipgc2y-openjdk-headless-8u504-b01
-S=/tmp/sc; BOOTJAR=${BOOTJAR:-/tmp/sc/rt14b.jar}
-TREE=$1; W=$2; OSC=$S/st-$3
+. "$(dirname "$(readlink -f "$0")")/env.sh"
+BOOTJAR=${BOOTJAR:-$RT14}
+TREE=$1; W=$2; OSC=$3; [[ $OSC == */* ]] || OSC=$S/st-$3
 OSCCP=$OSC/out2:$OSC/classes; OSCSRC=$OSC/src
 rm -rf $W; mkdir -p $W; cd $W
 cp -r $TREE/sources src; cp -r $TREE/newsources newsrc; chmod -R u+w src newsrc
 mkdir -p fjbg-cls pnslib osc-nstools nslib nstools
-. $S/work/nsc-patches.sh
+. $HERE/nsc-patches.sh
 cp -r $OSC/classes/. fjbg-cls/      # FJBG (+msil reader) built by the osc stage
 # 1. pico-nslib: the Java parts of the new library
 ( cd src; find scala/runtime -name '*.java'; find scala/tools/util -maxdepth 1 -name '*.java'
@@ -38,4 +36,7 @@ $NSC0 -d nslib -classpath pnslib:nslib:src:newsrc:fjbg-cls $(cat nslib.files)
 ( cd src; find scala/tools/nsc -name '*.scala' | grep -v '/ant/' ) | sed 's|^|src/|' > nstools.files
 echo "== nstools ($(wc -l < nstools.files) files)"
 $NSC0 -d nstools -classpath pnslib:nslib:nstools:fjbg-cls $(cat nstools.files)
+# the stage layout of 2.x builds: out2 (library + compiler), classes (FJBG + MSIL reader)
+mkdir -p out2 classes
+cp -r pnslib/. out2/; cp -r nslib/. out2/; cp -r nstools/. out2/; cp -r fjbg-cls/. classes/
 echo stage done

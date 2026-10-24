@@ -198,3 +198,26 @@ What differs from 9.8:
 * module registry: each jar carries `<module>-classpath.properties` (`registryStyle = "embedded"`) instead of 9.x's sidecar files;
 * small source patches in `default.nix` (`patches`: core, kotlin-dsl, instrumentation processor), `scala` is built partial like the Zinc worker.
 Not done: AWS/GCS/maven modules, JNI libraries (jansi, native-platform), Scala compilation.
+
+## Scala chain (nix/scala, scala/stages) — 2026-10-24, in progress
+
+Goal: a current Scala without any Scala binary.  No from-source Pizza compiler exists, so the chain starts at the
+last scala/scala commit with a complete Java ("scalacboot") compiler, 3b4e70e1bd (2004-02-19), and goes commit by
+commit (`scala/proto/chain.txt`) through Scala 1.x, the first Scala 2 compiler (nsc, 2005-12) and 2.0.0 (s14) on.
+`nix build .#scala.stages.<name>`, `.#scala."2.0.0"`, `.#scala.latest`; every stage's compiler must compile and run
+`scala/stages/Hello*.scala` (installCheck).
+* Pizza (algebraic `case` classes, pattern `switch`, …) → Java: `tools/pizza2java.py`, then javac; PiCo classfile
+  conventions (JacoMeta/JacoInterface attributes, case fields) by `tools/pico-classfiles.py`.
+* FJBG and the MSIL reader API from the 2009 sources (src/fjbg 0f10ffedc8, src/msil 4304b15730); the MSIL backend
+  is stubbed in every stage (msil.jar was a binary until 2009).  jline 1.0 from source for the REPL (2007-07+).
+* Old classfile readers are patched for Java 8 class files; they see the JDK through period-accurate API views
+  (`tools/jdk-api-view.py`: Java 1.4 without Java 5 attributes, Java 1.5 with generic signatures; hidden supertypes
+  flattened, signatures rewritten with substituted type arguments).
+* Flag days: locker falls back to the previous library for classes the reference compiler needs, compiler-first
+  lockers (new compiler by the old one against the old library), `bridge` stages (an old commit plus a few files of
+  the next) standing in for unpublished intermediate reference compilers (b42: Java generics, 2007-12).
+* JDKs: the chain's openjdk8 runs the compilers, openjdk21 (`--release 8`) compiles the Java parts.
+
+Workflow: new stages are found with the prototype in /tmp/sc (`scala/proto`: climb/bisect/auto/diag, using the
+same `scala/stages` scripts via symlinks in /tmp/sc/work and the /tmp/sc defaults of `env.sh`), recorded in
+`scala/proto/chain.txt`; `tools/scala-chain` regenerates `nix/scala/chain.nix` (revisions + source hashes).

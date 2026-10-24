@@ -24,6 +24,9 @@ pkgs.lib.makeScope pkgs.newScope (self: {
   icedtea7 = self.callPackage ./jdk/icedtea7.nix { };
   jdks = self.callPackage ./jdk { inherit pkgs; };
 
+  # Scala from source, see nix/scala: `nix build .#scala.latest`
+  scala = self.callPackage ./scala { };
+
   # Build tools
   ant = self.callPackage ./java/ant.nix { };
   ant_1_10 = self.callPackage ./java/ant.nix {
