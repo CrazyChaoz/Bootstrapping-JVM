@@ -1,0 +1,5 @@
+# name commit prev mode
+v111 8408bce1b7 1 normal
+v11x 98a03600e0~1 v111 normal
+v11y 98a03600e0 v11x cf
+v120 7b6ab58713 v11y auto

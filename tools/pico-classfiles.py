@@ -150,6 +150,14 @@ def desc_params(desc):
     return out
 
 
+def desc_ret(desc):
+    r = desc[desc.index(")") + 1:]
+    dims = r.count("[")
+    r = r.lstrip("[")
+    name = r[1:-1].rsplit("/", 1)[-1].rsplit("$", 1)[-1] if r[0] == "L" else PRIMS[r]
+    return name + "[]" * dims
+
+
 def simple(ty):
     ty = ty.replace(" ", "")
     dims = ty.count("[]")
@@ -159,8 +167,8 @@ def simple(ty):
 def main(classdir, metafile):
     metas = {}
     with open(metafile) as fh:
-        for cls, kind, name, params, meta in json.load(fh):
-            metas.setdefault(cls, []).append((kind, name, params, meta))
+        for cls, kind, name, params, meta, ret in json.load(fh):
+            metas.setdefault(cls, []).append((kind, name, params, meta, ret))
     done = set()
     for dp, _, fs in os.walk(classdir):
         for fn in fs:
@@ -174,12 +182,31 @@ def main(classdir, metafile):
             if not want and SUFFIX.encode() not in data:
                 continue
             cf = parse(data)
-            for m in cf["methods"]:
-                n = text(cf, m[1])
-                if SUFFIX in n:
-                    m[1] = utf8(cf, n[:n.index(SUFFIX)])
+            # NAME$$pizzaXYZ -> NAME, in declarations and references
+            for i, e in enumerate(cf["pool"]):
+                if e and e[0] == 1 and SUFFIX.encode() in e[1]:
+                    n = e[1].decode("utf-8")
+                    cf["pool"][i] = (1, n[:n.index(SUFFIX)].encode("utf-8"))
             attr = None
-            for kind, name, params, meta in want:
+            for kind, name, params, meta, ret in want:
+                if kind in ("case", "algebraic"):
+                    # PiCo marks algebraic classes and their cases with a
+                    # JacoInterface attribute (u2 mods, u2 mods >> 16) and
+                    # makes the case fields public synthetic
+                    mods = 0x00200000 if kind == "case" else 0x00100000
+                    cf["attrs"].append((utf8(cf, "JacoInterface"),
+                                        struct.pack(">HH", mods & 0xffff, mods >> 16)))
+                    if kind == "case":
+                        synth = utf8(cf, "Synthetic")
+                        for f in cf["fields"]:
+                            if text(cf, f[1]) in params:
+                                f[0] |= 0x1000
+                                f[3].append((synth, b""))
+                        for m in cf["methods"]:
+                            if text(cf, m[1]) == "<init>":
+                                m[0] |= 0x1000
+                    done.add((cls, kind, name, str(params)))
+                    continue
                 if attr is None:
                     attr = utf8(cf, "JacoMeta")
                 value = struct.pack(">H", utf8(cf, meta))
@@ -197,6 +224,8 @@ def main(classdir, metafile):
                 if kind == "method":
                     hits = [m for m in hits if
                             [simple(p) for p in params] == desc_params(text(cf, m[2]))]
+                    if len(hits) > 1:
+                        hits = [m for m in hits if desc_ret(text(cf, m[2])) == simple(ret)]
                 if len(hits) != 1:
                     print(f"error: {cls}.{name}{params}: {len(hits)} matches",
                           file=sys.stderr)
@@ -205,9 +234,9 @@ def main(classdir, metafile):
                 done.add((cls, kind, name, str(params)))
             with open(path, "wb") as fh:
                 fh.write(write(cf))
-    missing = [(c, k, n, p) for c, ws in metas.items() for k, n, p, _ in ws
+    missing = [(c, k, n, p) for c, ws in metas.items() for k, n, p, _, _ in ws
                if (c, k, n, str(p)) not in done]
-    for c, k, n, p in missing:
+    for c, k, n, p in missing:  # noqa
         print(f"error: no class file for meta of {c} {k} {n}", file=sys.stderr)
     if missing:
         sys.exit(1)

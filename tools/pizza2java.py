@@ -210,6 +210,64 @@ class FileInfo:
             self._rmatch = {c: o for o, c in self.match.items()}
         return self._rmatch[close]
 
+    def fqn_of(self, brace):
+        q = self.class_chain(brace)
+        return (self.package + "." + q) if self.package else q
+
+    def methods(self, b):
+        """Method declarations directly in the class body starting at b."""
+        t = self.toks
+        out = []
+        start = b + 1
+        k = b + 1
+        end = self.match[b]
+        while k < end:
+            x = t[k]
+            if x.kind == "op" and x.text == "{":
+                m = self.method_decl(t[start:k])
+                if m:
+                    m["body"] = k
+                    out.append(m)
+                k = self.match[k] + 1
+                start = k
+                continue
+            if x.text == ";":
+                m = self.method_decl(t[start:k])
+                if m:
+                    out.append(m)
+                start = k + 1
+            k += 1
+        return out
+
+    def method_decl(self, stmt):
+        for i, x in enumerate(stmt):
+            if x.text == "(":
+                break
+        else:
+            return None
+        if i < 2 or stmt[i - 1].kind != "id" or \
+                stmt[i - 2].kind != "id" and stmt[i - 2].text != "]":
+            return None
+        if any(y.text in ("=", "new", "class", "interface", "case") for y in stmt[:i]):
+            return None
+        depth = 0
+        j = i
+        while True:
+            if stmt[j].text == "(":
+                depth += 1
+            elif stmt[j].text == ")":
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        mods = ("public", "private", "protected", "static", "final",
+                "abstract", "native", "synchronized")
+        return dict(tok=stmt[i - 1], name=stmt[i - 1].text,
+                    params=tuple(re.sub(r"\s", "", ty) for ty, _ in
+                                 parse_params(stmt[i + 1:j], self, 0)),
+                    ret="".join(y.text for y in stmt[:i - 1] if y.text not in mods),
+                    static=any(y.text == "static" for y in stmt[:i - 1]))
+
     def class_chain(self, brace):
         """Qualified (dotted) name of the class whose body starts at brace."""
         names = []
@@ -278,6 +336,9 @@ class World:
         self.packages = set()
         self.roots = set()
         self.classes = set()
+        self.supers = {}     # class fqn -> superclass fqn (if known)
+        self.statics = {}    # class fqn -> {(name, params): ret}
+        self.renamed = {}    # (class fqn, method) -> new name
 
     def add_file(self, finfo):
         self.files.append(finfo)
@@ -333,6 +394,33 @@ class World:
             if c in self.classes:
                 return c
         return None
+
+    def link_classes(self):
+        for fi in self.files:
+            for b in fi.classname:
+                fqn = fi.fqn_of(b)
+                if b in fi.superclass:
+                    sup = self.resolve_class(fi.superclass[b], fi)
+                    if sup:
+                        self.supers[fqn] = sup
+                st = {}
+                for m in fi.methods(b):
+                    if m["static"]:
+                        st[(m["name"], m["params"])] = m["ret"]
+                self.statics[fqn] = st
+        # decide renamings of hiding static methods up front: call sites
+        # in other files need them
+        for fi in self.files:
+            for b in fi.classname:
+                fqn = fi.fqn_of(b)
+                for (name, params), ret in self.statics[fqn].items():
+                    sup = self.supers.get(fqn)
+                    while sup is not None:
+                        r = self.statics.get(sup, {}).get((name, params))
+                        if r is not None and r != ret:
+                            self.renamed[(fqn, name)] = name + "$$pizza" + re.sub(r"\W", "_", ret)
+                            break
+                        sup = self.supers.get(sup)
 
     def link(self):
         for a in self.adts.values():
@@ -529,15 +617,41 @@ class Translator:
         self.e = Edits()
         self.counter = 0
 
-    def run(self):
+    def run(self, stub=False):
+        if stub:
+            # dead code (the MSIL backend): keep the signatures only
+            for b in self.f.classname:
+                for m in self.f.methods(b):
+                    if "body" in m:
+                        o = m["body"]
+                        t = self.f.toks
+                        keep = o
+                        if t[o + 1].text in ("super", "this") and t[o + 2].text == "(":
+                            keep = self.f.match[o + 2] + 1   # the ';' after it
+                        self.e.replace(t[keep].end, t[self.f.match[o]].start,
+                                       ' throw new Error("not bootstrapped"); ')
+            return self.e.apply(self.f.src)
         self.import_statics()
+        self.return_overloads()
         t = self.f.toks
         mods = ("public", "private", "protected", "static", "final", "abstract")
+        paren = 0
         for k in range(1, len(t)):
+            if t[k].text == "(":
+                paren += 1
+            elif t[k].text == ")":
+                paren -= 1
+            elif t[k].text == ";" and t[k - 1].text == ";" and paren == 0:
+                # 'return x;;' -- javac: unreachable statement
+                self.e.replace(t[k].start, t[k].end, "")
             if t[k].text in mods and t[k].text == t[k - 1].text:
                 self.e.replace(t[k].start, t[k].end, "")
             if t[k].text == "private" and self.in_nested_class_body(k):
                 self.e.replace(t[k].start, t[k].end, "/*private*/")
+            if t[k].kind in ("chr", "str") and re.search(r"\\u000[aAdD]", t[k].text):
+                self.e.replace(t[k].start, t[k].end, re.sub(
+                    r"\\u000[aAdD]", lambda m: "\\n" if m.group()[-1] in "aA" else "\\r",
+                    t[k].text))
             if t[k].text == "enum" and t[k].kind == "id":
                 self.e.replace(t[k].start, t[k].end, "enum$")
         for brace, ci in self.f.cases:
@@ -548,6 +662,49 @@ class Translator:
         for b, cis in by_switch.items():
             self.switch(b, cis)
         return self.e.apply(self.f.src)
+
+    def return_overloads(self):
+        """Methods that differ only in their return type from another one in
+        the same class, or static methods hiding a superclass's static method
+        with a different return type (both legal in Pizza and in the JVM)
+        get a $$pizza suffix that pico-classfiles.py removes again."""
+        for b in self.f.classname:
+            seen = {}
+            fqn = self.f.fqn_of(b)
+            for m in self.f.methods(b):
+                key = (m["name"], m["params"])
+                if key in seen and seen[key] != m["ret"]:
+                    self.rename_decl(fqn, m)
+                    continue
+                seen.setdefault(key, m["ret"])
+                if m["static"]:
+                    sup = self.w.supers.get(fqn)
+                    while sup is not None:
+                        r = self.w.statics.get(sup, {}).get(key)
+                        if r is not None and r != m["ret"]:
+                            self.rename_decl(fqn, m)
+                            break
+                        sup = self.w.supers.get(sup)
+        # call sites of renamed static methods
+        t = self.f.toks
+        for k in range(2, len(t) - 1):
+            if t[k + 1].text != "(" or t[k].kind != "id" or t[k - 1].text != ".":
+                continue
+            j = k - 2
+            while j >= 2 and t[j - 1].text == "." and t[j - 2].kind == "id":
+                j -= 2
+            for jj in range(j, k - 1, 2):
+                q = "".join(x.text for x in t[jj:k - 1])
+                cls = self.w.resolve_class(q, self.f)
+                if cls and (cls, t[k].text) in self.w.renamed:
+                    self.e.replace(t[k].start, t[k].end,
+                                   self.w.renamed[(cls, t[k].text)])
+                    break
+
+    def rename_decl(self, fqn, m):
+        name = m["tok"]
+        suffix = "$$pizza" + re.sub(r"\W", "_", m["ret"])
+        self.e.replace(name.start, name.end, name.text + suffix)
 
     def in_nested_class_body(self, k):
         """Is token k a member modifier inside a class nested in a class?"""
@@ -972,7 +1129,7 @@ def extract_meta(fi):
             b = k
             while t[b].text != "{":
                 b += 1
-            out.append((binary(b), "class", None, None, meta))
+            out.append((binary(b), "class", None, None, meta, None))
             continue
         if encl is None:
             continue
@@ -987,9 +1144,12 @@ def extract_meta(fi):
             if close > j + 1:
                 for ty, _ in parse_params(t[j + 1:close], fi, j):
                     params.append(ty)
-            out.append((binary(encl), "method", name, params, meta))
+            ret = type_text([y for y in t[k:j - 1] if y.text not in (
+                "public", "private", "protected", "static", "final",
+                "abstract", "native", "synchronized")])
+            out.append((binary(encl), "method", name, params, meta, ret))
         else:
-            out.append((binary(encl), "field", name, None, meta))
+            out.append((binary(encl), "field", name, None, meta, None))
     return out
 
 
@@ -1033,6 +1193,17 @@ def split_public(rel, text):
             i += 1
             continue
         i += 1
+    # old scalac references members through their declaring class, so
+    # package-private top-level classes must become public (and get their
+    # own file)
+    pub = []
+    for start, open_, close, name, public in tops:
+        if not public and name:
+            pub.append(toks[start].start)
+    if pub:
+        for pos in reversed(pub):
+            text = text[:pos] + "public " + text[pos:]
+        return split_public(rel, text)
     extra = [tp for tp in tops if tp[4] and tp[3] != base]
     if not extra:
         return [(rel, text)]
@@ -1054,12 +1225,15 @@ def main(argv):
     srcroot, outroot = argv[1], argv[2]
     files, extra = [], []
     meta_out = None
+    stub_re = None
     it = iter(argv[3:])
     for a in it:
         if a == "--classpath-src":
             extra.append(next(it))
         elif a == "--meta-out":
             meta_out = next(it)
+        elif a == "--stub":
+            stub_re = re.compile(next(it))
         else:
             files.append(a)
     world = World()
@@ -1078,14 +1252,31 @@ def main(argv):
                         src = fh.read()
                     world.add_file(FileInfo(os.path.relpath(p, d), src))
     world.link()
+    world.link_classes()
     if meta_out:
         import json
+        metas = [m for fi in infos for m in extract_meta(fi)]
+        files = set(id(fi) for fi in infos)
+        for adt in world.adts.values():
+            if id(adt.file) not in files:
+                continue
+            binary = adt.fqn
+            # binary name: package part stays dotted, classes use '$'
+            pkg = adt.file.package
+            rest = binary[len(pkg) + 1:] if pkg else binary
+            binary = (pkg + "." if pkg else "") + rest.replace(".", "$")
+            metas.append((binary, "algebraic", None, None, None, None))
+            for c in adt.cases.values():
+                if not c.const:
+                    metas.append((binary + "$" + c.name, "case", None,
+                                  [nm for _, nm in c.params], None, None))
         with open(meta_out, "w") as fh:
-            json.dump([m for fi in infos for m in extract_meta(fi)], fh, indent=1)
+            json.dump(metas, fh, indent=1)
     errors = 0
     for fi in infos:
         try:
-            out = Translator(world, fi).run()
+            out = Translator(world, fi).run(
+                stub=bool(stub_re and stub_re.search(fi.rel)))
         except PizzaError as ex:
             print(f"error: {ex}", file=sys.stderr)
             errors += 1
