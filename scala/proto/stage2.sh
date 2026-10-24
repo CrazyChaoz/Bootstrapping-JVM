@@ -46,6 +46,11 @@ abstract class GenMSIL extends SubComponent {
 P
 fi
 sc() { local cp=$1 main=$2; shift 2; $J8/bin/java -Xss64m -Xmx3g -cp "$cp" $main -bootclasspath $BOOTJAR "$@"; }
+nopredefs() { # option spelling understood by the compiler on classpath $1 (renamed 2007-07)
+  local d; for d in ${1//:/ }; do
+    ls $d/scala/tools/nsc/Settings*.class >/dev/null 2>&1 || continue
+    grep -lq -- '-Yno-predefs' $d/scala/tools/nsc/Settings*.class && { echo -Yno-predefs; return; }
+  done; echo -nopredefs; }
 lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   local n=$1 ccp=$2 main=$3 fb=${4:+:$4}; local L=$n/lib
   mkdir -p $L
@@ -56,7 +61,7 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
     python3 -I $T/pico-classfiles.py $L $n.lib.meta.json
   fi
   echo "== $n: library"
-  sc "$ccp" $main -nopredefs -d $L -classpath $L:classes$fb -sourcepath src/library src/library/scala/Predef.scala src/library/scala/runtime/ScalaRunTime.scala
+  sc "$ccp" $main $(nopredefs "$ccp") -d $L -classpath $L:classes$fb -sourcepath src/library src/library/scala/Predef.scala src/library/scala/runtime/ScalaRunTime.scala
   ( cd src/library; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" | grep -v '^scala/Predef.scala$\|^scala/runtime/ScalaRunTime.scala$' ) | sed 's|^|src/library/|' > $n.libscala
   if [ -n "$fb" ]; then
     # library classes an old STARR cannot compile from Scala source (scala.All$/AllRef$,
