@@ -195,11 +195,21 @@ pkgs.lib.makeScope pkgs.newScope (self: {
     } // self.kotlinRelocated;
   };
 
-  gradleDist = self.callPackage ./gradle/dist.nix {
+  # the distribution without the generated Kotlin extensions (they are generated from its jars)
+  gradleDistBase = self.callPackage ./gradle/dist.nix {
     jdk = self.jdk21;
     inherit (self.javaLib21) classpathOf;
     inherit (self) gradleSrc gradleLibs gradleModules;
   };
+
+  gradleKotlinExtensions = self.callPackage ./gradle/kotlin-extensions.nix {
+    jdk = self.jdk21;
+    inherit (self.javaLib21) classpathOf;
+    inherit (self) gradleDistBase gradleLibs gradleModules kotlinAsm;
+    kotlinCompiler = self.kotlin."2.4.0";
+  };
+
+  gradleDist = self.gradleDistBase.override { kotlinDslExtensions = self.gradleKotlinExtensions; };
 
   groovy = self.callPackage ./java/groovy.nix {
     jdk = self.jdk11;

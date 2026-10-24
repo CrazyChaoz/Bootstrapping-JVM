@@ -14,6 +14,8 @@
   gradleLibs,
   classpathOf,
   version ? "9.8.0",
+  # the generated Kotlin extensions of the Gradle API (null: an empty jar)
+  kotlinDslExtensions ? null,
   # modules that do not build yet (missing third party libraries)
   excluded ? [
     "resources-gcs"
@@ -222,8 +224,12 @@ stdenv.mkDerivation {
     jar cf $out/lib/plugins/gradle-public-api-legacy-${version}.jar -C api .
     printf 'dependencies=\njarFile=gradle-public-api-legacy-${version}.jar\n' > $out/lib/plugins/gradle-public-api-legacy.properties
 
-    # TODO: generated Kotlin extensions for the Gradle API (empty for now)
-    mkdir kext && jar cf $out/lib/plugins/gradle-kotlin-dsl-extensions-${version}.jar -C kext .
+    ${
+      if kotlinDslExtensions == null then
+        "mkdir kext && jar cf $out/lib/plugins/gradle-kotlin-dsl-extensions-${version}.jar -C kext ."
+      else
+        "cp ${kotlinDslExtensions}/share/java/gradle-kotlin-dsl-extensions.jar $out/lib/plugins/gradle-kotlin-dsl-extensions-${version}.jar"
+    }
     printf 'dependencies=\njarFile=gradle-kotlin-dsl-extensions-${version}.jar\n' > $out/lib/plugins/gradle-kotlin-dsl-extensions.properties
 
     # build receipt (GradleVersion)
