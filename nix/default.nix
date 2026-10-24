@@ -131,6 +131,50 @@ pkgs.lib.makeScope pkgs.newScope (self: {
         packages = [ "org.jetbrains.kotlin=kotlin.metadata.internal" ];
         keep = [ ];
       };
+      kotlinBuildToolsImpl = self.kotlinEmbeddable.relocate {
+        name = "kotlin-build-tools-impl";
+        jars =
+          map jarOf [
+            p.buildToolsImpl
+            p.scriptingCompilerImpl
+            p.scriptingCompiler
+            p.scriptingCommon
+            p.scriptingJvm
+            p.kotlinx-serialization-core
+            p.kotlinx-serialization-protobuf
+            p.diff-utils
+          ]
+          ++ [ (jarOf self.kotlinRelocated.kotlinMetadataJvm) ];
+        packages = [
+          "org.jetbrains.kotlin.scripting=org.jetbrains.kotlin.buildtools.internal.scripting"
+          "kotlin.script.experimental=org.jetbrains.kotlin.buildtools.internal.scripting"
+          "kotlinx.serialization=org.jetbrains.kotlin.buildtools.internal.serialization"
+          "difflib=org.jetbrains.kotlin.buildtools.internal.difflib"
+          "com.github.difflib=org.jetbrains.kotlin.buildtools.internal.difflib"
+        ] ++ [
+          "com.google"
+          "com.sampullara"
+          "org.apache"
+          "org.jdom"
+          "org.picocontainer"
+          "org.jline"
+          "org.fusesource"
+          "net.jpountz"
+          "one.util.streamex"
+          "it.unimi.dsi.fastutil"
+          "kotlinx.collections.immutable"
+          "com.fasterxml"
+          "org.codehaus"
+          "io.opentelemetry"
+          "io.vavr"
+          "org.antlr"
+          "javax.inject"
+          "com.intellij"
+        ];
+        exclude = [
+          "META-INF/services/org.jetbrains.kotlin.compiler.plugin."
+        ];
+      };
       kotlinScriptingCommon = p.scriptingCommon;
       kotlinScriptingJvm = p.scriptingJvm;
       kotlinBuildToolsApi = p.buildToolsApi;

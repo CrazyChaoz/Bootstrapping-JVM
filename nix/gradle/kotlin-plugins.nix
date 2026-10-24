@@ -211,6 +211,40 @@ let
       "compiler/build-tools/kotlin-build-tools-api/gen"
     ];
   };
+  # the implementation of the build tools API (with the compiler runner, daemon client, ... that it embeds)
+  buildToolsImpl = mkPlugin {
+    name = "kotlin-build-tools-impl";
+    dirs = [
+      "compiler/build-tools/kotlin-build-tools-impl/src"
+      "compiler/build-tools/kotlin-build-tools-impl/gen"
+      "compiler/build-tools/kotlin-build-tools-cri-impl/src"
+      "compiler/build-tools/kotlin-build-tools-jdk-utils/src"
+      "compiler/compiler-runner-unshaded/src"
+      "compiler/daemon/daemon-common/src"
+      "compiler/daemon/daemon-client/src"
+      "libraries/tools/kotlin-tooling-core/src"
+      "libraries/tools/abi-validation/abi-tools-api/src"
+      "libraries/tools/abi-validation/abi-tools/src"
+      "compiler/util-klib-abi/src"
+    ];
+    resourceDirs = [ "compiler/build-tools/kotlin-build-tools-impl/src/main/resources" ];
+    extraArgs = [
+      "-opt-in=org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi"
+      "-opt-in=kotlinx.serialization.ExperimentalSerializationApi"
+      "-Xplugin=${self.serialization}/share/java/kotlinx-serialization-compiler-plugin.jar"
+    ];
+    deps = [
+      self.kotlinx-serialization-core
+      self.kotlinx-serialization-protobuf
+      self.diff-utils
+      self.buildToolsApi
+      self.scriptingCommon
+      self.scriptingJvm
+      self.scriptingCompilerImpl
+      self.scriptingCompiler
+      self.metadataJvmUnshaded
+    ];
+  };
   assignment = mkPlugin {
     name = "kotlin-assignment-compiler-plugin";
     dirs = map (m: "plugins/assign-plugin/assign-plugin.${m}/src") [
@@ -243,6 +277,36 @@ let
     ];
     resourceDirs = [ "core/jvmMain/resources" ];
   };
+  kotlinx-serialization-protobuf = mkKx {
+    name = "kotlinx-serialization-protobuf";
+    commonDir = "formats/protobuf/commonMain/src";
+    dirs = [
+      "formats/protobuf/commonMain/src"
+      "formats/protobuf/jvmMain/src"
+    ];
+    deps = [ self.kotlinx-serialization-core ];
+  };
+
+  diff-utils = stdenv.mkDerivation {
+    pname = "java-diff-utils";
+    version = "4.12";
+    src = fetchzip {
+      url = "https://github.com/java-diff-utils/java-diff-utils/archive/refs/tags/java-diff-utils-parent-4.12.tar.gz";
+      hash = "sha256-QhdBPejv9yQBY4Oc4NQw2FultQPdi0eGJyqiIL56jQE=";
+    };
+    nativeBuildInputs = [ jdk ];
+    dontConfigure = true;
+    buildPhase = ''
+      mkdir classes
+      find java-diff-utils/src/main/java -name '*.java' > sources
+      javac -nowarn -d classes @sources
+    '';
+    installPhase = ''
+      mkdir -p $out/share/java
+      jar cf $out/share/java/java-diff-utils.jar -C classes .
+    '';
+  };
+
   kotlinx-serialization-json = mkKx {
     name = "kotlinx-serialization-json";
     commonDir = "formats/json/commonMain/src";
