@@ -16,7 +16,8 @@ if [ -d $TREE/src/library ]; then cp -r $TREE/src src; else
 fi
 chmod -R u+w src
 mkdir -p classes; cp -r $FJBG_CLS/. classes/   # FJBG + MSIL reader
-cp -r $JLINE_CLS/. classes/   # jline 1.0 (REPL, from 2007-07)
+# jline 1.0 for the REPL (from 2007-07); only then: its class files crash earlier compilers (s34's pickler)
+grep -rqs 'jline\.' src/compiler && cp -r $JLINE_CLS/. classes/
 . $HERE/nsc-patches.sh
 LOCKER_SKIP=${LOCKER_SKIP:-'^src/library/scala/All\$\.scala$\|^src/library/scala/AllRef\$\.scala$'}
 EXCL=${NSC_EXCLUDES:-'/ant/\|/dbc/\|scala/tools/nsc/doc/'}
@@ -93,8 +94,8 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   fi
   sc "$ccp" $main -d $L -classpath $L:classes$fb -sourcepath $sp $(cat $n.libscala)
 }
-comp() { # comp NAME COMPILERCP MAIN LIBCP : compiler into NAME/comp, against LIBCP
-  local n=$1 ccp=$2 main=$3 lcp=$4; local C=$n/comp
+comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/comp, against LIBCP
+  local n=$1 ccp=$2 main=$3 lcp=$4 fb=${5:+:$5}; local C=$n/comp
   mkdir -p $C
   ( cd src/compiler; find . -name '*.java' | sed 's|^\./||' ) > $n.compjava
   if [ -s $n.compjava ]; then
@@ -104,7 +105,7 @@ comp() { # comp NAME COMPILERCP MAIN LIBCP : compiler into NAME/comp, against LI
   fi
   echo "== $n: compiler"
   ( cd src/compiler; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" ) | sed 's|^|src/compiler/|' > $n.compscala
-  sc "$ccp" $main -d $C -classpath $lcp:$C:classes -sourcepath src/compiler $(cat $n.compscala)
+  sc "$ccp" $main -d $C -classpath $lcp:$C:classes$fb -sourcepath src/compiler $(cat $n.compscala)
 }
 if [ -n "${COMPILER_FIRST:-}" ]; then
   # flag day (the new library needs the new compiler, e.g. Int.box 2007-05):
@@ -116,7 +117,7 @@ if [ -n "${COMPILER_FIRST:-}" ]; then
 else
   # locker: classes the STARR insists on but the new library lacks come from the old one
   lib locker "$PREVCP" $PREVMAIN "$PREVCP"
-  comp locker "$PREVCP" $PREVMAIN locker/lib"${PREVCP:+:$PREVCP}"
+  comp locker "$PREVCP" $PREVMAIN locker/lib "$PREVCP"
 fi
 if [ -n "$GENERICS" ]; then   # only scala.Array (see lib) from locker, nothing else may leak into quick
   mkdir -p quick/arrayfb/scala; cp locker/lib/scala/Array.class quick/arrayfb/scala/; cp locker/lib/scala/'Array$.class' quick/arrayfb/scala/ 2>/dev/null || true

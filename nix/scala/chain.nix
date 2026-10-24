@@ -60,6 +60,7 @@
     "2ed788315cbf63ee18d42cf18bb45a3391cd6189" = "sha256-Y5rTQ3K/5t38Eta1sYj7vk5J9texEeyx3kXwenM7br8=";
     "777083075664e39075c977a9bc47bf0379521611" = "sha256-E54l4A2zI6YxKHDyXdY/ORJxaDYfTVLJmWqrbv9yQ2I=";
     "323fe887df30250c96c9945e28c1be85441cdc7f" = "sha256-7MqOfELC+mY5bnzuT3rUu06ao0bVgstndzWClIq373g=";
+    "f6974416057ead15f0903bd4da5b1ccf5f423a84" = "sha256-O4ylllxXtrBQB7c0upNwmQzqqK1fknDWK8Hyf3W5mTo=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; }
@@ -116,5 +117,6 @@
     { name = "s46"; rev = "2ed788315cbf63ee18d42cf18bb45a3391cd6189"; builder = "stage2.sh"; prev = "s45"; }
     { name = "s47"; rev = "777083075664e39075c977a9bc47bf0379521611"; builder = "stage2.sh"; prev = "s46"; }
     { name = "s48"; rev = "323fe887df30250c96c9945e28c1be85441cdc7f"; builder = "stage2.sh"; prev = "s47"; }
+    { name = "s49"; rev = "f6974416057ead15f0903bd4da5b1ccf5f423a84"; builder = "stage2.sh"; prev = "s48"; compilerFirst = true; }
   ];
 }
