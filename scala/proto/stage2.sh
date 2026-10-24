@@ -19,6 +19,32 @@ mkdir -p classes; cp -r $S/st-n0/fjbg-cls/. classes/   # FJBG + MSIL reader
 . $S/work/nsc-patches.sh
 LOCKER_SKIP=${LOCKER_SKIP:-'^src/library/scala/All\$\.scala$\|^src/library/scala/AllRef\$\.scala$'}
 EXCL=${NSC_EXCLUDES:-'/ant/\|/dbc/\|scala/tools/nsc/doc/'}
+# the doc generator is needed once Main uses it (2007)
+if [ -z "${NSC_EXCLUDES:-}" ] && grep -rlq 'DocGenerator' --include=*.scala src/compiler/scala/tools/nsc --exclude-dir=doc; then EXCL='/ant/\|/dbc/'; fi
+# MSIL backend: msil.jar (with the Scala-written emit API) was a binary until 2009;
+# replace GenMSIL by a phase that refuses to run (JVM-only compiler)
+G=src/compiler/scala/tools/nsc/backend/msil/GenMSIL.scala
+if [ -f $G ] && grep -q 'msil.emit' $G && [ ! -d src/msil ]; then
+  python3 - $G <<'P'
+import re, sys
+f = sys.argv[1]; s = open(f).read()
+pkg = re.search(r"^package .*$", s, re.M).group(0)
+open(f, "w").write(pkg + """
+
+abstract class GenMSIL extends SubComponent {
+  import global._
+  override def newPhase(p: Phase) = new MsilPhase(p)
+  val phaseName = "msil"
+  class MsilPhase(prev: Phase) extends GlobalPhase(prev) {
+    def name = phaseName
+    override def erasedTypes = true
+    override def run: Unit = throw new Error("MSIL backend not bootstrapped")
+    def apply(unit: CompilationUnit): Unit = throw new Error("MSIL backend not bootstrapped")
+  }
+}
+""")
+P
+fi
 sc() { local cp=$1 main=$2; shift 2; $J8/bin/java -Xss64m -Xmx3g -cp "$cp" $main -bootclasspath $BOOTJAR "$@"; }
 build() { # build NAME COMPILERCP MAIN [FALLBACKCP]
   local n=$1 ccp=$2 main=$3 fb=${4:+:$4}; local L=$n/lib C=$n/comp
