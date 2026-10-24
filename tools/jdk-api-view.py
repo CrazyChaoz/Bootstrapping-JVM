@@ -80,17 +80,52 @@ def main(srczip, rtjar, maxv, outjar):
         for k in range(cf["nif"]):
             out.append(cls_name(cf, struct.unpack(">H", cf["ifaces"][2 * k:2 * k + 2])[0]))
         return out
-    # hidden types needed as supertypes of kept classes stay visible
-    changed = True
-    while changed:
-        changed = False
-        for n in classes:
-            if top(n) in hidden:
-                continue
-            for s in supers(n):
-                if top(s) in hidden:
-                    hidden.discard(top(s))
-                    changed = True
+    def invisible(n):
+        """Hidden, or a non-public java/javax class (old compilers cannot
+        see those either)."""
+        if top(n) in hidden:
+            return True
+        if n in classes and n.startswith(("java/", "javax/")):
+            acc = struct.unpack(">H", get(n)["head"][0:2])[0]
+            return not acc & 0x0001
+        return False
+
+    def visible_super(n):
+        """Nearest superclass of n that is not hidden."""
+        cf = get(n)
+        sup = struct.unpack(">H", cf["head"][4:6])[0]
+        if not sup:
+            return None
+        s = cls_name(cf, sup)
+        while invisible(s):
+            s = visible_super(s)
+        return s
+
+    def visible_ifaces(n, seen=None):
+        """Interfaces of n, hidden ones replaced by their visible supers."""
+        out = []
+        cf = get(n)
+        for k in range(cf["nif"]):
+            i = cls_name(cf, struct.unpack(">H", cf["ifaces"][2 * k:2 * k + 2])[0])
+            if invisible(i):
+                out += [j for j in visible_ifaces(i) if j not in out]
+            elif i not in out:
+                out.append(i)
+        # interfaces of hidden superclasses
+        sup = struct.unpack(">H", cf["head"][4:6])[0]
+        if sup:
+            s = cls_name(cf, sup)
+            if invisible(s) and s in classes:
+                out += [j for j in visible_ifaces(s) if j not in out]
+        return out
+
+    def class_entry(cf, name):
+        u = pico.utf8(cf, name)
+        for i, e in enumerate(cf["pool"]):
+            if e and e[0] == 7 and struct.unpack(">H", e[1])[0] == u:
+                return i
+        cf["pool"].append((7, struct.pack(">H", u)))
+        return len(cf["pool"]) - 1
     ref = re.compile(r"L([\w/$]+);")
 
     def mentions_hidden(desc):
@@ -110,6 +145,13 @@ def main(srczip, rtjar, maxv, outjar):
                 zo.writestr(info, zi.read(n))
                 continue
             cf = get(name)
+            # hidden supertypes: use the nearest visible ones
+            if any(invisible(x) for x in supers(name)):
+                vs = visible_super(name)
+                vi = visible_ifaces(name)
+                head = cf["head"][:4] + struct.pack(">H", class_entry(cf, vs) if vs else 0)
+                ifs = b"".join(struct.pack(">H", class_entry(cf, i)) for i in vi)
+                cf["head"], cf["nif"], cf["ifaces"] = head, len(vi), ifs
             for key in ("fields", "methods"):
                 keep = [m for m in cf[key] if not mentions_hidden(pico.text(cf, m[2]))]
                 stripped += len(cf[key]) - len(keep)
