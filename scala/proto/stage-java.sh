@@ -5,7 +5,7 @@
 set -euo pipefail
 T=/home/kemp/ins/development/bootstrapping-gradle/tools
 J=${J:-/nix/store/nkd7mzlsa4d113n0xwh98m4l6dx9bnax-openjdk-headless-21.0.12.1+1}
-J8=${J8:-/nix/store/58fd0v0fp708ha13s5i7ib72a2kdh4lx-openjdk-8u504-b01}
+J8=${J8:-/nix/store/z2mxh5237w3dd8klbikm94x2wwipgc2y-openjdk-headless-8u504-b01}
 S=/tmp/sc
 TREE=$1; W=$2
 rm -rf $W; mkdir -p $W; cd $W

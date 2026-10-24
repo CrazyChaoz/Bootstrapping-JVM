@@ -5,8 +5,9 @@
 set -euo pipefail
 T=/home/kemp/ins/development/bootstrapping-gradle/tools
 J=${J:-/nix/store/nkd7mzlsa4d113n0xwh98m4l6dx9bnax-openjdk-headless-21.0.12.1+1}
-J8=${J8:-/nix/store/58fd0v0fp708ha13s5i7ib72a2kdh4lx-openjdk-8u504-b01}
+J8=${J8:-/nix/store/z2mxh5237w3dd8klbikm94x2wwipgc2y-openjdk-headless-8u504-b01}
 S=/tmp/sc
+BOOTJAR=${BOOTJAR:-/tmp/sc/rt14.jar}
 TREE=$1; W=$2; PREVCP=$3; PREVMAIN=${4:-scala.tools.scalac.Main}
 rm -rf $W; mkdir -p $W; cd $W
 cp -r $TREE/sources src; chmod -R u+w src
@@ -22,11 +23,14 @@ $J/bin/javac -nowarn -encoding latin1 --release 8 -d meta-cls $(find meta-java -
 $J/bin/java -cp meta-cls meta.GenerateAll src generated.lst > /dev/null
 lst() { [ -f $L/$1.lst ] && grep -v '^#' $L/$1.lst | sed 's/\s*$//' | grep . | sed "s|^|$2/|" | python3 -c '
 import os,sys
-for l in sys.stdin: print(os.path.normpath(l.strip()))' || true; }
+for l in sys.stdin:
+    p = os.path.normpath(l.strip())
+    if os.path.exists(os.path.join("src", p)) or p.endswith(".java") and os.path.exists(os.path.join("src", p + ".tmpl")): print(p)
+    else: print("warning: listed file missing:", p, file=sys.stderr)' || true; }
 mkdir -p classes out stubs
 . $S/work/stubs.sh
 $J/bin/javac -nowarn -encoding latin1 --release 8 -d classes $(find fjbg stubs -name '*.java')
-sc() { $J8/bin/java -Xss64m -Xmx2g -cp "$1" "$2" "${@:3}"; }
+sc() { $J8/bin/java -Xss64m -Xmx2g -cp "$1" "$2" ${BOOTJAR:+-bootclasspath $BOOTJAR} "${@:3}"; }
 CP=out:classes
 if [ -n "${COMPILER_FIRST:-}" ]; then
   # 1. all Java, 2. compiler Scala parts with the previous compiler (against

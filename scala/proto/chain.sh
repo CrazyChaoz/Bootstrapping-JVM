@@ -4,7 +4,7 @@ set -e
 FROM=${1:-}
 if [ -z "$FROM" ]; then
   /tmp/sc/work/stage-java.sh /tmp/sc/s1src /tmp/sc/st1 > /tmp/sc/log-st1.txt 2>&1
-  J8=/nix/store/58fd0v0fp708ha13s5i7ib72a2kdh4lx-openjdk-8u504-b01
+  J8=/nix/store/z2mxh5237w3dd8klbikm94x2wwipgc2y-openjdk-headless-8u504-b01
   cd /tmp/sc/st1; rm -rf lib2 sc2; mkdir lib2 sc2
   $J8/bin/java -Xss32m -cp scalac:lib:classes scala.tools.scalac.Main -d lib2 -classpath lib2:classes:src $(cat sfiles.txt) >> /tmp/sc/log-st1.txt 2>&1
   $J8/bin/java -Xss32m -cp scalac:lib:classes scala.tools.scalac.Main -d sc2 -classpath sc2:lib2:classes:src $(cat scfiles.txt) >> /tmp/sc/log-st1.txt 2>&1
