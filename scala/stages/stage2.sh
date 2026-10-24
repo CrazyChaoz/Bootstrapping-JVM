@@ -120,7 +120,9 @@ else
   comp locker "$PREVCP" $PREVMAIN locker/lib "$PREVCP"
 fi
 if [ -n "$GENERICS" ]; then   # only scala.Array (see lib) from locker, nothing else may leak into quick
-  mkdir -p quick/arrayfb/scala; cp locker/lib/scala/Array.class quick/arrayfb/scala/; cp locker/lib/scala/'Array$.class' quick/arrayfb/scala/ 2>/dev/null || true
+  # (with its named nested classes, e.g. Array$Array0 from 2008-07; anonymous ones would pull in more)
+  mkdir -p quick/arrayfb/scala
+  ( cd locker/lib/scala; ls Array.class 'Array$'*.class 2>/dev/null | grep -v 'anon' ) | while read f; do cp "locker/lib/scala/$f" quick/arrayfb/scala/; done
 fi
 lib quick locker/lib:locker/comp:classes scala.tools.nsc.Main ${GENERICS:+quick/arrayfb}
 comp quick locker/lib:locker/comp:classes scala.tools.nsc.Main quick/lib
