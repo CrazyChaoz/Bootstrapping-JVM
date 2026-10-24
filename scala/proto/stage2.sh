@@ -6,8 +6,11 @@ set -euo pipefail
 T=/home/kemp/ins/development/bootstrapping-gradle/tools
 J=/nix/store/nkd7mzlsa4d113n0xwh98m4l6dx9bnax-openjdk-headless-21.0.12.1+1
 J8=/nix/store/z2mxh5237w3dd8klbikm94x2wwipgc2y-openjdk-headless-8u504-b01
-S=/tmp/sc; BOOTJAR=${BOOTJAR:-/tmp/sc/rt14b.jar}
+S=/tmp/sc
 TREE=$1; W=$2; PREVCP=$3; PREVMAIN=${4:-scala.tools.nsc.Main}
+# from 2007-12 (dual-mode compiler, Predef.Class[T]) Scala is built against the generic Java 5 API
+GENERICS=; grep -q 'type Class\[T\]' $TREE/src/library/scala/Predef.scala 2>/dev/null && GENERICS=1
+if [ -n "$GENERICS" ]; then BOOTJAR=${BOOTJAR:-/tmp/sc/rt15.jar}; else BOOTJAR=${BOOTJAR:-/tmp/sc/rt14b.jar}; fi
 rm -rf $W; mkdir -p $W; cd $W
 if [ -d $TREE/src/library ]; then cp -r $TREE/src src; else
   # 2005-12/2006-01 layout: sources/ (+ newsources/)
@@ -46,7 +49,14 @@ abstract class GenMSIL extends SubComponent {
 """)
 P
 fi
-sc() { local cp=$1 main=$2; shift 2; $J8/bin/java -Xss64m -Xmx3g -cp "$cp" $main -bootclasspath $BOOTJAR "$@"; }
+has_opt() { # has_opt CP OPTION : does the compiler on CP know OPTION
+  local d; for d in ${1//:/ }; do
+    ls $d/scala/tools/nsc/Settings*.class >/dev/null 2>&1 || continue
+    grep -lq -- "$2" $d/scala/tools/nsc/Settings*.class && return 0
+  done; return 1; }
+sc() { local cp=$1 main=$2 g=; shift 2
+  [ -n "$GENERICS" ] && has_opt "$cp" '"-Ygenerics"\|-Ygenerics' && g=-Ygenerics
+  $J8/bin/java -Xss64m -Xmx3g -cp "$cp" $main -bootclasspath $BOOTJAR $g ${SCALAC_OPTS:-} "$@"; }
 nopredefs() { # option spelling understood by the compiler on classpath $1 (renamed 2007-07)
   local d; for d in ${1//:/ }; do
     ls $d/scala/tools/nsc/Settings*.class >/dev/null 2>&1 || continue
@@ -62,7 +72,13 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
     python3 -I $T/pico-classfiles.py $L $n.lib.meta.json
   fi
   echo "== $n: library"
-  sc "$ccp" $main $(nopredefs "$ccp") -d $L -classpath $L:classes$fb -sourcepath src/library src/library/scala/Predef.scala src/library/scala/runtime/ScalaRunTime.scala
+  local sp=src/library
+  if [ -n "$GENERICS" ]; then
+    # loading java.lang.Class at compiler start-up forces scala.Array, which must then
+    # come from a class file (the previous library), not the source path
+    sp=$n/libsp; rm -rf $sp; mkdir -p $n; cp -rs $PWD/src/library $sp; rm $sp/scala/Array.scala
+  fi
+  sc "$ccp" $main $(nopredefs "$ccp") -d $L -classpath $L:classes$fb -sourcepath $sp src/library/scala/Predef.scala src/library/scala/runtime/ScalaRunTime.scala
   ( cd src/library; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" | grep -v '^scala/Predef.scala$\|^scala/runtime/ScalaRunTime.scala$' ) | sed 's|^|src/library/|' > $n.libscala
   if [ -n "$fb" ]; then
     # library classes an old STARR cannot compile from Scala source (scala.All$/AllRef$,
@@ -72,7 +88,7 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
       c=${f#src/library/}; c=${c%.scala}; for d in ${PREVCP//:/ }; do [ -f $d/$c.class ] && { mkdir -p $L/$(dirname $c); cp $d/$c.class $L/$c.class; break; }; done
     done
   fi
-  sc "$ccp" $main -d $L -classpath $L:classes$fb -sourcepath src/library $(cat $n.libscala)
+  sc "$ccp" $main -d $L -classpath $L:classes$fb -sourcepath $sp $(cat $n.libscala)
 }
 comp() { # comp NAME COMPILERCP MAIN LIBCP : compiler into NAME/comp, against LIBCP
   local n=$1 ccp=$2 main=$3 lcp=$4; local C=$n/comp
@@ -99,7 +115,7 @@ else
   lib locker "$PREVCP" $PREVMAIN "$PREVCP"
   comp locker "$PREVCP" $PREVMAIN locker/lib"${PREVCP:+:$PREVCP}"
 fi
-lib quick locker/lib:locker/comp:classes scala.tools.nsc.Main
+lib quick locker/lib:locker/comp:classes scala.tools.nsc.Main ${GENERICS:+locker/lib}
 comp quick locker/lib:locker/comp:classes scala.tools.nsc.Main quick/lib
 mkdir -p out2; cp -r quick/lib/. out2/; cp -r quick/comp/. out2/
 echo stage done

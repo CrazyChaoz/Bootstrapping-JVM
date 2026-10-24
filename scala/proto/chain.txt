@@ -43,3 +43,8 @@ s36 2cab50f0f08b63d9fc1c5248974411910b18a560 s35 cf
 s37 97664fd90f9117893f6684cf3c5b0305f4170fba s36 normal
 s38 511a3ff39a6c3c228cfb0ef4050087488f237c54 s37 normal
 s39 a840917b32e1c0f25b846f48bd0f12088fe170b2 s38 normal
+s40 4192a981366caf4239f9a7719db6c0f42202b32c s39 normal
+s41 34f6ea9cab4723231d9382b92ea165e007bbdb48 s40 normal
+s42 e5d6f338deead8beb992d215ff57ea78c8c5b6f5 s41 normal
+b42 e5d6f338de s42 bridge:2ed9387915:src/compiler/scala/tools/nsc/symtab/Types.scala,src/compiler/scala/tools/nsc/symtab/classfile/ClassfileParser.scala,src/compiler/scala/tools/nsc/typechecker/Namers.scala,src/compiler/scala/tools/nsc/typechecker/Typers.scala
+s43 422a46993cdb74ccf3650e0b171f65c6c12bdedf b42 normal

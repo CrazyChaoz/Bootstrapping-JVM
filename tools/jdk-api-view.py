@@ -13,6 +13,11 @@ of hidden classes.  Nested classes follow their top-level class.  For
 MAXVERSION < 5 the Java 5+ attributes (annotations, generic signatures,
 ...) are removed as well: a 1.4 class file had none, and a compiler from
 that time that reads annotations would look for e.g. java.lang.Deprecated.
+For MAXVERSION >= 5, annotations of hidden types (@FunctionalInterface, ...)
+are dropped, members whose generic Signature mentions hidden types are
+removed like those with such descriptors, and class Signatures are rewritten
+to match the flattened supertypes (hidden ones become their nearest visible
+supertypes, raw), keeping the type parameters.
 """
 import importlib.util
 import os
@@ -51,6 +56,115 @@ JAVA5_ATTRS = {"RuntimeVisibleAnnotations", "RuntimeInvisibleAnnotations",
                "RuntimeVisibleParameterAnnotations", "RuntimeInvisibleParameterAnnotations",
                "RuntimeVisibleTypeAnnotations", "RuntimeInvisibleTypeAnnotations",
                "AnnotationDefault", "Signature", "EnclosingMethod", "MethodParameters"}
+
+
+JAVA8_ATTRS = {"RuntimeVisibleTypeAnnotations", "RuntimeInvisibleTypeAnnotations",
+               "MethodParameters"}
+ANNOTS = {"RuntimeVisibleAnnotations", "RuntimeInvisibleAnnotations"}
+PARAM_ANNOTS = {"RuntimeVisibleParameterAnnotations", "RuntimeInvisibleParameterAnnotations"}
+
+
+def skip_value(d, p):
+    tag = chr(d[p]); p += 1
+    if tag in "BCDFIJSZsc":
+        return p + 2
+    if tag == "e":
+        return p + 4
+    if tag == "@":
+        return skip_annotation(d, p)
+    if tag == "[":
+        n = struct.unpack_from(">H", d, p)[0]; p += 2
+        for _ in range(n):
+            p = skip_value(d, p)
+        return p
+    raise ValueError("bad element_value tag " + tag)
+
+
+def skip_annotation(d, p):
+    n = struct.unpack_from(">H", d, p + 2)[0]; p += 4
+    for _ in range(n):
+        p = skip_value(d, p + 2)
+    return p
+
+
+def filter_annotations(d, p, keep):
+    """annotations table at d[p:]: (new bytes, end), dropping those keep() rejects"""
+    n = struct.unpack_from(">H", d, p)[0]; p += 2
+    out = []
+    for _ in range(n):
+        e = skip_annotation(d, p)
+        if keep(struct.unpack_from(">H", d, p)[0]):
+            out.append(d[p:e])
+        p = e
+    return struct.pack(">H", len(out)) + b"".join(out), p
+
+
+def split_sig(sig):
+    """class Signature -> (formal type parameters, [supertype signatures])"""
+    def end(i):          # i at 'L' (or '<'): index after the matching ';' / '>'
+        depth = 0
+        while True:
+            c = sig[i]
+            if c == "<":
+                depth += 1
+            elif c == ">":
+                depth -= 1
+                if depth == 0 and sig[0] == "<" and formal is None:
+                    return i + 1
+            elif c == ";" and depth == 0:
+                return i + 1
+            i += 1
+    formal = None
+    i = 0
+    if sig.startswith("<"):
+        i = end(0)
+    formal = sig[:i]
+    out = []
+    while i < len(sig):
+        j = end(i)
+        out.append(sig[i:j])
+        i = j
+    return formal, out
+
+
+def split_args(t):
+    """'Lp/C<A;B;>;' -> ('p/C', ['A;', 'B;']); raw 'Lp/C;' -> ('p/C', [])"""
+    i = t.find("<")
+    if i < 0:
+        return t[1:-1], []
+    name, body, args, depth, start = t[1:i], t[i + 1:-2], [], 0, 0
+    for k, c in enumerate(body):
+        if c == "<":
+            depth += 1
+        elif c == ">":
+            depth -= 1
+        elif depth == 0 and (c == ";" or (c in "*" and k == start)):
+            args.append(body[start:k + 1]); start = k + 1
+    return name, args
+
+
+def formal_names(formal):
+    """'<K:Ljava/lang/Object;V::Lx/Y;>' -> ['K', 'V']"""
+    out, depth, i = [], 0, 1
+    while i < len(formal) - 1:
+        if depth == 0:
+            j = formal.index(":", i)
+            out.append(formal[i:j]); i = j
+            while i < len(formal) - 1 and formal[i] == ":":        # class/interface bounds
+                i += 1
+                if formal[i] == ":":
+                    continue
+                k, d = i, 0
+                while True:
+                    c = formal[k]
+                    if c == "<": d += 1
+                    elif c == ">": d -= 1
+                    elif c == ";" and d == 0: break
+                    k += 1
+                i = k + 1
+        else:
+            i += 1
+    return out
 
 
 def top(name):
@@ -135,10 +249,58 @@ def main(srczip, rtjar, maxv, outjar):
                 return i
         cf["pool"].append((7, struct.pack(">H", u)))
         return len(cf["pool"]) - 1
-    ref = re.compile(r"L([\w/$]+);")
+    ref = re.compile(r"L([\w/$]+)[;<]")
 
     def mentions_hidden(desc):
         return any(top(m) in hidden for m in ref.findall(desc))
+
+    name_of = lambda t: re.match(r"L([\w/$]+)", t).group(1)
+
+    def expand(t):
+        """supertype signature t of a hidden class -> (its visible superclass signature,
+        [its visible interface signatures]), type arguments substituted"""
+        n, args = split_args(t)
+        if n not in classes:
+            return "Ljava/lang/Object;", []
+        hsig = attr(get(n), get(n)["attrs"], "Signature")
+        if hsig is None or not args or any(a == "*" or a[0] in "+-" for a in args):
+            vs = visible_super(n)
+            return ("L%s;" % vs if vs else "Ljava/lang/Object;"), ["L%s;" % i for i in visible_ifaces(n)]
+        formal, parts = split_sig(hsig)
+        sub = dict(zip(formal_names(formal), args))
+        subst = lambda x: re.sub(r"T(\w+);", lambda m: sub.get(m.group(1), m.group(0)), x)
+        parts = [subst(x) for x in parts]
+        sup, ifs = parts[0], []
+        if invisible(name_of(sup)):
+            sup, ifs = expand(sup)
+        for x in parts[1:]:
+            ifs += [x] if not invisible(name_of(x)) else expand(x)[1]
+        return sup, ifs
+
+    def attr(cf, attrs, nm):
+        for a in attrs:
+            if pico.text(cf, a[0]) == nm:
+                return pico.text(cf, struct.unpack(">H", a[1][:2])[0])
+        return None
+
+    def filter_attrs(cf, attrs):
+        """drop annotations of hidden types; Java 8 attributes for older views"""
+        ok = lambda t: not mentions_hidden(pico.text(cf, t))
+        out = []
+        for a, d in attrs:
+            nm = pico.text(cf, a)
+            if maxv < 8 and nm in JAVA8_ATTRS:
+                continue
+            if nm in ANNOTS:
+                d = filter_annotations(d, 0, ok)[0]
+            elif nm in PARAM_ANNOTS:
+                np, p, parts = d[0], 1, [d[:1]]
+                for _ in range(np):
+                    b, p = filter_annotations(d, p, ok)
+                    parts.append(b)
+                d = b"".join(parts)
+            out.append((a, d))
+        return out
     def strip_java5(cf):
         keep = lambda attrs: [a for a in attrs if pico.text(cf, a[0]) not in JAVA5_ATTRS]
         for key in ("fields", "methods"):
@@ -156,17 +318,38 @@ def main(srczip, rtjar, maxv, outjar):
             if top(name) in hidden:
                 dropped += 1
                 continue
-            if not name.startswith(("java/", "javax/")):
-                if maxv >= 5:
-                    zo.writestr(info, zi.read(n))
-                else:
-                    cf = get(name)
-                    strip_java5(cf)
-                    zo.writestr(info, pico.write(cf))
-                continue
             cf = get(name)
             if maxv < 5:
                 strip_java5(cf)
+            else:
+                cf["attrs"] = filter_attrs(cf, cf["attrs"])
+                for key in ("fields", "methods"):
+                    for m in cf[key]:
+                        m[3] = filter_attrs(cf, m[3])
+            if not name.startswith(("java/", "javax/")):
+                zo.writestr(info, pico.write(cf))
+                continue
+            sig = attr(cf, cf["attrs"], "Signature")
+            if sig and any(invisible(x) for x in supers(name)):
+                # supertypes get flattened below: rewrite the generic signature to match
+                formal, parts = split_sig(sig)
+                sup, ifs = parts[0], []
+                if invisible(name_of(sup)):
+                    sup, ifs = expand(sup)
+                for t in parts[1:]:
+                    ifs += [t] if not invisible(name_of(t)) else expand(t)[1]
+                seen, uniq = set(), []
+                for t in ifs:
+                    if name_of(t) not in seen:
+                        seen.add(name_of(t)); uniq.append(t)
+                have = seen
+                uniq += ["L%s;" % i for i in visible_ifaces(name) if i not in have]
+                new = formal + sup + "".join(uniq)
+                cf["attrs"] = [(a, struct.pack(">H", pico.utf8(cf, new)) if pico.text(cf, a) == "Signature" else d)
+                               for a, d in cf["attrs"]]
+                sig = new
+            if sig and mentions_hidden(sig):
+                cf["attrs"] = [a for a in cf["attrs"] if pico.text(cf, a[0]) != "Signature"]
             # hidden supertypes: use the nearest visible ones
             if any(invisible(x) for x in supers(name)):
                 vs = visible_super(name)
@@ -175,7 +358,8 @@ def main(srczip, rtjar, maxv, outjar):
                 ifs = b"".join(struct.pack(">H", class_entry(cf, i)) for i in vi)
                 cf["head"], cf["nif"], cf["ifaces"] = head, len(vi), ifs
             for key in ("fields", "methods"):
-                keep = [m for m in cf[key] if not mentions_hidden(pico.text(cf, m[2]))]
+                keep = [m for m in cf[key] if not mentions_hidden(pico.text(cf, m[2]))
+                        and not mentions_hidden(attr(cf, m[3], "Signature") or "")]
                 stripped += len(cf[key]) - len(keep)
                 cf[key] = keep
             attrs = []
