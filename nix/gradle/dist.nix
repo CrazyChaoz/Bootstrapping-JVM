@@ -216,6 +216,16 @@ stdenv.mkDerivation {
     install -Dm644 gradle-runtime-api-info-${version}.jar $out/lib/plugins/gradle-runtime-api-info-${version}.jar
     printf 'dependencies=\njarFile=gradle-runtime-api-info-${version}.jar\n' > $out/lib/plugins/gradle-runtime-api-info.properties
 
+    # the public API for compiling build scripts: the classes of all modules (upstream has signature stubs)
+    mkdir api
+    for j in ${projectJars}; do unzip -qo "$j" '*.class' 'META-INF/*.kotlin_module' -d api || [ $? = 11 ]; done
+    jar cf $out/lib/plugins/gradle-public-api-legacy-${version}.jar -C api .
+    printf 'dependencies=\njarFile=gradle-public-api-legacy-${version}.jar\n' > $out/lib/plugins/gradle-public-api-legacy.properties
+
+    # TODO: generated Kotlin extensions for the Gradle API (empty for now)
+    mkdir kext && jar cf $out/lib/plugins/gradle-kotlin-dsl-extensions-${version}.jar -C kext .
+    printf 'dependencies=\njarFile=gradle-kotlin-dsl-extensions-${version}.jar\n' > $out/lib/plugins/gradle-kotlin-dsl-extensions.properties
+
     # build receipt (GradleVersion)
     mkdir -p receipt/org/gradle
     cat > receipt/org/gradle/build-receipt.properties <<'EOF2'
