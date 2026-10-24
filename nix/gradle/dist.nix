@@ -98,7 +98,16 @@ let
   onlyPlugins = lib.filter (n: !(lib.elem n.key coreKeys)) pluginNodes;
   onlyAgents = lib.filter (n: !(lib.elem n.key coreKeys) && !(lib.elem n.key (keys pluginNodes))) agentNodes;
 
-  libName = n: n.drv.pname or (builtins.parseDrvName n.drv.name).name;
+  # (module names are Maven artifact ids)
+  artifactIds = {
+    javax-inject = "javax.inject";
+  };
+  libName =
+    n:
+    let
+      p = n.drv.pname or (builtins.parseDrvName n.drv.name).name;
+    in
+    artifactIds.${p} or p;
   libVersion = n: n.drv.version or (builtins.parseDrvName n.drv.name).version;
   moduleName = n: if n.kind == "project" then "gradle-${n.name}" else libName n;
   jarFile = n: if n.kind == "project" then "gradle-${n.name}-${version}.jar" else "${libName n}-${libVersion n}.jar";
@@ -107,7 +116,7 @@ let
     if n.kind == "project" then
       "${gradleModules.${n.name}}/share/java/gradle-${n.name}.jar"
     else
-      "${n.drv}/share/java/${libName n}.jar";
+      "${n.drv}/share/java/${n.drv.pname or (builtins.parseDrvName n.drv.name).name}.jar";
 
   # the registry dependencies: direct runtime dependencies (a lib's are all its transitive ones)
   depNames =
@@ -144,6 +153,17 @@ let
             operator = children runtimeConfs;
           }
         )
+      )
+    )
+  );
+
+  daemonMainClasspath = lib.concatStringsSep " " (
+    map jarFile (
+      real (
+        builtins.genericClosure {
+          startSet = map (d: projectNode (lib.removePrefix "project:" d)) modules.daemon-main.deps.manifestClasspath;
+          operator = children runtimeConfs;
+        }
       )
     )
   );
@@ -222,6 +242,15 @@ stdenv.mkDerivation {
     EOF2
     chmod u+w $out/lib/gradle-gradle-cli-main-${version}.jar
     jar ufm $out/lib/gradle-gradle-cli-main-${version}.jar manifest-main
+    python3 - > manifest-daemon <<'EOF2'
+    def wrap(line):
+        parts = [line[:70]] + [line[i:i + 69] for i in range(70, len(line), 69)]
+        return "\n ".join(parts)
+    print("Main-Class: org.gradle.launcher.daemon.bootstrap.GradleDaemon")
+    print(wrap("Class-Path: ${daemonMainClasspath}"))
+    EOF2
+    chmod u+w $out/lib/gradle-daemon-main-${version}.jar
+    jar ufm $out/lib/gradle-daemon-main-${version}.jar manifest-daemon
     printf 'Premain-Class: org.gradle.instrumentation.agent.Agent\n' > manifest-agent
     chmod u+w $out/lib/agents/gradle-instrumentation-agent-${version}.jar
     jar ufm $out/lib/agents/gradle-instrumentation-agent-${version}.jar manifest-agent
