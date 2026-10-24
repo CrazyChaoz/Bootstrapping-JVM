@@ -49,10 +49,15 @@ if [ -n "${COMPILER_FIRST:-}" ]; then
   mkdir -p jout cout lout
   $J/bin/javac -nowarn -encoding latin1 --release 8 -cp classes:$PREVCP -d jout $(find java-all -name '*.java') > all.javac.log 2>&1 || { cat all.javac.log; exit 1; }
   python3 -I $T/pico-classfiles.py jout all.meta.json
+  # the compiler's Java classes without the new library's (package scala,
+  # except scala.tools): the previous compiler uses the previous library
+  mkdir -p jcomp; cp -r jout/. jcomp/
+  find jcomp/scala -mindepth 1 -maxdepth 1 ! -name tools -exec rm -rf {} +
   echo "== compiler (Scala) with the previous compiler"
-  sc "$PREVCP" $PREVMAIN -d cout -classpath cout:jout:classes:$PREVCP:src $(cat util.sargs scalac.sargs)
+  PREVSRC=${PREVSRC:-$(dirname ${PREVCP%%:*})/src}
+  sc "$PREVCP" $PREVMAIN -d cout -classpath cout:jcomp:classes:$PREVCP:$PREVSRC $(cat util.sargs scalac.sargs)
   echo "== library with the new compiler"
-  sc cout:jout:classes:$PREVCP scala.tools.scalac.Main -d lout -classpath lout:jout:classes:src $(cat library.sargs)
+  sc cout:jcomp:classes:$PREVCP scala.tools.scalac.Main -d lout -classpath lout:jout:classes:src $(cat library.sargs)
   cp -r jout/. out/; cp -r lout/. out/; cp -r cout/. out/
 else
 for m in lamplib:ch/epfl/lamp library:scala util:scala/tools/util compiler:scalac scalac:scala/tools/scalac; do
@@ -65,8 +70,10 @@ for m in lamplib:ch/epfl/lamp library:scala util:scala/tools/util compiler:scala
   if [ -s $name.jfiles ]; then
     python3 -I $T/pizza2java.py src java-$name --classpath-src fjbg --classpath-src src --stub "${STUB:-/CLR[A-Za-z]*\.java$}" \
       --meta-out $name.meta.json $(cat $name.jfiles)
-    $J/bin/javac -nowarn -encoding latin1 --release 8 -cp $CP -d out $(find java-$name -name '*.java') > $name.javac.log 2>&1 || { cat $name.javac.log; exit 1; }
-    python3 -I $T/pico-classfiles.py out $name.meta.json
+    mkdir -p jout
+    $J/bin/javac -nowarn -encoding latin1 --release 8 -cp $CP -d jout $(find java-$name -name '*.java') > $name.javac.log 2>&1 || { cat $name.javac.log; exit 1; }
+    python3 -I $T/pico-classfiles.py jout $name.meta.json
+    cp -r jout/. out/
   fi
   if [ -s $name.sfiles ]; then
     sed 's|^|src/|' $name.sfiles > $name.sargs
@@ -76,7 +83,7 @@ done
 fi
 echo "== self-host"
 mkdir -p out2
-cp -r out/. out2/
+cp -r jout/. out2/
 for name in lamplib library util compiler scalac; do
   [ -s $name.sargs ] 2>/dev/null || continue
   sc out:classes scala.tools.scalac.Main -d out2 -classpath out2:classes:src $(cat $name.sargs)

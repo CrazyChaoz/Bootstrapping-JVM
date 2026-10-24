@@ -8,7 +8,7 @@ while true; do
   if [ -z "$next" ] || [ "$next" = none ]; then
     # isolated broken commits: probe the following ones linearly
     next=
-    for c in $(cd /tmp/sc/full && git rev-list --first-parent --reverse $pc..$target | sed -n '2,12p'); do
+    for c in $(cd /tmp/sc/full && git rev-list --first-parent --reverse $pc..$target | awk 'NR==2||NR==3||NR==5||NR==9||NR==17||NR==33||NR==65||NR==129'); do
       if /tmp/sc/work/auto.sh bis $c $prev > /tmp/sc/bisect-last.txt 2>&1; then next=$c; break; fi
     done
     [ -n "$next" ] || { echo "STUCK after $prev ($pc)"; exit 1; }

@@ -13,3 +13,15 @@ public class CLRPackageParser {
 }
 JAVA
 fi
+if [ -f src/scalac/backend/msil/GenMSIL.java ]; then
+  mkdir -p stubs/scalac/backend/msil
+  cat > stubs/scalac/backend/msil/GenMSIL.java <<'JAVA'
+package scalac.backend.msil;
+/** stub: the MSIL backend is not bootstrapped */
+public class GenMSIL {
+    public static void translate(Object global, Object units) {
+        throw new Error("MSIL support is not available");
+    }
+}
+JAVA
+fi
