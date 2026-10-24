@@ -231,6 +231,9 @@ for name, d in settings_modules().items():
         "runtimes": runtimes(text),
         "main": main_compilation(text),
     }
+    opt = re.findall(r'optionalProjects\.add\("([^"]+)"\)', text)
+    if opt:
+        out[name]["optional"] = opt
 # build-logic projects that the distribution embeds
 if os.path.isdir(os.path.join(root, "build-logic/java-api-extractor")):
     out["java-api-extractor"] = {

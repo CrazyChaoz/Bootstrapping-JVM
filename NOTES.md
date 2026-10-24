@@ -182,3 +182,19 @@ Smoke test: `JAVA_HOME=$(nix build --no-link --print-out-paths .#jdks.openjdk21)
   kotlin-dsl-shared-runtime (`GenerateExtensions.java`).
 * Not done: resources-s3/gcs and build-init (AWS/GCS/maven-core libs), api-relocated.txt (empty), tests of the
   test-kit/native/plugin-development plugins, Scala compilation (no Scala compiler: the Zinc worker is stubbed, throws).
+
+### Gradle 8.14.3 (2026-10-24)
+
+`nix build .#gradle."8.14.3".dist` (and `.#gradle."9.8.0".dist` = `.#gradleDist`): a working 8.14.3
+(Groovy-DSL and Kotlin-DSL `java`/`application` builds verified, offline, `--no-daemon`).
+`gradleFor` in `nix/default.nix` instantiates modules + dist + generated Kotlin extensions for a Gradle version.
+What differs from 9.8:
+* module graph `modules-8.14.3.json` (`tools/gradle-modules`; `optionalProjects`, java-api-extractor, futureKotlin coords);
+* Groovy 3.0.24 (`groovy3.nix`: antlr2 grammars + the tunnelvisionlabs ANTLR 4 for the Parrot grammar; official ANTLR
+  4.9-4.13 reject its duplicate alt labels); Gradle 8 breaks at runtime on Groovy 4;
+* Kotlin 2.1.0 compiler stack (`kotlinPlugins21`, `kotlinRelocated21`), because 8's Kotlin DSL uses compiler APIs that
+  2.4 removed; kotlinx.serialization 1.6.2 and kotlinx-metadata-jvm 0.5.0 (from the Kotlin 1.7.0 sources);
+* libs: slf4j 1.7.36 (`slf4jLegacy`), jansi 1.18 (Java only, no JNI), commons-lang 2.6, jsoup;
+* module registry: each jar carries `<module>-classpath.properties` (`registryStyle = "embedded"`) instead of 9.x's sidecar files;
+* small source patches in `default.nix` (`patches`: core, kotlin-dsl, instrumentation processor), `scala` is built partial like the Zinc worker.
+Not done: AWS/GCS/maven modules, JNI libraries (jansi, native-platform), Scala compilation.

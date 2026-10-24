@@ -1500,6 +1500,10 @@
   },
   "dir": "subprojects/core",
   "main": {},
+  "optional": [
+   "gradle-kotlin-dsl",
+   "gradle-runtime-api-info"
+  ],
   "plugins": [
    "gradlebuild.distribution.api-java"
   ],

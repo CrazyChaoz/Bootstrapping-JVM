@@ -107,6 +107,7 @@ let
       groovy = groovy-core;
       groovyAnt = groovy-ant;
       groovyAstbuilder = groovy-astbuilder;
+      groovyConsole = groovy-console;
       groovyDateUtil = groovy-dateutil;
       groovyDatetime = groovy-datetime;
       groovyDoc = groovy-groovydoc;

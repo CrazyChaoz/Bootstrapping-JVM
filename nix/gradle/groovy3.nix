@@ -218,6 +218,15 @@ let
     groovy-json = s.subproject "groovy-json" { };
     groovy-nio = s.subproject "groovy-nio" { };
     groovy-sql = s.subproject "groovy-sql" { };
+    groovy-swing = s.subproject "groovy-swing" { };
+    groovy-console = s.subproject "groovy-console" {
+      deps = [
+        s.groovy-swing
+        s.groovy-templates
+        s.groovy-xml
+        antlr.tvl-antlr4
+      ];
+    };
     groovy-test = s.subproject "groovy-test" { deps = [ gradleLibs.junit4 ]; };
     groovy-datetime = s.subproject "groovy-datetime" { };
     groovy-dateutil = s.subproject "groovy-dateutil" { };
