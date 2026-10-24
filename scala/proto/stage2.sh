@@ -17,6 +17,7 @@ fi
 chmod -R u+w src
 mkdir -p classes; cp -r $S/st-n0/fjbg-cls/. classes/   # FJBG + MSIL reader
 . $S/work/nsc-patches.sh
+LOCKER_SKIP=${LOCKER_SKIP:-'^src/library/scala/All\$\.scala$\|^src/library/scala/AllRef\$\.scala$'}
 EXCL=${NSC_EXCLUDES:-'/ant/\|/dbc/\|scala/tools/nsc/doc/'}
 sc() { local cp=$1 main=$2; shift 2; $J8/bin/java -Xss64m -Xmx3g -cp "$cp" $main -bootclasspath $BOOTJAR "$@"; }
 build() { # build NAME COMPILERCP MAIN [FALLBACKCP]
@@ -31,6 +32,14 @@ build() { # build NAME COMPILERCP MAIN [FALLBACKCP]
   echo "== $n: library"
   sc "$ccp" $main -nopredefs -d $L -classpath $L:classes$fb -sourcepath src/library src/library/scala/Predef.scala src/library/scala/runtime/ScalaRunTime.scala
   ( cd src/library; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" | grep -v '^scala/Predef.scala$\|^scala/runtime/ScalaRunTime.scala$' ) | sed 's|^|src/library/|' > $n.libscala
+  if [ -n "$fb" ]; then
+    # library classes an old STARR cannot compile from Scala source (scala.All$/AllRef$,
+    # Java until 2006-04): take them from the previous library; quick compiles them properly
+    grep -v "$LOCKER_SKIP" $n.libscala > $n.libscala2 || true; mv $n.libscala2 $n.libscala
+    for f in $(find src/library -name '*.scala' | grep "$LOCKER_SKIP"); do
+      c=${f#src/library/}; c=${c%.scala}; for d in ${PREVCP//:/ }; do [ -f $d/$c.class ] && { mkdir -p $L/$(dirname $c); cp $d/$c.class $L/$c.class; break; }; done
+    done
+  fi
   sc "$ccp" $main -d $L -classpath $L:classes$fb -sourcepath src/library $(cat $n.libscala)
   ( cd src/compiler; find . -name '*.java' | sed 's|^\./||' ) > $n.compjava
   if [ -s $n.compjava ]; then

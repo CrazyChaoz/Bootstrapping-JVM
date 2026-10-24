@@ -9,7 +9,10 @@ copies RT.JAR to OUT.JAR without the java.*/javax.* types whose class-level
 javadoc says @since > MAXVERSION (e.g. 1.4).  Hidden types still needed as
 supertypes of kept classes stay; fields and methods of kept classes whose
 descriptors mention hidden types are removed, as are InnerClasses entries
-of hidden classes.  Nested classes follow their top-level class.
+of hidden classes.  Nested classes follow their top-level class.  For
+MAXVERSION < 5 the Java 5+ attributes (annotations, generic signatures,
+...) are removed as well: a 1.4 class file had none, and a compiler from
+that time that reads annotations would look for e.g. java.lang.Deprecated.
 """
 import importlib.util
 import os
@@ -42,6 +45,12 @@ def class_since(src):
         return None
     s = SINCE.search(m.group(1))
     return version(s.group(1)) if s else None
+
+
+JAVA5_ATTRS = {"RuntimeVisibleAnnotations", "RuntimeInvisibleAnnotations",
+               "RuntimeVisibleParameterAnnotations", "RuntimeInvisibleParameterAnnotations",
+               "RuntimeVisibleTypeAnnotations", "RuntimeInvisibleTypeAnnotations",
+               "AnnotationDefault", "Signature", "EnclosingMethod", "MethodParameters"}
 
 
 def top(name):
@@ -130,6 +139,12 @@ def main(srczip, rtjar, maxv, outjar):
 
     def mentions_hidden(desc):
         return any(top(m) in hidden for m in ref.findall(desc))
+    def strip_java5(cf):
+        keep = lambda attrs: [a for a in attrs if pico.text(cf, a[0]) not in JAVA5_ATTRS]
+        for key in ("fields", "methods"):
+            for m in cf[key]:
+                m[3] = keep(m[3])
+        cf["attrs"] = keep(cf["attrs"])
     dropped = stripped = 0
     with zipfile.ZipFile(outjar, "w", zipfile.ZIP_DEFLATED) as zo:
         for info in zi.infolist():
@@ -142,9 +157,16 @@ def main(srczip, rtjar, maxv, outjar):
                 dropped += 1
                 continue
             if not name.startswith(("java/", "javax/")):
-                zo.writestr(info, zi.read(n))
+                if maxv >= 5:
+                    zo.writestr(info, zi.read(n))
+                else:
+                    cf = get(name)
+                    strip_java5(cf)
+                    zo.writestr(info, pico.write(cf))
                 continue
             cf = get(name)
+            if maxv < 5:
+                strip_java5(cf)
             # hidden supertypes: use the nearest visible ones
             if any(invisible(x) for x in supers(name)):
                 vs = visible_super(name)
