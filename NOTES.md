@@ -162,3 +162,23 @@ Things worth knowing:
   handed down from the bootstrap).
 Next: Gradle 9.8.0 (~10.5k Java, 770 Kotlin, 110 Groovy main sources in ~190 modules; see the
 8.14.3 survey above) compiled module by module with javac/groovyc/kotlinc.
+
+## Gradle 9.8.0 (from source, 2026-10-24)
+
+`nix build .#gradleDist` → a working Gradle distribution (lib/, lib/plugins, lib/agents, bin/gradle).
+Smoke test: `JAVA_HOME=$(nix build --no-link --print-out-paths .#jdks.openjdk21) result/bin/gradle --offline --no-daemon build`
+(Groovy and Kotlin DSL builds, `java`/`application` plugins verified).
+
+* Third party libraries: `nix/gradle/libs.nix`; Groovy 4.0.33: `groovy.nix`.
+* Modules: every Gradle module is compiled directly with javac/kotlinc (`modules.nix`); the module graph is
+  extracted from the build scripts by `tools/gradle-modules` into `modules.json` (regenerate against a Gradle checkout).
+* Kotlin pieces (`kotlin-plugins.nix`): compiler plugins, scripting libs, kotlinx.serialization, build-tools-api/impl,
+  built from the Kotlin 2.4.0 sources; `kotlin-embeddable.nix` + `Relocate.java` relocate them like Kotlin's embeddable
+  (jarjar cannot read modern classes). The bootstrapped compiler's bundled ASM cannot read sealed classes, so a modern
+  ASM relocated to org.jetbrains.org.objectweb (with a shim) goes first on the classpath (`kotlinAsm`).
+* Distribution (`dist.nix`): module registry `*.properties`, gradle-runtime-api-info (`gen-api-info.py`,
+  `InstrumentationMetadata.java`), build receipt, jar manifests, a public-api jar (full classes instead of ABI stubs).
+  `kotlin-extensions.nix` generates the Kotlin DSL extensions of the Gradle API with the code generators of
+  kotlin-dsl-shared-runtime (`GenerateExtensions.java`).
+* Not done: resources-s3/gcs and build-init (AWS/GCS/maven-core libs), api-relocated.txt (empty), tests of the
+  test-kit/native/plugin-development plugins, Scala compilation (no Scala compiler: the Zinc worker is stubbed, throws).
