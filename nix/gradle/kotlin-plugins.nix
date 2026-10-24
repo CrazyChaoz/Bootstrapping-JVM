@@ -9,6 +9,10 @@
   unzip,
   stripJavaArchivesHook,
   kotlinSrc,
+  kotlinSrc17,
+  withPowerAssert ? true,
+  kxVersion ? "1.11.0",
+  kxHash ? "sha256-mDlxNHJCVCpjG42EDaHVpDEA9qiB4gSv+3HkBeqVYno=",
   kotlinCompiler,
   kotlinAsm,
   jetbrainsAnnotations,
@@ -34,11 +38,12 @@ let
       patch ? "",
       postCompile ? "",
       extraArgs ? [ ],
+      src ? kotlinSrc,
     }:
     stdenv.mkDerivation {
       pname = name;
       version = "2.4.0";
-      src = kotlinSrc;
+      inherit src;
       nativeBuildInputs = [
         jdk
         zip
@@ -72,8 +77,8 @@ let
       '';
     };
   kxSrc = fetchzip {
-    url = "https://github.com/Kotlin/kotlinx.serialization/archive/refs/tags/v1.11.0.tar.gz";
-    hash = "sha256-mDlxNHJCVCpjG42EDaHVpDEA9qiB4gSv+3HkBeqVYno=";
+    url = "https://github.com/Kotlin/kotlinx.serialization/archive/refs/tags/v${kxVersion}.tar.gz";
+    hash = kxHash;
   };
 
   # multiplatform sources (common + jvm) compiled together for the JVM
@@ -87,7 +92,7 @@ let
     }:
     stdenv.mkDerivation {
       pname = name;
-      version = "1.11.0";
+      version = kxVersion;
       src = kxSrc;
       nativeBuildInputs = [
         jdk
@@ -100,7 +105,7 @@ let
         find ${lib.escapeShellArgs dirs} \( -name '*.kt' -o -name '*.java' \) > build/sources
         find ${commonDir} -name '*.kt' | paste -sd, > build/common
         ${kotlinRun} -no-stdlib -no-reflect -nowarn -Xskip-prerelease-check -jvm-target 1.8 -Xcommon-sources=$(cat build/common) -Xjvm-default=all \
-          -Xreturn-value-checker=check -opt-in=kotlinx.serialization.SealedSerializationApi -opt-in=kotlinx.serialization.json.internal.JsonFriendModuleApi -opt-in=kotlinx.serialization.internal.CoreFriendModuleApi \
+          ${lib.optionalString (kxVersion == "1.11.0") "-Xreturn-value-checker=check"} -opt-in=kotlinx.serialization.SealedSerializationApi -opt-in=kotlinx.serialization.json.internal.JsonFriendModuleApi -opt-in=kotlinx.serialization.internal.CoreFriendModuleApi \
           -Xmulti-platform -Xexpect-actual-classes -Xno-check-actual \
           -opt-in=kotlin.RequiresOptIn -opt-in=kotlinx.serialization.InternalSerializationApi \
           -opt-in=kotlinx.serialization.ExperimentalSerializationApi -opt-in=kotlin.ExperimentalUnsignedTypes \
@@ -109,11 +114,11 @@ let
           -module-name ${name} \
           -cp "${kotlinCompiler}/lib/kotlin-stdlib.jar${lib.concatMapStrings (d: ":${d}/share/java/${d.pname}.jar") deps}:$(echo ${jetbrainsAnnotations}/share/java/*.jar)" \
           -d build/classes @build/sources
-        for d in ${lib.escapeShellArgs resourceDirs}; do [ -d $d ] && cp -r $d/. build/classes/; done
+        for d in ${lib.escapeShellArgs resourceDirs}; do if [ -d $d ]; then cp -r $d/. build/classes/; fi; done
       '';
       installPhase = ''
         mkdir -p $out/share/java
-        printf 'Manifest-Version: 1.0\nImplementation-Version: 1.11.0\nBundle-Version: 1.11.0\nBundle-SymbolicName: ${name}\n' > manifest
+        printf 'Manifest-Version: 1.0\nImplementation-Version: ${kxVersion}\nBundle-Version: ${kxVersion}\nBundle-SymbolicName: ${name}\n' > manifest
         jar cfm $out/share/java/${name}.jar manifest -C build/classes .
       '';
     };
@@ -141,6 +146,23 @@ let
       "libraries/kotlinx-metadata/jvm/src"
     ];
     resourceDirs = [ "libraries/kotlinx-metadata/jvm/resources" ];
+    postCompile = ''
+      unzip -q ${kotlinCompiler}/lib/kotlin-compiler.jar 'org/jetbrains/kotlin/protobuf/*' -d build/classes
+    '';
+  };
+
+  # kotlinx-metadata-jvm 0.5.0 (the API Gradle 8's Kotlin DSL uses) from the Kotlin 1.7.0 sources
+  metadataJvm050Unshaded = mkPlugin {
+    name = "kotlinx-metadata-jvm-unshaded";
+    src = kotlinSrc17;
+    dirs = [
+      "core/metadata/src"
+      "core/metadata.jvm/src"
+      "libraries/kotlinx-metadata/src"
+      "libraries/kotlinx-metadata/jvm/src"
+    ];
+    resourceDirs = [ "libraries/kotlinx-metadata/jvm/resources" ];
+    extraArgs = [ "-language-version" "2.2" "-api-version" "2.2" ];
     postCompile = ''
       unzip -q ${kotlinCompiler}/lib/kotlin-compiler.jar 'org/jetbrains/kotlin/protobuf/*' -d build/classes
     '';
@@ -191,8 +213,7 @@ let
       self.scriptingCommon
       self.scriptingJvm
       self.scriptingCompilerImpl
-      self.powerAssert
-    ];
+    ] ++ lib.optional withPowerAssert self.powerAssert;
   };
   scriptingJvmHost = mkPlugin {
     name = "kotlin-scripting-jvm-host";

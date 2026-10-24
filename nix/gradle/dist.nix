@@ -14,6 +14,10 @@
   gradleLibs,
   classpathOf,
   version ? "9.8.0",
+  modulesJson ? ./modules.json,
+  # "sidecar": <module>.properties next to the jars (9.x); "embedded": <module>-classpath.properties in them (8.x)
+  registryStyle ? "sidecar",
+  embeddedKotlin ? "2.0.21",
   # the generated Kotlin extensions of the Gradle API (null: an empty jar)
   kotlinDslExtensions ? null,
   # modules that do not build yet (missing third party libraries)
@@ -25,7 +29,7 @@
 }:
 
 let
-  modules = builtins.fromJSON (builtins.readFile ./modules.json);
+  modules = builtins.fromJSON (builtins.readFile modulesJson);
   libMap = gradleModules._libMap;
 
   runtimeConfs = [
@@ -127,6 +131,18 @@ let
       lib.unique (map moduleName (lib.filter (c: c.kind == "lib" || hasJar c.name) (children runtimeConfs n)))
     );
 
+  # all project and library jars on the runtime classpath of a node (its dependencies, transitively)
+  runtimeClosure =
+    n:
+    lib.filter (c: c.key != n.key) (
+      real (
+        builtins.genericClosure {
+          startSet = [ n ];
+          operator = children runtimeConfs;
+        }
+      )
+    );
+
   install =
     dir: n:
     let
@@ -136,13 +152,30 @@ let
           "jarFile=${jarFile n}"
         ]
       );
+      deps = runtimeClosure n;
+      embeddedProps = lib.concatStringsSep "\n" [
+        "projects=${lib.concatStringsSep "," (lib.sort (a: b: a < b) (map moduleName (lib.filter (c: c.kind == "project") deps)))}"
+        "runtime=${lib.concatStringsSep "," (lib.sort (a: b: a < b) (map jarFile (lib.filter (c: c.kind == "lib") deps)))}"
+      ];
     in
-    ''
-      install -Dm644 ${jarPath n} $out/${dir}/${jarFile n}
-      cat > $out/${dir}/${moduleName n}.properties <<'EOF2'
-      ${props}
-      EOF2
-    '';
+    if registryStyle == "embedded" then
+      ''
+        install -Dm644 ${jarPath n} $out/${dir}/${jarFile n}
+      ''
+      + lib.optionalString (n.kind == "project") ''
+        mkdir -p reg && cat > reg/${moduleName n}-classpath.properties <<'EOF2'
+        ${embeddedProps}
+        EOF2
+        chmod u+w $out/${dir}/${jarFile n}
+        jar uf $out/${dir}/${jarFile n} -C reg ${moduleName n}-classpath.properties
+      ''
+    else
+      ''
+        install -Dm644 ${jarPath n} $out/${dir}/${jarFile n}
+        cat > $out/${dir}/${moduleName n}.properties <<'EOF2'
+        ${props}
+        EOF2
+      '';
 
   projectJarNames = nodes: lib.sort (a: b: a < b) (map moduleName (lib.filter (n: n.kind == "project") nodes));
 
@@ -231,6 +264,19 @@ stdenv.mkDerivation {
         "cp ${kotlinDslExtensions}/share/java/gradle-kotlin-dsl-extensions.jar $out/lib/plugins/gradle-kotlin-dsl-extensions-${version}.jar"
     }
     printf 'dependencies=\njarFile=gradle-kotlin-dsl-extensions-${version}.jar\n' > $out/lib/plugins/gradle-kotlin-dsl-extensions.properties
+
+    ${lib.optionalString (registryStyle == "embedded") ''
+      # (GradleCli reads it from its own class loader, which does not see the kotlin-dsl jar)
+      mkdir -p regv && echo 'kotlin=${embeddedKotlin}' > regv/gradle-kotlin-dsl-versions.properties
+      chmod u+w $out/lib/gradle-gradle-cli-${version}.jar
+      jar uf $out/lib/gradle-gradle-cli-${version}.jar -C regv gradle-kotlin-dsl-versions.properties
+      mkdir -p regx
+      for m in gradle-runtime-api-info gradle-kotlin-dsl-extensions; do
+        printf 'projects=\nruntime=\n' > regx/$m-classpath.properties
+        chmod u+w $out/lib/plugins/$m-${version}.jar
+        jar uf $out/lib/plugins/$m-${version}.jar -C regx $m-classpath.properties
+      done
+    ''}
 
     # build receipt (GradleVersion)
     mkdir -p receipt/org/gradle

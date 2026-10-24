@@ -18,6 +18,8 @@
   perl,
   ncurses,
   callPackage,
+  runCommand,
+  slf4jLegacy ? false, # slf4j 1.7 (Gradle 8) instead of 2.x
 }:
 
 let
@@ -69,7 +71,7 @@ let
           sort -o build/sources.txt build/sources.txt
           echo "compiling $(wc -l < build/sources.txt) java files"
           if [ -s build/sources.txt ]; then
-            javac -d build/classes -encoding UTF-8 ${target} -nowarn -g -Xmaxerrs 1000 \
+            javac -d build/classes -encoding ${args.encoding or "UTF-8"} ${target} -nowarn -g -Xmaxerrs 1000 \
               -cp "$CLASSPATH" ${lib.escapeShellArgs (args.javacFlags or [ ])} @build/sources.txt
           fi
           ${lib.optionalString (args.copySourceResources or false) ''
@@ -97,7 +99,12 @@ let
     hash = "sha256-iqjqfWVIVzVLZMK6gfRMpm08vtUVo0uTFjxes5ZfUGc=";
   };
   guavaSrc = gh "google" "guava" "v33.4.6" "sha256-fN7emUqyheqzzZTHwVKmyzYUz66tOAnOsnsNFGzOwLA=";
-  slf4jSrc = gh "qos-ch" "slf4j" "v_2.0.17" "sha256-MOAIvzVPxFv9Nfov4Ych774urZ0v9emscKqwIGI/3Ik=";
+  slf4jVersion = if slf4jLegacy then "1.7.36" else "2.0.17";
+  slf4jSrc =
+    if slf4jLegacy then
+      gh "qos-ch" "slf4j" "v_1.7.36" "sha256-A891wuusRHJJJHDTLqKgT6sRUFZQioAk1u1tpnbWbRY="
+    else
+      gh "qos-ch" "slf4j" "v_2.0.17" "sha256-MOAIvzVPxFv9Nfov4Ych774urZ0v9emscKqwIGI/3Ik=";
   jackson8Src = gh "FasterXML" "jackson-modules-java8" "jackson-modules-java8-2.22.0" "sha256-zZYt5ehdX69xo1VQ6ZVQhw/3u4HMTbrOOuyvpXFkRnI=";
   # jackson's PackageVersion.java.in
   jacksonVersion =
@@ -255,6 +262,16 @@ lib.fix (self: {
     sourceDirs = [ "src/main/java" ];
   };
 
+  commons-lang2 = mk {
+    pname = "commons-lang";
+    useRelease = true;
+    postPatch = "rm -r org/apache/commons/lang/enum"; # (a deprecated package named like a keyword)
+    encoding = "ISO-8859-1";
+    version = "2.6";
+    src = mvn "commons-lang" "commons-lang" "2.6" "sha256-abXn7fXqF2nnwabMIjYM/IjZV/EmmKz+SL7OjbyK2jo=";
+    sourceDirs = [ "." ];
+  };
+
   commons-codec = mk {
     pname = "commons-codec";
     version = "1.18.0";
@@ -328,16 +345,16 @@ lib.fix (self: {
   };
 
   # --- logging -----------------------------------------------------------
-  slf4j-api = mk {
+  slf4j-api = mk ({
     pname = "slf4j-api";
-    version = "2.0.17";
+    version = slf4jVersion;
     src = slf4jSrc;
     sourceDirs = [ "slf4j-api/src/main/java" ];
     resourceDirs = [ "slf4j-api/src/main/resources" ];
-  };
+  } // lib.optionalAttrs slf4jLegacy { postBuild = "rm -rf build/classes/org/slf4j/impl"; });
   jcl-over-slf4j = mk {
     pname = "jcl-over-slf4j";
-    version = "2.0.17";
+    version = slf4jVersion;
     src = slf4jSrc;
     sourceDirs = [ "jcl-over-slf4j/src/main/java" ];
     resourceDirs = [ "jcl-over-slf4j/src/main/resources" ];
@@ -345,14 +362,14 @@ lib.fix (self: {
   };
   jul-to-slf4j = mk {
     pname = "jul-to-slf4j";
-    version = "2.0.17";
+    version = slf4jVersion;
     src = slf4jSrc;
     sourceDirs = [ "jul-to-slf4j/src/main/java" ];
     deps = [ self.slf4j-api ];
   };
   log4j-over-slf4j = mk {
     pname = "log4j-over-slf4j";
-    version = "2.0.17";
+    version = slf4jVersion;
     src = slf4jSrc;
     sourceDirs = [ "log4j-over-slf4j/src/main/java" ];
     resourceDirs = [ "log4j-over-slf4j/src/main/resources" ];
@@ -814,6 +831,28 @@ lib.fix (self: {
       jar cf $out/share/java/jansi.jar -C classes .
     '';
   };
+  # jansi 1.18 (Gradle 8): with the Java parts of jansi-native and hawtjni-runtime (as the shaded jar has them),
+  # without the JNI library
+  jansi118 = mk {
+    pname = "jansi";
+    version = "1.18";
+    src = runCommand "jansi-1.18-src" { } ''
+      mkdir $out
+      cp -r ${gh "fusesource" "jansi" "jansi-project-1.18" "sha256-WmsC2Dczc+hSzKRTcyRgDi9XPZ00c5YJCnz+WMQtJbE="}/jansi/src/main/java $out/jansi
+      chmod -R u+w $out
+      cp -r ${gh "fusesource" "jansi-native" "jansi-native-1.8" "sha256-s2H9HCvWoC+p7kbQkLV+47DKcE+8OU20E0eH7sHxPsI="}/src/main/java $out/native
+      cp -r ${gh "fusesource" "hawtjni" "hawtjni-project-1.17" "sha256-2w/wamZfHEjEDFp/AYj3qMyFLupC9Z8yogNnNiFk5jI="}/hawtjni-runtime/src/main/java $out/hawtjni
+    '';
+    sourceDirs = [ "jansi" "native" "hawtjni" ];
+  };
+  jsoup = mk {
+    pname = "jsoup";
+    version = "1.15.3";
+    src = gh "jhy" "jsoup" "jsoup-1.15.3" "sha256-aY+ORveoiBRBkdG0pRrRc2xQuj9WH3z8rROjEQQv4+Y=";
+    deps = [ self.jsr305 ];
+    sourceDirs = [ "src/main/java" ];
+  };
+
   # --- build tools -------------------------------------------------------
   ant = callPackage ../java/ant.nix {
     inherit jdk;

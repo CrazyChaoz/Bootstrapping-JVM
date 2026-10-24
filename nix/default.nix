@@ -44,7 +44,17 @@ pkgs.lib.makeScope pkgs.newScope (self: {
     inherit (self.javaLib21) mkJar classpathOf;
   };
 
+  gradleLibs8 = self.callPackage ./gradle/libs.nix {
+    jdk = self.jdk21;
+    inherit (self.javaLib21) mkJar classpathOf;
+    slf4jLegacy = true;
+  };
+
   gradleSrc = self.callPackage ./gradle/source.nix { };
+  gradleSrc8 = self.callPackage ./gradle/source.nix {
+    version = "8.14.3";
+    hash = "sha256-fyKRoK9AlZzoURvx3aMK4H1AV8M/KszLQtvo3rTSbUk=";
+  };
 
   gradleGroovy = self.callPackage ./gradle/groovy.nix {
     jdk = self.jdk21;
@@ -93,6 +103,7 @@ pkgs.lib.makeScope pkgs.newScope (self: {
   kotlinPlugins = self.callPackage ./gradle/kotlin-plugins.nix {
     jdk = self.jdk21;
     kotlinSrc = self.kotlinSources."2.4.0";
+    kotlinSrc17 = self.kotlinSources."1.7.0";
     jetbrainsAnnotations = self.gradleLibs.jetbrains-annotations;
     inherit (self) kotlinAsm;
     kotlinCompiler = self.kotlin."2.4.0";
@@ -175,41 +186,175 @@ pkgs.lib.makeScope pkgs.newScope (self: {
           "META-INF/services/org.jetbrains.kotlin.compiler.plugin."
         ];
       };
+      kotlinxMetadataJvm = self.kotlinEmbeddable.relocate {
+        name = "kotlinx-metadata-jvm";
+        jars = [ (jarOf p.metadataJvm050Unshaded) ];
+        packages = [ "org.jetbrains.kotlin=kotlinx.metadata.internal" ];
+        keep = [ ];
+      };
       kotlinScriptingCommon = p.scriptingCommon;
       kotlinScriptingJvm = p.scriptingJvm;
       kotlinBuildToolsApi = p.buildToolsApi;
     };
 
-  gradleModules = self.callPackage ./gradle/modules.nix {
+  # the Kotlin 2.1.0 stack (for Gradle 8.x, whose Kotlin DSL needs the older compiler API)
+  kotlinPlugins21 = self.callPackage ./gradle/kotlin-plugins.nix {
     jdk = self.jdk21;
-    inherit (self.javaLib21) classpathOf closureOf;
-    inherit (self) gradleSrc gradleLibs gradleGroovy;
-    kotlinCompiler = self.kotlin."2.4.0";
-    inherit (self) kotlinPlugins kotlinAsm;
-    extraLibs = {
-      fastutil = self.java.fastutil;
-      kotlinStdlib = self.kotlinJar "kotlin-stdlib";
-      kotlinReflect = self.kotlinJar "kotlin-reflect";
-      kotlinScriptRuntime = self.kotlinJar "kotlin-script-runtime";
-      kotlinCompilerEmbeddable = self.kotlinCompilerEmbeddable;
-    } // self.kotlinRelocated;
+    kotlinSrc = self.kotlinSources."2.1.0";
+    kotlinSrc17 = self.kotlinSources."1.7.0";
+    jetbrainsAnnotations = self.gradleLibs.jetbrains-annotations;
+    inherit (self) kotlinAsm;
+    kotlinCompiler = self.kotlin."2.1.0";
+    withPowerAssert = false;
+    kxVersion = "1.6.2";
+    kxHash = "sha256-v6hOOPDN11TaQMDsIiMvkZfBxy6ouRSrIaR+qpQ+O54=";
+  };
+  kotlinCompilerEmbeddable21 = self.kotlinEmbeddable.relocate {
+    name = "kotlin-compiler-embeddable";
+    jars = [
+      "${self.kotlinAsm}/share/java/kotlin-asm.jar"
+      "${self.kotlin."2.1.0"}/lib/kotlin-compiler.jar"
+    ];
+    exclude = [
+      "com/sun/jna/"
+      "org/jetbrains/annotations/"
+      "build/"
+    ];
+  };
+  kotlinRelocated21 =
+    let
+      jarOf = d: "${d}/share/java/${d.pname}.jar";
+      relocate =
+        name: ds:
+        self.kotlinEmbeddable.relocate {
+          inherit name;
+          jars = map jarOf ds;
+        };
+      p = self.kotlinPlugins21;
+    in
+    {
+      kotlinScriptingJvmHost = relocate "kotlin-scripting-jvm-host" [ p.scriptingJvmHost ];
+      kotlinScriptingCompilerEmbeddable = relocate "kotlin-scripting-compiler-embeddable" [ p.scriptingCompiler ];
+      kotlinScriptingCompilerImplEmbeddable = relocate "kotlin-scripting-compiler-impl-embeddable" [ p.scriptingCompilerImpl ];
+      kotlinSamWithReceiverCompilerPlugin = relocate "kotlin-sam-with-receiver-compiler-plugin" [ p.samWithReceiver ];
+      kotlinAssignmentCompilerEmbeddable = relocate "kotlin-assignment-compiler-plugin-embeddable" [ p.assignment ];
+      inherit (self.kotlinRelocated) kotlinxMetadataJvm;
+      kotlinScriptingCommon = p.scriptingCommon;
+      kotlinScriptingJvm = p.scriptingJvm;
+    };
+
+  # Gradle `version` from its sources: modules, distribution, generated Kotlin extensions
+  gradleFor =
+    {
+      version,
+      src,
+      modulesJson,
+      embeddedKotlin ? "2.4.0",
+      kotlinDslPlugins ? "6.7.6",
+      extraNotBuilt ? [ ],
+      libOverrides ? { },
+      patches ? { },
+      jdkInternalsModules ? [ ],
+      kotlinVersion ? "2.4.0",
+      extraKotlinArgs ? [ ],
+      registryStyle ? "sidecar",
+      libs ? self.gradleLibs,
+    }:
+    let
+      kdist = self.kotlin.${kotlinVersion};
+      kjar =
+        name:
+        pkgs.runCommand name { } ''
+          mkdir -p $out/share/java
+          ln -s ${kdist}/lib/${name}.jar $out/share/java/${name}.jar
+        '';
+      kemb = if kotlinVersion == "2.4.0" then self.kotlinCompilerEmbeddable else self.kotlinCompilerEmbeddable21;
+      krel = if kotlinVersion == "2.4.0" then self.kotlinRelocated else self.kotlinRelocated21;
+      kplug = if kotlinVersion == "2.4.0" then self.kotlinPlugins else self.kotlinPlugins21;
+      modules = self.callPackage ./gradle/modules.nix {
+        jdk = self.jdk21;
+        inherit (self.javaLib21) classpathOf closureOf;
+        gradleSrc = src;
+        gradleLibs = libs;
+        inherit (self) gradleGroovy;
+        kotlinCompiler = kdist;
+        kotlinPlugins = kplug;
+        inherit (self) kotlinAsm;
+        extraLibs = {
+          fastutil = self.java.fastutil;
+          kotlinStdlib = kjar "kotlin-stdlib";
+          kotlinReflect = kjar "kotlin-reflect";
+          kotlinScriptRuntime = kjar "kotlin-script-runtime";
+          kotlinCompilerEmbeddable = kemb;
+        } // krel;
+        gradleVersion = version;
+        inherit modulesJson embeddedKotlin kotlinDslPlugins extraNotBuilt libOverrides patches jdkInternalsModules extraKotlinArgs;
+      };
+      distBase = self.callPackage ./gradle/dist.nix {
+        jdk = self.jdk21;
+        inherit (self.javaLib21) classpathOf;
+        gradleSrc = src;
+        gradleLibs = libs;
+        gradleModules = modules;
+        inherit version modulesJson registryStyle embeddedKotlin;
+      };
+      extensions = self.callPackage ./gradle/kotlin-extensions.nix {
+        jdk = self.jdk21;
+        inherit (self.javaLib21) classpathOf;
+        gradleDistBase = distBase;
+        gradleModules = modules;
+        gradleLibs = libs;
+        inherit (self) kotlinAsm;
+        kotlinCompiler = kdist;
+        inherit version;
+      };
+    in
+    {
+      inherit modules distBase extensions;
+      dist = distBase.override { kotlinDslExtensions = extensions; };
+    };
+
+  gradle = {
+    "9.8.0" = self.gradleFor {
+      version = "9.8.0";
+      src = self.gradleSrc;
+      modulesJson = ./gradle/modules.json;
+    };
+    "8.14.3" = self.gradleFor {
+      version = "8.14.3";
+      src = self.gradleSrc8;
+      modulesJson = ./gradle/modules-8.14.3.json;
+      embeddedKotlin = "2.0.21";
+      kotlinVersion = "2.1.0";
+      registryStyle = "embedded";
+      libs = self.gradleLibs8;
+      extraKotlinArgs = [ "-Xconsistent-data-class-copy-visibility" ];
+      kotlinDslPlugins = "5.2.0";
+      libOverrides = {
+        commonsLang = self.gradleLibs.commons-lang2;
+        jansi = self.gradleLibs.jansi118;
+        jsoup = self.gradleLibs.jsoup;
+      };
+      jdkInternalsModules = [ "language-java" ];
+      patches = {
+        kotlin-dsl = ''
+          sed -i 's|^operator fun <T> Action<in T>.invoke(target: T) = execute(target)|operator fun <T> Action<in T>.invoke(target: T) = execute(target as (T \& Any))|' platforms/core-configuration/kotlin-dsl/src/main/kotlin/org/gradle/kotlin/dsl/ActionExtensions.kt
+        '';
+        core = ''
+          sed -i 's|super(specHolder.getSpecs().toArray(Cast.uncheckedCast(new Spec\[0\])));|super(Cast.<Spec<? super T>[]>uncheckedCast(specHolder.getSpecs().toArray(new Spec[0])));|' subprojects/core/src/main/java/org/gradle/api/internal/tasks/execution/DescribingAndSpec.java
+        '';
+        # (javac 9+ adds the module as the outermost enclosing element of a package)
+        internal-instrumentation-processor = ''
+          sed -i 's|if (element instanceof PackageElement) {|if (element instanceof javax.lang.model.element.ModuleElement) { return; } if (element instanceof PackageElement) {|' platforms/core-runtime/internal-instrumentation-processor/src/main/java/org/gradle/internal/instrumentation/processor/modelreader/impl/TypeMirrorToType.java
+        '';
+      };
+    };
   };
 
-  # the distribution without the generated Kotlin extensions (they are generated from its jars)
-  gradleDistBase = self.callPackage ./gradle/dist.nix {
-    jdk = self.jdk21;
-    inherit (self.javaLib21) classpathOf;
-    inherit (self) gradleSrc gradleLibs gradleModules;
-  };
-
-  gradleKotlinExtensions = self.callPackage ./gradle/kotlin-extensions.nix {
-    jdk = self.jdk21;
-    inherit (self.javaLib21) classpathOf;
-    inherit (self) gradleDistBase gradleLibs gradleModules kotlinAsm;
-    kotlinCompiler = self.kotlin."2.4.0";
-  };
-
-  gradleDist = self.gradleDistBase.override { kotlinDslExtensions = self.gradleKotlinExtensions; };
+  gradleModules = self.gradle."9.8.0".modules;
+  gradleDistBase = self.gradle."9.8.0".distBase;
+  gradleKotlinExtensions = self.gradle."9.8.0".extensions;
+  gradleDist = self.gradle."9.8.0".dist;
 
   groovy = self.callPackage ./java/groovy.nix {
     jdk = self.jdk11;

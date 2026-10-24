@@ -56,6 +56,26 @@ CONFS = ["api", "implementation", "compileOnly", "compileOnlyApi", "runtimeOnly"
          "coreRuntimeOnly", "pluginsRuntimeOnly", "agentsRuntimeOnly"]
 
 
+COORDS = {
+    "org.gradle:java-api-extractor": "project:java-api-extractor",
+    "org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.5.0": "lib:kotlinxMetadataJvm",
+    "antlr:antlr:2.7.7": "lib:antlr",
+    "commons-io:commons-io:2.11.0": "lib:commonsIo",
+}
+FUTURE_KOTLIN = {
+    "stdlib": "lib:kotlinStdlib",
+    "reflect": "lib:kotlinReflect",
+    "script-runtime": "lib:kotlinScriptRuntime",
+    "scripting-common": "lib:kotlinScriptingCommon",
+    "scripting-jvm": "lib:kotlinScriptingJvm",
+    "scripting-jvm-host": "lib:kotlinScriptingJvmHost",
+    "scripting-compiler-embeddable": "lib:kotlinScriptingCompilerEmbeddable",
+    "scripting-compiler-impl-embeddable": "lib:kotlinScriptingCompilerImplEmbeddable",
+    "sam-with-receiver-compiler-plugin": "lib:kotlinSamWithReceiverCompilerPlugin",
+    "assignment-compiler-plugin-embeddable": "lib:kotlinAssignmentCompilerEmbeddable",
+}
+
+
 def parse_deps(text):
     """Return {conf: [dep, ...]} for the top-level `dependencies { }` block(s)."""
     deps = {}
@@ -81,7 +101,9 @@ def parse_deps(text):
             elif arg == '"org.gradle:kotlin-dsl-shared-runtime"':
                 dep = "project:kotlin-dsl-shared-runtime"
             elif (pm := re.fullmatch(r'"([^"]+)"', arg)):
-                dep = "coord:" + pm.group(1)
+                dep = COORDS.get(pm.group(1), "coord:" + pm.group(1))
+            elif (pm := re.fullmatch(r'libs\.futureKotlin\("([\w-]+)"\)', arg)):
+                dep = FUTURE_KOTLIN.get(pm.group(1), "other:" + arg)
             elif (pm := re.fullmatch(r"platform\(projects\.([\w.]+)\)", arg)):
                 dep = "project:" + kebab(pm.group(1).split(".")[-1])
             elif (pm := re.fullmatch(r"platform\((.*)\)", arg)):
@@ -209,7 +231,20 @@ for name, d in settings_modules().items():
         "runtimes": runtimes(text),
         "main": main_compilation(text),
     }
-# a build-logic project that the Kotlin DSL embeds into the distribution
+# build-logic projects that the distribution embeds
+if os.path.isdir(os.path.join(root, "build-logic/java-api-extractor")):
+    out["java-api-extractor"] = {
+        "dir": "build-logic/java-api-extractor",
+        "plugins": [],
+        "deps": {"api": ["lib:asm", "lib:guava"]},
+        "src": src_info("build-logic/java-api-extractor"),
+        "runtimes": {},
+        "main": {"targetJvmVersion": 8},
+    }
+if not os.path.isdir(os.path.join(root, "build-logic/kotlin-dsl-shared-runtime")):
+    json.dump(out, sys.stdout, indent=1, sort_keys=True)
+    print()
+    sys.exit(0)
 out["kotlin-dsl-shared-runtime"] = {
     "dir": "build-logic/kotlin-dsl-shared-runtime",
     "plugins": [],

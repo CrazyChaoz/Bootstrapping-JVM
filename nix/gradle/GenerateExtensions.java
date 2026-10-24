@@ -72,6 +72,8 @@ public class GenerateExtensions {
       p2.put("classPathDependencies", deps);
       p2.put("apiSpec", apiSpec);
       p2.put("functionSinceSupplier", since);
+      Function<String, List<String>> paramNames = n -> null;
+      p2.put("parameterNamesSupplier", paramNames);
       invoke(loader, "org.gradle.kotlin.dsl.internal.sharedruntime.codegen.ApiExtensionGeneratorFacade", p2);
     }
   }
