@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # climb.sh PREVSTAGE PREVCOMMIT TARGET : step forward until TARGET is built
 set -u
-prev=$1; pc=$2; target=$(cd /tmp/sc/full && git rev-parse $3)
+prev=$1; pc=$2; target=$(cd /tmp/sc/full && git rev-parse "$3^{commit}")
 n=$(grep -c '^s' /tmp/sc/work/chain.txt)
 while true; do
   next=$(/tmp/sc/work/bisect.sh $prev $pc $target 2>>/tmp/sc/climb.log)
@@ -14,7 +14,7 @@ while true; do
     [ -n "$next" ] || { echo "STUCK after $prev ($pc)"; exit 1; }
   fi
   n=$((n+1)); name=s$n
-  /tmp/sc/work/auto.sh $name $next $prev > /tmp/sc/climb-$name.txt 2>&1 || { echo "rebuild of $name failed"; exit 1; }
+  /tmp/sc/work/auto.sh $name $next $prev > /tmp/sc/climb-$name.txt 2>&1 || { echo "rebuild of $name ($next) failed"; exit 1; }
   mode=normal; grep -q compiler-first /tmp/sc/climb-$name.txt && mode=cf
   echo "$name $next $prev $mode" >> /tmp/sc/work/chain.txt
   echo "STEP $name $(cd /tmp/sc/full && git log -1 --format='%h %ad' --date=short $next) $mode"

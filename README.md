@@ -27,7 +27,7 @@ stdenv.
 nix build .#kotlin."0.6.786"      # first stage, pure Java
 nix build .#kotlin.latest         # 1.1.2-5, 71 stages later
 nix build .#intellij.\"172\".core # an IntelliJ core jar built from source
-nix build .#scala.\"2.0.0\"       # Scala 2.0.0, from the 2004 Java scalac
+nix build .#scala.\"2.7.7\"       # Scala 2.7.7, from the 2004 Java scalac
 ```
 
 ## Status

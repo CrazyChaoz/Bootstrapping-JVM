@@ -61,6 +61,9 @@
     "777083075664e39075c977a9bc47bf0379521611" = "sha256-E54l4A2zI6YxKHDyXdY/ORJxaDYfTVLJmWqrbv9yQ2I=";
     "323fe887df30250c96c9945e28c1be85441cdc7f" = "sha256-7MqOfELC+mY5bnzuT3rUu06ao0bVgstndzWClIq373g=";
     "f6974416057ead15f0903bd4da5b1ccf5f423a84" = "sha256-O4ylllxXtrBQB7c0upNwmQzqqK1fknDWK8Hyf3W5mTo=";
+    "6a7a1eeff9a3975d1eb76f3ecd9000bfc97be824" = "sha256-mnIxrBaAtil34sk9cJZctp2eLZ+9TOW3BWDD3spqIgY=";
+    "6700e9988435eb981972754ecf86d11567457e4d" = "sha256-IzV44ZUtX6lhTsRqXiuTaDpRfEBEriBcBGsQh7FgLYs=";
+    "4afc73f26b99fb13432c9dea8b2eaab3eb7278ab" = "sha256-BuyUQ4Rk2vvqqUc/ENIcYrMyuO6++ESbL6VKnkNyVUI=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; }
@@ -118,5 +121,8 @@
     { name = "s47"; rev = "777083075664e39075c977a9bc47bf0379521611"; builder = "stage2.sh"; prev = "s46"; }
     { name = "s48"; rev = "323fe887df30250c96c9945e28c1be85441cdc7f"; builder = "stage2.sh"; prev = "s47"; }
     { name = "s49"; rev = "f6974416057ead15f0903bd4da5b1ccf5f423a84"; builder = "stage2.sh"; prev = "s48"; compilerFirst = true; }
+    { name = "s50"; rev = "6a7a1eeff9a3975d1eb76f3ecd9000bfc97be824"; builder = "stage2.sh"; prev = "s49"; compilerFirst = true; }
+    { name = "s51"; rev = "6700e9988435eb981972754ecf86d11567457e4d"; builder = "stage2.sh"; prev = "s50"; }
+    { name = "s52"; rev = "4afc73f26b99fb13432c9dea8b2eaab3eb7278ab"; builder = "stage2.sh"; prev = "s51"; }
   ];
 }
