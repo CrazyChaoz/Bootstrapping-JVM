@@ -112,6 +112,8 @@ let
       groovyDoc = groovy-groovydoc;
       groovyJson = groovy-json;
       groovyNio = groovy-nio;
+      groovySql = groovy-sql;
+      groovyTest = groovy-test;
       groovyTemplates = groovy-templates;
       groovyXml = groovy-xml;
     })

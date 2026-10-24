@@ -63,6 +63,13 @@ pkgs.lib.makeScope pkgs.newScope (self: {
     inherit (self.groovy) javacc qdox-1_12;
   };
 
+  gradleGroovy3 = self.callPackage ./gradle/groovy3.nix {
+    jdk = self.jdk21;
+    inherit (self.javaLib21) classpathOf closureOf;
+    inherit (self.gradleLibs) mk gh;
+    inherit (self.groovy) javacc qdox-1_12;
+  };
+
   # a jar of the Kotlin 2.4.0 distribution, in the share/java layout used by classpathOf
   kotlinJar =
     name:
@@ -259,6 +266,7 @@ pkgs.lib.makeScope pkgs.newScope (self: {
       extraKotlinArgs ? [ ],
       registryStyle ? "sidecar",
       libs ? self.gradleLibs,
+      groovy ? self.gradleGroovy,
     }:
     let
       kdist = self.kotlin.${kotlinVersion};
@@ -276,7 +284,7 @@ pkgs.lib.makeScope pkgs.newScope (self: {
         inherit (self.javaLib21) classpathOf closureOf;
         gradleSrc = src;
         gradleLibs = libs;
-        inherit (self) gradleGroovy;
+        gradleGroovy = groovy;
         kotlinCompiler = kdist;
         kotlinPlugins = kplug;
         inherit (self) kotlinAsm;
@@ -328,6 +336,7 @@ pkgs.lib.makeScope pkgs.newScope (self: {
       kotlinVersion = "2.1.0";
       registryStyle = "embedded";
       libs = self.gradleLibs8;
+      groovy = self.gradleGroovy3;
       extraKotlinArgs = [ "-Xconsistent-data-class-copy-visibility" ];
       kotlinDslPlugins = "5.2.0";
       libOverrides = {

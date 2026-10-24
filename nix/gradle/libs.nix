@@ -1200,6 +1200,83 @@ lib.fix (self: {
         '';
       });
 
+  # antlr 4.9.0 (the version Groovy 3 is generated and compiled with)
+  antlr49-git-src = gh "antlr" "antlr4" "4.9" "sha256-BD+QTj5KnoTrfJKiACJvyMp+2E3lFFadLzvAH7e8UHc=";
+  antlr49-runtime = mk {
+    pname = "antlr4-runtime";
+    version = "4.9.0";
+    src = self.antlr49-git-src;
+    sourceDirs = [ "runtime/Java/src" ];
+  };
+  antlr49 =
+    (mk {
+      pname = "antlr4";
+      version = "4.9.0";
+      src = self.antlr49-git-src;
+      nativeBuildInputs = [ antlr.antlr3 ];
+      preBuild = ''
+        rm tool/src/org/antlr/v4/codegen/target/SwiftTarget.java # (needs javax.json; loaded by name only)
+        # (4.9's Unicode data template overflows the method size limit: use 4.13's)
+        cp ${self.antlr413-git-src}/tool/src/org/antlr/v4/unicode/UnicodeDataTemplateController.java tool/src/org/antlr/v4/unicode/
+        cp ${self.antlr413-git-src}/tool/resources/org/antlr/v4/tool/templates/unicodedata.st tool/resources/org/antlr/v4/tool/templates/
+        cp -r tool/resources/. tool/src/
+        chmod -R u+w tool/src
+        export CLASSPATH="${
+          classpathOf [
+            antlr.antlr3
+            self.antlr49-runtime
+            antlr.stringtemplate4
+            antlr.treelayout
+            antlr.icu4j
+          ]
+        }"
+        mkdir -p $TMPDIR/gen-classes
+        cat > UnicodeRenderer.java <<'EOF'
+        import java.io.*;
+        import java.util.Map;
+        import org.stringtemplate.v4.*;
+        public class UnicodeRenderer {
+          public static void main(String[] a) throws Exception {
+            Map<String, Object> props = org.antlr.v4.unicode.UnicodeDataTemplateController.getProperties();
+            STGroup g = new STGroupDir(a[0]);
+            ST st = g.getInstanceOf("unicodedata");
+            for (Map.Entry<String, Object> e : props.entrySet()) st.add(e.getKey(), e.getValue());
+            try (Writer w = new FileWriter(a[1])) { w.write(st.render()); }
+          }
+        }
+        EOF
+        javac -cp "$CLASSPATH" -d $TMPDIR/gen-classes -nowarn UnicodeRenderer.java \
+          tool/src/org/antlr/v4/unicode/UnicodeDataTemplateController.java
+        java -cp "$CLASSPATH:$TMPDIR/gen-classes" UnicodeRenderer \
+          tool/src/org/antlr/v4/tool/templates tool/src/org/antlr/v4/unicode/UnicodeData.java
+        sed -i 's/\\>/>/g' tool/src/org/antlr/v4/unicode/UnicodeData.java
+        rm UnicodeRenderer.java
+        (cd tool/src/org/antlr/v4/parse
+         for f in ANTLRLexer.g ANTLRParser.g BlockSetTransformer.g GrammarTreeVisitor.g ATNBuilder.g \
+                  ActionSplitter.g LeftRecursiveRuleWalker.g; do antlr3 $f; done)
+        (cd tool/src/org/antlr/v4/codegen && cp ../parse/ANTLRParser.tokens . && antlr3 SourceGenTriggers.g)
+      '';
+      sourceDirs = [ "tool/src" ];
+      copySourceResources = true;
+      deps = [
+        antlr.antlr3
+        self.antlr49-runtime
+        antlr.stringtemplate4
+        antlr.treelayout
+      ];
+      buildDeps = [ antlr.icu4j ];
+    }).overrideAttrs
+      (o: {
+        postInstall = ''
+          mkdir -p $out/bin
+          cat > $out/bin/antlr4 <<EOF
+          #!/bin/sh
+          exec ${jdk}/bin/java -cp $out/share/java/antlr4.jar:${classpathOf o.passthru.javaDeps} org.antlr.v4.Tool "\$@"
+          EOF
+          chmod +x $out/bin/antlr4
+        '';
+      });
+
   antlr413 =
     (mk {
       pname = "antlr4";

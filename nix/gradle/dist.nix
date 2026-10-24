@@ -154,7 +154,7 @@ let
       );
       deps = runtimeClosure n;
       embeddedProps = lib.concatStringsSep "\n" [
-        "projects=${lib.concatStringsSep "," (lib.sort (a: b: a < b) (map moduleName (lib.filter (c: c.kind == "project") deps)))}"
+        "projects=${lib.concatStringsSep "," (lib.sort (a: b: a < b) (map moduleName (lib.filter (c: c.kind == "project") deps) ++ lib.optional (n.name == "core" || n.name == "launcher") "gradle-runtime-api-info"))}"
         "runtime=${lib.concatStringsSep "," (lib.sort (a: b: a < b) (map jarFile (lib.filter (c: c.kind == "lib") deps)))}"
       ];
     in
