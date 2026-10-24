@@ -13,3 +13,6 @@ RT14=${RT14:-$S/rt14b.jar}                 # JDK API views (tools/jdk-api-view.p
 RT15=${RT15:-$S/rt15.jar}
 # inputs may be read-only (the Nix store): copies of them have to be writable
 cp() { command cp --no-preserve=mode "$@"; }
+# Old scalac prefers a source over a class file that is not older, and the Nix store dates
+# everything at 1: put a previous stage's sources on a class path as a copy dated before it.
+oldsrc() { cp -r "$1" "$2"; find "$2" -exec touch -h -d @0 {} +; }

@@ -54,6 +54,7 @@ if [ -n "${COMPILER_FIRST:-}" ]; then
   find jcomp/scala -mindepth 1 -maxdepth 1 ! -name tools -exec rm -rf {} +
   echo "== compiler (Scala) with the previous compiler"
   PREVSRC=${PREVSRC:-$(dirname ${PREVCP%%:*})/src}
+  oldsrc $PREVSRC prevsrc; PREVSRC=$PWD/prevsrc
   sc "$PREVCP" $PREVMAIN -d cout -classpath cout:jcomp:classes:$PREVCP:$PREVSRC $(cat util.sargs scalac.sargs)
   echo "== library with the new compiler"
   sc cout:jcomp:classes:$PREVCP scala.tools.scalac.Main -d lout -classpath lout:jout:classes:src $(cat library.sargs)

@@ -6,8 +6,9 @@ set -euo pipefail
 . "$(dirname "$(readlink -f "$0")")/env.sh"
 BOOTJAR=${BOOTJAR:-$RT14}
 TREE=$1; W=$2; OSC=$3; [[ $OSC == */* ]] || OSC=$S/st-$3
-OSCCP=$OSC/out2:$OSC/classes; OSCSRC=$OSC/src
+OSCCP=$OSC/out2:$OSC/classes
 rm -rf $W; mkdir -p $W; cd $W
+oldsrc $OSC/src oscsrc; OSCSRC=$PWD/oscsrc
 cp -r $TREE/sources src; cp -r $TREE/newsources newsrc; chmod -R u+w src newsrc
 mkdir -p fjbg-cls pnslib osc-nstools nslib nstools
 . $HERE/nsc-patches.sh
