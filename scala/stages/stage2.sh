@@ -124,6 +124,9 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   # (from 2009-11 ScalaObject has no `import Predef._`, so read from the source path it would
   # import Predef: the new compiler compiles it first (pkgObjectsFirst), as we do here)
   grep -q 'import Predef' src/library/scala/ScalaObject.scala || first="src/library/scala/ScalaObject.scala $first"
+  # and then the package objects (scala's aliases into scala.math, scala.math's min/max, from
+  # 2009-11), whose members the compilers of 9a9fece5c4 on only see from their class files
+  [ -n "${PREDEF_KEEP:-}" ] && first="$first $(find src/library -name package.scala | sort | tr '\n' ' ')"
   sc "$ccp" $main $(nopredefs "$ccp") -d $L -classpath $L:classes$fb -sourcepath $sp $first
   if [ -n "$GENERICS" ] && [ -z "${PREDEF_KEEP:-}" ]; then
     # (PREDEF_KEEP: keep them, as SABBUS did, where the new compiler needs e.g. :: from a class
