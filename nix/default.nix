@@ -1,10 +1,9 @@
 { pkgs }:
 
 pkgs.lib.makeScope pkgs.newScope (self: {
-  # The JDK used by all stages.  For now this is nixpkgs' openjdk8, which is
-  # itself built from source but seeded with a temurin binary; it is meant to be
-  # replaced by a JDK bootstrapped from jamvm/classpath (see nix/jdk).
-  jdk8 = pkgs.openjdk8;
+  # The JDK used by all stages: the JDK chain from nix/jdk, bootstrapped from
+  # jikes/classpath/jamvm without any binary seed.
+  jdk8 = self.jdks.openjdk8;
   jdk = self.jdk8;
 
   # Helpers
@@ -36,8 +35,7 @@ pkgs.lib.makeScope pkgs.newScope (self: {
   java = self.callPackage ./java { };
   antlr = self.callPackage ./java/antlr.nix { };
   # Groovy needs JDK >= 9 to build.
-  # TODO: use the JDK from nix/jdk once the chain is complete.
-  jdk11 = pkgs.openjdk11;
+  jdk11 = self.jdks.openjdk11;
   javaLib11 = self.callPackage ./lib/mk-jar.nix { jdk = self.jdk11; };
   # Gradle: JDK 21 from the chain (nix/jdk).
   jdk21 = self.jdks.openjdk21;
