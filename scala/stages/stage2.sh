@@ -17,7 +17,16 @@ fi
 chmod -R u+w src
 mkdir -p classes; cp -r $FJBG_CLS/. classes/   # FJBG + MSIL reader
 # jline 1.0 for the REPL (from 2007-07); only then: its class files crash earlier compilers (s34's pickler)
-grep -rqs 'jline\.' src/compiler && cp -r $JLINE_CLS/. classes/
+grep -rqs 'jline\.' src/compiler && [ ! -d src/jline/src/main/java ] && cp -r $JLINE_CLS/. classes/
+# in-tree Java dependencies: Scala's jline fork (2009-10; jansi from 2010-12), forkjoin (out of
+# src/library 2009-12; uses sun.misc.Unsafe, hence JDK 8's javac and not --release 8)
+for d in src/jline/src/main/java src/forkjoin; do
+  [ -d $d ] || continue
+  find $d -name '*.java' > javadeps.files
+  $J8/bin/javac -nowarn -encoding utf8 -cp classes${JANSI_CLS:+:$JANSI_CLS} -d classes @javadeps.files > javadeps.log 2>&1 || { cat javadeps.log; exit 1; }
+done
+grep -rqs 'org\.fusesource' src/jline && cp -r $JANSI_CLS/. classes/
+[ -d src/jline/src/main/resources ] && cp -r src/jline/src/main/resources/. classes/
 . $HERE/nsc-patches.sh
 LOCKER_SKIP=${LOCKER_SKIP:-'^src/library/scala/All\$\.scala$\|^src/library/scala/AllRef\$\.scala$'}
 EXCL=${NSC_EXCLUDES:-'/ant/\|/dbc/\|scala/tools/nsc/doc/'}
@@ -47,19 +56,17 @@ abstract class GenMSIL extends SubComponent {
 """)
 P
 fi
-has_opt() { # has_opt CP OPTION : does the compiler on CP know OPTION
+has_opt() { # has_opt CP OPTION : does the compiler on CP know OPTION (settings classes, nsc/settings from 2009-03)
   local d; for d in ${1//:/ }; do
-    ls $d/scala/tools/nsc/Settings*.class >/dev/null 2>&1 || continue
-    grep -lq -- "$2" $d/scala/tools/nsc/Settings*.class && return 0
+    grep -lqs -- "$2" $d/scala/tools/nsc/*Settings*.class $d/scala/tools/nsc/settings/*.class && return 0
   done; return 1; }
 sc() { local cp=$1 main=$2 g=; shift 2
   [ -n "$GENERICS" ] && has_opt "$cp" '"-Ygenerics"\|-Ygenerics' && g=-Ygenerics
   $J8/bin/java -Xss64m -Xmx3g -cp "$cp" $main -bootclasspath $BOOTJAR $g ${SCALAC_OPTS:-} "$@"; }
-nopredefs() { # option spelling understood by the compiler on classpath $1 (renamed 2007-07)
-  local d; for d in ${1//:/ }; do
-    ls $d/scala/tools/nsc/Settings*.class >/dev/null 2>&1 || continue
-    grep -lq -- '-Yno-predefs' $d/scala/tools/nsc/Settings*.class && { echo -Yno-predefs; return; }
-  done; echo -nopredefs; }
+nopredefs() { # option spelling understood by the compiler on classpath $1 (renamed 2007-07, 2012)
+  if has_opt "$1" '-Yno-predefs'; then echo -Yno-predefs
+  elif has_opt "$1" '-Yno-predef'; then echo -Yno-predef
+  else echo -nopredefs; fi; }
 lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   local n=$1 ccp=$2 main=$3 fb=${4:+:$4}; local L=$n/lib
   mkdir -p $L
@@ -107,17 +114,19 @@ comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/com
   ( cd src/compiler; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" ) | sed 's|^|src/compiler/|' > $n.compscala
   sc "$ccp" $main -d $C -classpath $lcp:$C:classes$fb -sourcepath src/compiler $(cat $n.compscala)
 }
+# the previous library alone (without its compiler)
+P=$(dirname ${PREVCP%%:*}); PREVLIB=$PREVCP; [ -d $P/quick/lib ] && PREVLIB=$P/quick/lib:$P/classes
 if [ -n "${COMPILER_FIRST:-}" ]; then
   # flag day (the new library needs the new compiler, e.g. Int.box 2007-05):
   # locker compiler by STARR against the previous library, then the library by it
   echo "== compiler-first"
-  P=$(dirname ${PREVCP%%:*}); PREVLIB=$PREVCP; [ -d $P/quick/lib ] && PREVLIB=$P/quick/lib:$P/classes
   comp locker "$PREVCP" $PREVMAIN $PREVLIB
   lib locker locker/comp:$PREVLIB:classes scala.tools.nsc.Main ${GENERICS:+$PREVLIB}
 else
   # locker: classes the STARR insists on but the new library lacks come from the old one
-  lib locker "$PREVCP" $PREVMAIN "$PREVCP"
-  comp locker "$PREVCP" $PREVMAIN locker/lib "$PREVCP"
+  # (the library only: the STARR misreads its own compiler's nested classes, 2009-02)
+  lib locker "$PREVCP" $PREVMAIN "${FALLBACK:-$PREVLIB}"
+  comp locker "$PREVCP" $PREVMAIN locker/lib "${FALLBACK:-$PREVLIB}"
 fi
 if [ -n "$GENERICS" ]; then   # only scala.Array (see lib) from locker, nothing else may leak into quick
   # (with its named nested classes, e.g. Array$Array0 from 2008-07; anonymous ones would pull in more)

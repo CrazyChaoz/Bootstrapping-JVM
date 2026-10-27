@@ -64,6 +64,7 @@
     "6a7a1eeff9a3975d1eb76f3ecd9000bfc97be824" = "sha256-mnIxrBaAtil34sk9cJZctp2eLZ+9TOW3BWDD3spqIgY=";
     "6700e9988435eb981972754ecf86d11567457e4d" = "sha256-IzV44ZUtX6lhTsRqXiuTaDpRfEBEriBcBGsQh7FgLYs=";
     "4afc73f26b99fb13432c9dea8b2eaab3eb7278ab" = "sha256-BuyUQ4Rk2vvqqUc/ENIcYrMyuO6++ESbL6VKnkNyVUI=";
+    "020add45b8a91e77e3f32fdb4a321fdb925484c5" = "sha256-pf8W5xxRkOAkcorOwK0fHfyVK80Rg29Ba8M6nVb1w3I=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; }
@@ -124,5 +125,6 @@
     { name = "s50"; rev = "6a7a1eeff9a3975d1eb76f3ecd9000bfc97be824"; builder = "stage2.sh"; prev = "s49"; compilerFirst = true; }
     { name = "s51"; rev = "6700e9988435eb981972754ecf86d11567457e4d"; builder = "stage2.sh"; prev = "s50"; }
     { name = "s52"; rev = "4afc73f26b99fb13432c9dea8b2eaab3eb7278ab"; builder = "stage2.sh"; prev = "s51"; }
+    { name = "s53"; rev = "020add45b8a91e77e3f32fdb4a321fdb925484c5"; builder = "stage2.sh"; prev = "s51"; compilerFirst = true; }
   ];
 }
