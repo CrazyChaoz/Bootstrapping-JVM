@@ -78,3 +78,5 @@ s70 4f62a386bbea074d39cf03967a76c1538a7c343d s69 fresh
 s71 efa181e5777fe72ce686bc8a3671b50fa3e601de s70 normal
 s72 84146e2f53fb1f5e8abbc521121078e932cf82e7 s71 normal
 s73 6a6a0ce2357ef07d27f18f01f20d6f1ab6164c9a s72 cf LOCKER_PATCH=seq-rename-locker
+gen 1   # verified in Nix with scala/stages/gen/1 (2026-10-27)
+s74 b4084fc9c0c00c159245a6c18230ba6d60bab4af s73 fresh

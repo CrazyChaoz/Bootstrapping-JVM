@@ -31,12 +31,20 @@ let
       inherit root;
       fileset = lib.fileset.unions (map (n: root + "/${n}") names);
     };
-  tools = files ../../tools [
-    "pizza2java.py"
-    "pico-classfiles.py"
-    "jdk-api-view.py"
-    "scala-unnest.py"
-  ];
+  # Builder generations: the stages verified with a set of scripts and tools keep
+  # building with a frozen copy of them (scala/stages/gen/N, chain.txt "gen N"
+  # lines), so that later fixes only rebuild the stages after them.  Stages
+  # without a generation use the current scripts (scala/stages, tools).
+  stagesDir = gen: if gen == null then ../../scala/stages else ../../scala/stages/gen + "/${gen}";
+  toolsDir = gen: if gen == null then ../../tools else stagesDir gen + "/tools";
+  toolsFor =
+    gen:
+    files (toolsDir gen) [
+      "pizza2java.py"
+      "pico-classfiles.py"
+      "jdk-api-view.py"
+      "scala-unnest.py"
+    ];
   # each builder sees only its own scripts, so that changing one does not rebuild the whole chain
   scripts = {
     "stage1.sh" = [ "stage1.sh" "stage-java.sh" ];
@@ -45,12 +53,15 @@ let
     "stage2.sh" = [ "stage2.sh" "nsc-patches.sh" "hello2.sh" "Hello2.scala" ];
   };
   scriptsFor =
-    builder:
+    gen: builder:
+    let
+      d = stagesDir gen;
+    in
     lib.fileset.toSource {
-      root = ../../scala/stages;
+      root = d;
       fileset = lib.fileset.unions (
-        map (n: ../../scala/stages + "/${n}") ([ "env.sh" ] ++ scripts.${builder})
-        ++ lib.optional (builder == "stage2.sh") ../../scala/stages/patches
+        map (n: d + "/${n}") ([ "env.sh" ] ++ scripts.${builder})
+        ++ lib.optional (builder == "stage2.sh") (d + "/patches")
       );
     };
 
@@ -72,14 +83,15 @@ let
   # The Java class library as an old compiler should see it (ct.sym-like):
   # nothing newer than `version`, see tools/jdk-api-view.py.
   apiView =
-    version:
+    gen: version:
     runCommand "jdk-api-${version}.jar" { nativeBuildInputs = [ python3 ]; } ''
-      python3 -I ${tools}/jdk-api-view.py ${jdk8}/lib/openjdk/src.zip ${jdk8}/lib/openjdk/jre/lib/rt.jar ${version} $out
+      python3 -I ${toolsFor gen}/jdk-api-view.py ${jdk8}/lib/openjdk/src.zip ${jdk8}/lib/openjdk/jre/lib/rt.jar ${version} $out
     '';
-  apiViews = {
-    "1.4" = apiView "1.4";
-    "1.5" = apiView "1.5";
+  apiViewsFor = gen: {
+    "1.4" = apiView gen "1.4";
+    "1.5" = apiView gen "1.5";
   };
+  apiViews = apiViewsFor null;
 
   # jline 1.0 (the API of the 0.9.x jars Scala shipped from 2007-07), for the REPL
   jline = stdenv.mkDerivation {
@@ -148,6 +160,8 @@ let
   mkStage =
     s:
     let
+      gen = s.gen or null;
+      views = apiViewsFor gen;
       prev = stages.${s.prev};
       prevArg =
         if s.builder == "stage1.sh" then
@@ -169,7 +183,7 @@ let
       dontFixup = true;
       nativeBuildInputs = [ python3 ];
       env = {
-        TOOLS = "${tools}";
+        TOOLS = "${toolsFor gen}";
         J = "${jdk21}";
         J8 = "${jdk8}";
         FJBG_SRC = "${sources.${chain.fjbg}}/src/fjbg";
@@ -177,8 +191,8 @@ let
         JLINE_CLS = "${jline}";
         JLINE5_CLS = "${jline5}";
         JANSI_CLS = "${jansi}";
-        RT14 = "${apiViews."1.4"}";
-        RT15 = "${apiViews."1.5"}";
+        RT14 = "${views."1.4"}";
+        RT15 = "${views."1.5"}";
         S = "/nonexistent"; # the prototype layout must not be used
       }
       // lib.optionalAttrs (s.builder == "stage2.sh") { FJBG_CLS = "${stages.n0}/classes"; }
@@ -191,7 +205,7 @@ let
       // (s.env or { });
       buildPhase = ''
         runHook preBuild
-        bash ${scriptsFor s.builder}/${s.builder} $src $out ${prevArg}
+        bash ${scriptsFor gen s.builder}/${s.builder} $src $out ${prevArg}
         runHook postBuild
       '';
       installPhase = ''
@@ -203,7 +217,7 @@ let
       # the stage's compiler compiles and runs a small program
       doInstallCheck = s.builder != "stage1.sh";
       installCheckPhase = ''
-        bash ${scriptsFor s.builder}/${hello} $out 2>&1 | grep -v '; signature = ' | tee hello.txt
+        bash ${scriptsFor gen s.builder}/${hello} $out 2>&1 | grep -v '; signature = ' | tee hello.txt
         grep -q '^Hello from' hello.txt
       '';
       passthru = { inherit (s) rev; };

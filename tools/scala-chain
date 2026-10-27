@@ -6,7 +6,9 @@ usage: tools/scala-chain [GITDIR]    (GITDIR: a clone of scala/scala, default /t
 chain.txt lines are "NAME COMMIT PREV MODE [VAR=VALUE...]" (VARs: builder environment); PREV "1" is stage 1 (stage1.sh),
 MODE is normal, cf (compiler-first), fresh (no fallback library, Array from
 source), unnest (locker from single-package-clause sources), nsc0 (the first Scala 2 compiler) or
-bridge:FROMCOMMIT:FILE,... (COMMIT with FILEs taken from FROMCOMMIT).  The
+bridge:FROMCOMMIT:FILE,... (COMMIT with FILEs taken from FROMCOMMIT).
+"gen N" lines: the stages above them (since the previous such line) build with
+the frozen scripts of scala/stages/gen/N (nix/scala/default.nix).  The
 builder follows from the position in the chain: stage.sh (Scala 1.x) up to
 the nsc0 stage, stage2.sh after it.
 
@@ -74,6 +76,11 @@ def main():
         line = line.split("#")[0].strip()
         if not line:
             continue
+        if line.startswith("gen "):
+            # the stages above (since the previous gen line) build with scala/stages/gen/N
+            for st in stages:
+                st.setdefault("gen", line.split()[1])
+            continue
         name, commit, prev, mode, *env = line.split()
         s = dict(name=name, rev=rev_parse(commit), prev=names[prev])
         if env:
@@ -118,6 +125,8 @@ def main():
     o += ["  };", "  stages = ["]
     for s in stages:
         a = [f'name = "{s["name"]}";', f'rev = "{s["rev"]}";', f'builder = "{s["builder"]}";']
+        if "gen" in s:
+            a.append(f'gen = "{s["gen"]}";')
         if s["prev"]:
             a.append(f'prev = "{s["prev"]}";')
         if s.get("compilerFirst"):

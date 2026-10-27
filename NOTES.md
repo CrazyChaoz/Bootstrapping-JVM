@@ -230,3 +230,10 @@ commit (`scala/proto/chain.txt`) through Scala 1.x, the first Scala 2 compiler (
 Workflow: new stages are found with the prototype in /tmp/sc (`scala/proto`: climb/bisect/auto/diag, using the
 same `scala/stages` scripts via symlinks in /tmp/sc/work and the /tmp/sc defaults of `env.sh`), recorded in
 `scala/proto/chain.txt`; `tools/scala-chain` regenerates `nix/scala/chain.nix` (revisions + source hashes).
+
+Builder generations: every stage derivation depends on its scripts and tools, so a fix in `stage2.sh` used to
+rebuild the whole chain (hours, strictly sequential).  Stages verified in Nix are frozen instead: `tools/scala-freeze
+STAGE` copies the current `scala/stages` and stage tools to `scala/stages/gen/N` and puts `gen N` after STAGE in
+`chain.txt`; those stages then build with the frozen copy (byte-identical, so their derivations and store paths do
+not change) and later fixes only rebuild the stages after them.  Stages without a generation use the current
+scripts.  gen 1: st1–s73 (through Sequence→Seq, 2009-10-02).
