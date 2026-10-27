@@ -93,6 +93,34 @@ let
     installPhase = "true";
   };
 
+  # Scala's generified jline (lib/jline.jar from 2009-06), as imported as source 2009-10
+  jline5 = runCommand "jline-scala-2009" { } ''
+    mkdir -p $out
+    ${jdk8}/bin/javac -nowarn -encoding utf8 -d $out $(find ${sources.${chain.jline5}}/src/jline/src/main/java -name '*.java')
+    cp -r ${sources.${chain.jline5}}/src/jline/src/main/resources/. $out/
+  '';
+
+  # jansi 1.4 with jansi-native 1.0 and hawtjni-runtime 1.0, for Scala's jline fork (2010-12);
+  # Java parts only: the native Windows console support is never loaded on Unix
+  jansi =
+    let
+      gh =
+        repo: rev: hash:
+        fetchFromGitHub {
+          owner = "fusesource";
+          inherit repo rev hash;
+        };
+      srcs = [
+        "${gh "jansi" "jansi-1.4" "sha256-Q8r/CIV34v/UPfdJXMGX0pLEtZC+C2NAYL/SAIfRZao="}/src/main/java"
+        "${gh "jansi-native" "jansi-native-1.0" "sha256-2gRYTpwlzrkAbKsrJIAWIVFbkiPEoxDYhYrdpR4QpUM="}/src/main/java"
+        "${gh "hawtjni" "hawtjni-1.0" "sha256-4rwOvidZ5mrvIDBCihX+XNxzBg4B9NNcUXQG2C8kw7U="}/hawtjni-runtime/src/main/java"
+      ];
+    in
+    runCommand "jansi-1.4" { } ''
+      mkdir -p $out
+      ${jdk8}/bin/javac -nowarn -encoding utf8 -d $out $(find ${lib.concatStringsSep " " srcs} -name '*.java')
+    '';
+
   stageSrc =
     s:
     if s ? overlay then
@@ -138,12 +166,18 @@ let
         FJBG_SRC = "${sources.${chain.fjbg}}/src/fjbg";
         MSIL_SRC = "${sources.${chain.msil}}/src/msil";
         JLINE_CLS = "${jline}";
+        JLINE5_CLS = "${jline5}";
+        JANSI_CLS = "${jansi}";
         RT14 = "${apiViews."1.4"}";
         RT15 = "${apiViews."1.5"}";
         S = "/nonexistent"; # the prototype layout must not be used
       }
       // lib.optionalAttrs (s.builder == "stage2.sh") { FJBG_CLS = "${stages.n0}/classes"; }
-      // lib.optionalAttrs (s.compilerFirst or false) { COMPILER_FIRST = "1"; };
+      // lib.optionalAttrs (s.compilerFirst or false) { COMPILER_FIRST = "1"; }
+      // lib.optionalAttrs (s.fresh or false) {
+        FALLBACK = "none";
+        ARRAY_SRC = "1";
+      };
       buildPhase = ''
         runHook preBuild
         bash ${scriptsFor s.builder}/${s.builder} $src $out ${prevArg}
@@ -172,6 +206,8 @@ in
     sources
     apiViews
     jline
+    jline5
+    jansi
     ;
   "1.4.0.4" = stages.s10;
   "2.0.0" = stages.s14;

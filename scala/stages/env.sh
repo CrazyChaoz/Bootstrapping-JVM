@@ -9,6 +9,8 @@ FJBG_SRC=${FJBG_SRC:-$S/fjbg/src/fjbg}     # src/fjbg of scala/scala 0f10ffedc8 
 MSIL_SRC=${MSIL_SRC:-$S/msil/src/msil}     # src/msil of scala/scala 4304b15730 (2009)
 FJBG_CLS=${FJBG_CLS:-$S/st-n0/fjbg-cls}    # FJBG + MSIL reader classes, as built for the first nsc
 JLINE_CLS=${JLINE_CLS:-$S/deps/jline-cls}  # jline 1.0
+JLINE5_CLS=${JLINE5_CLS:-$S/deps/jline5-cls}  # Scala's generified jline (src/jline of c107643d20, 2009-10)
+JANSI_CLS=${JANSI_CLS:-$S/deps/jansi-cls}  # jansi 1.4 + jansi-native 1.0 + hawtjni-runtime 1.0 (for the jline fork, 2010-12)
 RT14=${RT14:-$S/rt14b.jar}                 # JDK API views (tools/jdk-api-view.py) as of Java 1.4 / 1.5
 RT15=${RT15:-$S/rt15.jar}
 # inputs may be read-only (the Nix store): copies of them have to be writable

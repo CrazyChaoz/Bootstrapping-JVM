@@ -17,12 +17,19 @@ fi
 chmod -R u+w src
 mkdir -p classes; cp -r $FJBG_CLS/. classes/   # FJBG + MSIL reader
 # jline 1.0 for the REPL (from 2007-07); only then: its class files crash earlier compilers (s34's pickler)
-grep -rqs 'jline\.' src/compiler && [ ! -d src/jline/src/main/java ] && cp -r $JLINE_CLS/. classes/
+# (from 2009-06 a generified jline jar, the one imported as source 2009-10: $JLINE5_CLS)
+if grep -rqs 'jline\.' src/compiler && [ ! -d src/jline/src/main/java ]; then
+  if grep -qs '^22f7477ecc57' $TREE/lib/jline.jar.desired.sha1 || [ ! -f $TREE/lib/jline.jar.desired.sha1 ]; then
+    cp -r $JLINE_CLS/. classes/
+  else cp -r $JLINE5_CLS/. classes/; fi
+fi
 # in-tree Java dependencies: Scala's jline fork (2009-10; jansi from 2010-12), forkjoin (out of
 # src/library 2009-12; uses sun.misc.Unsafe, hence JDK 8's javac and not --release 8)
-for d in src/jline/src/main/java src/forkjoin; do
+# and, newer than $FJBG_CLS, FJBG + the MSIL reader (2009-05..2012) and ASM (scala.tools.asm, 2012-)
+for d in src/jline/src/main/java src/forkjoin src/fjbg src/msil src/asm; do
   [ -d $d ] || continue
-  find $d -name '*.java' > javadeps.files
+  find $d -name '*.java' | grep -v '/msil/tests/\|/msil/util/VJSAssembly\.java$' > javadeps.files
+  [ -s javadeps.files ] || continue
   $J8/bin/javac -nowarn -encoding utf8 -cp classes${JANSI_CLS:+:$JANSI_CLS} -d classes @javadeps.files > javadeps.log 2>&1 || { cat javadeps.log; exit 1; }
 done
 grep -rqs 'org\.fusesource' src/jline && cp -r $JANSI_CLS/. classes/
@@ -35,7 +42,8 @@ if [ -z "${NSC_EXCLUDES:-}" ] && grep -rlq 'DocGenerator' --include=*.scala src/
 # MSIL backend: msil.jar (with the Scala-written emit API) was a binary until 2009;
 # replace GenMSIL by a phase that refuses to run (JVM-only compiler)
 G=src/compiler/scala/tools/nsc/backend/msil/GenMSIL.scala
-if [ -f $G ] && grep -q 'msil.emit' $G && [ ! -d src/msil ]; then
+# (src/msil from 2009-05 has it in Scala, still left out)
+if [ -f $G ] && grep -q 'msil.emit' $G; then
   python3 - $G <<'P'
 import re, sys
 f = sys.argv[1]; s = open(f).read()
@@ -78,7 +86,7 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   fi
   echo "== $n: library"
   local sp=src/library
-  if [ -n "$GENERICS" ]; then
+  if [ -n "$GENERICS" ] && [ -z "${ARRAY_SRC:-}" ]; then
     # loading java.lang.Class at compiler start-up forces scala.Array, which must then
     # come from a class file (the previous library), not the source path
     sp=$n/libsp; rm -rf $sp; mkdir -p $n; cp -rs $PWD/src/library $sp; rm $sp/scala/Array.scala
@@ -125,8 +133,10 @@ if [ -n "${COMPILER_FIRST:-}" ]; then
 else
   # locker: classes the STARR insists on but the new library lacks come from the old one
   # (the library only: the STARR misreads its own compiler's nested classes, 2009-02)
-  lib locker "$PREVCP" $PREVMAIN "${FALLBACK:-$PREVLIB}"
-  comp locker "$PREVCP" $PREVMAIN locker/lib "${FALLBACK:-$PREVLIB}"
+  # (FALLBACK=none: no fallback, when the new library replaces the old one wholesale)
+  FB=${FALLBACK:-$PREVLIB}; [ "$FB" = none ] && FB=
+  lib locker "$PREVCP" $PREVMAIN "$FB"
+  comp locker "$PREVCP" $PREVMAIN locker/lib "$FB"
 fi
 if [ -n "$GENERICS" ]; then   # only scala.Array (see lib) from locker, nothing else may leak into quick
   # (with its named nested classes, e.g. Array$Array0 from 2008-07; anonymous ones would pull in more)

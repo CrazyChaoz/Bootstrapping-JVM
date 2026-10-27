@@ -4,7 +4,8 @@
 usage: tools/scala-chain [GITDIR]    (GITDIR: a clone of scala/scala, default /tmp/sc/full)
 
 chain.txt lines are "NAME COMMIT PREV MODE"; PREV "1" is stage 1 (stage1.sh),
-MODE is normal, cf (compiler-first), nsc0 (the first Scala 2 compiler) or
+MODE is normal, cf (compiler-first), fresh (no fallback library, Array from
+source), nsc0 (the first Scala 2 compiler) or
 bridge:FROMCOMMIT:FILE,... (COMMIT with FILEs taken from FROMCOMMIT).  The
 builder follows from the position in the chain: stage.sh (Scala 1.x) up to
 the nsc0 stage, stage2.sh after it.
@@ -28,6 +29,7 @@ GIT = sys.argv[1] if len(sys.argv) > 1 else "/tmp/sc/full"
 STAGE1 = "d19cd4e679~1"   # the last commit with a complete Java "scalacboot" (2004-02-19)
 FJBG = "0f10ffedc8"       # src/fjbg (2009)
 MSIL = "4304b15730"       # src/msil (2009)
+JLINE5 = "c107643d20"     # src/jline (2009-10), the generified jline of lib/jline.jar from 2009-06
 # keep in sync with fetchScala in nix/scala/default.nix
 BINARIES = (".jar", ".class", ".so", ".dll", ".dylib", ".exe", ".zip", ".a", ".jnilib")
 
@@ -81,13 +83,15 @@ def main():
             s["builder"] = builder
         if mode == "cf":
             s["compilerFirst"] = True
+        if mode == "fresh":
+            s["fresh"] = True
         if mode.startswith("bridge:"):
             _, frm, files = mode.split(":", 2)
             s["overlay"] = dict(rev=rev_parse(frm), files=files.split(","))
         names[name] = name
         stages.append(s)
 
-    revs = [rev_parse(FJBG), rev_parse(MSIL)]
+    revs = [rev_parse(FJBG), rev_parse(MSIL), rev_parse(JLINE5)]
     for s in stages:
         revs.append(s["rev"])
         if "overlay" in s:
@@ -103,6 +107,7 @@ def main():
          "{",
          f'  fjbg = "{revs[0]}";',
          f'  msil = "{revs[1]}";',
+         f'  jline5 = "{revs[2]}";',
          "  # scala/scala trees: rev -> hash of fetchScala",
          "  sources = {"]
     o += [f'    "{r}" = "{h}";' for r, h in hashes.items()]
@@ -113,6 +118,8 @@ def main():
             a.append(f'prev = "{s["prev"]}";')
         if s.get("compilerFirst"):
             a.append("compilerFirst = true;")
+        if s.get("fresh"):
+            a.append("fresh = true;")
         if "overlay" in s:
             fs = " ".join(f'"{f}"' for f in s["overlay"]["files"])
             a.append(f'overlay = {{ rev = "{s["overlay"]["rev"]}"; files = [ {fs} ]; }};')

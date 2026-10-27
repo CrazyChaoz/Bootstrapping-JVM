@@ -58,6 +58,8 @@ JAVA5_ATTRS = {"RuntimeVisibleAnnotations", "RuntimeInvisibleAnnotations",
                "AnnotationDefault", "Signature", "EnclosingMethod", "MethodParameters"}
 
 
+# interface methods that were abstract before Java 8 made them default methods
+PRE8_DEFAULTS = {("java/util/Iterator", "remove")}
 JAVA8_ATTRS = {"RuntimeVisibleTypeAnnotations", "RuntimeInvisibleTypeAnnotations",
                "MethodParameters"}
 ANNOTS = {"RuntimeVisibleAnnotations", "RuntimeInvisibleAnnotations"}
@@ -322,6 +324,20 @@ def main(srczip, rtjar, maxv, outjar):
             if maxv < 5:
                 strip_java5(cf)
             else:
+                if maxv < 8 and struct.unpack(">H", cf["head"][:2])[0] & 0x0200:
+                    # interfaces: no Java 8 default or static methods; the ones that were
+                    # abstract before (Iterator.remove) are abstract again
+                    ms = []
+                    for m in cf["methods"]:
+                        acc, mn = m[0], pico.text(cf, m[1])
+                        if acc & 0x0400 or mn == "<clinit>":
+                            ms.append(m)
+                        elif not acc & 0x0008 and (name, mn) in PRE8_DEFAULTS:
+                            m[0] = (acc | 0x0400) & ~0x0010
+                            m[3] = [a for a in m[3] if pico.text(cf, a[0]) != "Code"]
+                            ms.append(m)
+                    stripped += len(cf["methods"]) - len(ms)
+                    cf["methods"] = ms
                 cf["attrs"] = filter_attrs(cf, cf["attrs"])
                 for key in ("fields", "methods"):
                     for m in cf[key]:
