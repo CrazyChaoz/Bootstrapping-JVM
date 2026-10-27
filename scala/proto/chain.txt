@@ -86,3 +86,4 @@ s77 dbf0e12c15a0c0f3ac8833ecf70d0228ab0f1c3e s76 normal PREDEF_KEEP=1
 gen 2   # verified in Nix with scala/stages/gen/2 (2026-10-27)
 s78 decbd55f6195026cf8551fe8ad141cbbc8ca6175 s77 normal PREDEF_KEEP=1
 s79 5f71b9208404015f425f30a0b4b3f4b3df4ec83f s78 normal PREDEF_KEEP=1
+s80 ea4bf1b11e7d6bbc0fb7657e8b6262829d3bb19c s79 normal PREDEF_KEEP=1

@@ -93,6 +93,7 @@
     "dbf0e12c15a0c0f3ac8833ecf70d0228ab0f1c3e" = "sha256-QefZ8ZNLeBpyDCtv+lPvuWZfJXsEQaCkeLBJdX6pSZQ=";
     "decbd55f6195026cf8551fe8ad141cbbc8ca6175" = "sha256-rmdBP1u2k9A23kfrFPOqfc91BkZKrXVu9F5gK3Ej5ns=";
     "5f71b9208404015f425f30a0b4b3f4b3df4ec83f" = "sha256-sSKKgkJTDt3aiC2HmB7xfyiJt2U8BOxT0CFUHOHbzKo=";
+    "ea4bf1b11e7d6bbc0fb7657e8b6262829d3bb19c" = "sha256-BBm43fTJdnM824blPqIJYxZVgAqgVLiCNWiVb/yV5iw=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -180,5 +181,6 @@
     { name = "s77"; rev = "dbf0e12c15a0c0f3ac8833ecf70d0228ab0f1c3e"; builder = "stage2.sh"; gen = "2"; prev = "s76"; env = { PREDEF_KEEP = "1"; }; }
     { name = "s78"; rev = "decbd55f6195026cf8551fe8ad141cbbc8ca6175"; builder = "stage2.sh"; prev = "s77"; env = { PREDEF_KEEP = "1"; }; }
     { name = "s79"; rev = "5f71b9208404015f425f30a0b4b3f4b3df4ec83f"; builder = "stage2.sh"; prev = "s78"; env = { PREDEF_KEEP = "1"; }; }
+    { name = "s80"; rev = "ea4bf1b11e7d6bbc0fb7657e8b6262829d3bb19c"; builder = "stage2.sh"; prev = "s79"; env = { PREDEF_KEEP = "1"; }; }
   ];
 }
