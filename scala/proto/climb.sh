@@ -24,7 +24,7 @@ while true; do
   else
     /tmp/sc/work/auto.sh $name $next $prev > /tmp/sc/climb-$name.txt 2>&1 || { echo "rebuild of $name ($next) failed"; exit 1; }
   fi
-  mode=normal; grep -q compiler-first /tmp/sc/climb-$name.txt && mode=cf; grep -q 'fresh ok' /tmp/sc/climb-$name.txt && mode=fresh
+  mode=normal; grep -q compiler-first /tmp/sc/climb-$name.txt && mode=cf; grep -q 'fresh ok' /tmp/sc/climb-$name.txt && mode=fresh; grep -q 'unnest ok' /tmp/sc/climb-$name.txt && mode=unnest
   echo "$name $next $prev $mode" >> /tmp/sc/work/chain.txt
   echo "STEP $name $(cd /tmp/sc/full && git log -1 --format='%h %ad' --date=short $next) $mode"
   prev=$name; pc=$next

@@ -3,9 +3,9 @@
 
 usage: tools/scala-chain [GITDIR]    (GITDIR: a clone of scala/scala, default /tmp/sc/full)
 
-chain.txt lines are "NAME COMMIT PREV MODE"; PREV "1" is stage 1 (stage1.sh),
+chain.txt lines are "NAME COMMIT PREV MODE [VAR=VALUE...]" (VARs: builder environment); PREV "1" is stage 1 (stage1.sh),
 MODE is normal, cf (compiler-first), fresh (no fallback library, Array from
-source), nsc0 (the first Scala 2 compiler) or
+source), unnest (locker from single-package-clause sources), nsc0 (the first Scala 2 compiler) or
 bridge:FROMCOMMIT:FILE,... (COMMIT with FILEs taken from FROMCOMMIT).  The
 builder follows from the position in the chain: stage.sh (Scala 1.x) up to
 the nsc0 stage, stage2.sh after it.
@@ -74,8 +74,10 @@ def main():
         line = line.split("#")[0].strip()
         if not line:
             continue
-        name, commit, prev, mode = line.split()
+        name, commit, prev, mode, *env = line.split()
         s = dict(name=name, rev=rev_parse(commit), prev=names[prev])
+        if env:
+            s["env"] = dict(e.split("=", 1) for e in env)
         if mode == "nsc0":
             s["builder"] = "stage-nsc0.sh"
             builder = "stage2.sh"
@@ -85,6 +87,8 @@ def main():
             s["compilerFirst"] = True
         if mode == "fresh":
             s["fresh"] = True
+        if mode == "unnest":
+            s["unnest"] = True
         if mode.startswith("bridge:"):
             _, frm, files = mode.split(":", 2)
             s["overlay"] = dict(rev=rev_parse(frm), files=files.split(","))
@@ -120,6 +124,10 @@ def main():
             a.append("compilerFirst = true;")
         if s.get("fresh"):
             a.append("fresh = true;")
+        if s.get("unnest"):
+            a.append("unnest = true;")
+        if "env" in s:
+            a.append("env = { %s };" % " ".join('%s = "%s";' % kv for kv in s["env"].items()))
         if "overlay" in s:
             fs = " ".join(f'"{f}"' for f in s["overlay"]["files"])
             a.append(f'overlay = {{ rev = "{s["overlay"]["rev"]}"; files = [ {fs} ]; }};')

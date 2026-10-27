@@ -27,3 +27,14 @@ else:
 s=s2
 open(p,"w").write(s)
 PY
+# r18344 (#1373, 2009-07-18, reverted 2009-08-21 "as it is interacting badly with..."):
+# the compiler it gives crashes in the pattern matcher on scala/concurrent/pilib.scala
+F=$(find src -path '*nsc/symtab/Symbols.scala' | head -1)
+if [ -n "$F" ]; then python3 - $F <<'PY'
+import re,sys; p=sys.argv[1]; s=open(p).read()
+s2=re.sub(r"final def caseFieldAccessors: List\[Symbol\] = \{.*?constrParamAccessors map findRightAccessor flatten\s*\}",
+          "final def caseFieldAccessors: List[Symbol] =\n      info.decls.toList filter (sym => !(sym hasFlag PRIVATE) && sym.hasFlag(CASEACCESSOR))",
+          s, count=1, flags=re.S)
+if s2!=s: print("nsc patch: r18344 reverted", file=sys.stderr); open(p,"w").write(s2)
+PY
+fi

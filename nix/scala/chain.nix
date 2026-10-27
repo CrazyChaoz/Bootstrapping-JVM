@@ -75,6 +75,18 @@
     "7518d6700f56b1b55cf1bbcc5933a79aecd4733c" = "sha256-h0kjNkdrHxnFXCidW08FTerYd51yQJRP9wr5bfZ9zEk=";
     "94ade481b2db5d4223741680fdc18b989575bb29" = "sha256-+4Sh3XOtq+W5hz553CSlEpu0B3geZDanVx9/p26w4lk=";
     "1c56489b3e008ffb192443a1627df16f245a6c01" = "sha256-giUUzTJDJrEmRPW4BlEsTVpKnz0w/qoOa09NopNBu64=";
+    "b70cf1f40b36ec686c68f514579d71a44d09a0a3" = "sha256-nRwFdv18xe04DAtcQwoOazW6mrWIDAttAFxOJAoNrLs=";
+    "8a78d3748319811d7b0adc80d4ee8926dc8d90bf" = "sha256-e78w+Gh//7gTXXH9uZRTbTzIcYGZAk3BoUJa90IhJCk=";
+    "6a9d9f379a6208397f96f0dc6d5c53e8e4a9bf64" = "sha256-nYF0MrrGORyn5lHeATsK7iaqmL4zYw4RDJZ6bHJb1Pg=";
+    "2c39b8b0839a5dfd48dfd073944f7b176cc63f4b" = "sha256-8nU8pYi4B4bzWc3ivNzTTPpx7mjD4nHoiAJ3b8PpdFc=";
+    "5f5b82e792094d3d51985167f96742f4ea210a31" = "sha256-efb+7pkXBEsUvLajxVBnG8CIuWlh4Y3IDNF2XWQyTDs=";
+    "27f573afb47fcc38627df20058fae1cfa0fcb947" = "sha256-UzNhnZIx7OgZ82I9Igp2H4WwI2+P7sY9penm2JLFWsA=";
+    "ced5ee337f45d0209ec3e7c69a6e04e956257ec0" = "sha256-RdskZeJS7L3xZ6mqoXsX2WhPE5dY4IL9QXqpGOuov1o=";
+    "d5b02c8652d7edbdfb0b5a02570d370d3bad299f" = "sha256-QLTRIo8WNRZBIBqy3L2t6Yps4N25TzJI2gV7itlVX/c=";
+    "4f62a386bbea074d39cf03967a76c1538a7c343d" = "sha256-/zTQdkTBA0NayCGkPk+7yFfiGhOSeGAmsTNDOs6yCK0=";
+    "efa181e5777fe72ce686bc8a3671b50fa3e601de" = "sha256-v2Jrox95/d195UeZJcI7Kk6oN0uPjjAphoANjgwzOqc=";
+    "84146e2f53fb1f5e8abbc521121078e932cf82e7" = "sha256-naHNs5O/dOdmAPiiRBSCoAdOWVg1oAx0dNozfQ5Z/D0=";
+    "6a6a0ce2357ef07d27f18f01f20d6f1ab6164c9a" = "sha256-HZWDyRQ9ru2iXvNno7b/Vpvj8HCtDfpBaYRO7XdXiXg=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; }
@@ -144,5 +156,17 @@
     { name = "s59"; rev = "7518d6700f56b1b55cf1bbcc5933a79aecd4733c"; builder = "stage2.sh"; prev = "s58"; }
     { name = "s60"; rev = "94ade481b2db5d4223741680fdc18b989575bb29"; builder = "stage2.sh"; prev = "s59"; }
     { name = "s61"; rev = "1c56489b3e008ffb192443a1627df16f245a6c01"; builder = "stage2.sh"; prev = "s60"; }
+    { name = "s62"; rev = "b70cf1f40b36ec686c68f514579d71a44d09a0a3"; builder = "stage2.sh"; prev = "s61"; }
+    { name = "s63"; rev = "8a78d3748319811d7b0adc80d4ee8926dc8d90bf"; builder = "stage2.sh"; prev = "s62"; }
+    { name = "s64"; rev = "6a9d9f379a6208397f96f0dc6d5c53e8e4a9bf64"; builder = "stage2.sh"; prev = "s63"; unnest = true; }
+    { name = "s65"; rev = "2c39b8b0839a5dfd48dfd073944f7b176cc63f4b"; builder = "stage2.sh"; prev = "s64"; }
+    { name = "s66"; rev = "5f5b82e792094d3d51985167f96742f4ea210a31"; builder = "stage2.sh"; prev = "s65"; }
+    { name = "s67"; rev = "27f573afb47fcc38627df20058fae1cfa0fcb947"; builder = "stage2.sh"; prev = "s66"; }
+    { name = "s68"; rev = "ced5ee337f45d0209ec3e7c69a6e04e956257ec0"; builder = "stage2.sh"; prev = "s67"; }
+    { name = "s69"; rev = "d5b02c8652d7edbdfb0b5a02570d370d3bad299f"; builder = "stage2.sh"; prev = "s68"; fresh = true; env = { STARR_OPTS = "-Ynewarrays"; }; }
+    { name = "s70"; rev = "4f62a386bbea074d39cf03967a76c1538a7c343d"; builder = "stage2.sh"; prev = "s69"; fresh = true; }
+    { name = "s71"; rev = "efa181e5777fe72ce686bc8a3671b50fa3e601de"; builder = "stage2.sh"; prev = "s70"; }
+    { name = "s72"; rev = "84146e2f53fb1f5e8abbc521121078e932cf82e7"; builder = "stage2.sh"; prev = "s71"; }
+    { name = "s73"; rev = "6a6a0ce2357ef07d27f18f01f20d6f1ab6164c9a"; builder = "stage2.sh"; prev = "s72"; compilerFirst = true; env = { LOCKER_PATCH = "seq-rename-locker"; }; }
   ];
 }

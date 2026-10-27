@@ -35,6 +35,7 @@ let
     "pizza2java.py"
     "pico-classfiles.py"
     "jdk-api-view.py"
+    "scala-unnest.py"
   ];
   # each builder sees only its own scripts, so that changing one does not rebuild the whole chain
   scripts = {
@@ -43,7 +44,15 @@ let
     "stage-nsc0.sh" = [ "stage-nsc0.sh" "nsc-patches.sh" "hello2.sh" "Hello2.scala" ];
     "stage2.sh" = [ "stage2.sh" "nsc-patches.sh" "hello2.sh" "Hello2.scala" ];
   };
-  scriptsFor = builder: files ../../scala/stages ([ "env.sh" ] ++ scripts.${builder});
+  scriptsFor =
+    builder:
+    lib.fileset.toSource {
+      root = ../../scala/stages;
+      fileset = lib.fileset.unions (
+        map (n: ../../scala/stages + "/${n}") ([ "env.sh" ] ++ scripts.${builder})
+        ++ lib.optional (builder == "stage2.sh") ../../scala/stages/patches
+      );
+    };
 
   # A scala/scala tree from GitHub, without the binaries it ships (lib/*.jar
   # reference compilers and the like).  Keep in sync with tools/scala-chain.
@@ -177,7 +186,9 @@ let
       // lib.optionalAttrs (s.fresh or false) {
         FALLBACK = "none";
         ARRAY_SRC = "1";
-      };
+      }
+      // lib.optionalAttrs (s.unnest or false) { UNNEST = "1"; }
+      // (s.env or { });
       buildPhase = ''
         runHook preBuild
         bash ${scriptsFor s.builder}/${s.builder} $src $out ${prevArg}

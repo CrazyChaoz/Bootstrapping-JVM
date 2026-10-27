@@ -15,6 +15,23 @@ if [ -d $TREE/src/library ]; then cp -r $TREE/src src; else
   mv src/library/scala/tools src/compiler/scala_tools; mkdir -p src/compiler/scala; mv src/compiler/scala_tools src/compiler/scala/tools
 fi
 chmod -R u+w src
+# from 2009-09 Predef extends LowPriorityImplicits and starts with imports, so the compilers
+# no longer see Predef.scala as the Predef unit and import Predef into it: an illegal cyclic
+# reference.  The same imports inside the object do not count as leading ones.
+if [ -f src/library/scala/LowPriorityImplicits.scala ]; then
+  python3 - src/library/scala/Predef.scala <<'PY'
+import re, sys
+p = sys.argv[1]; s = open(p, encoding="latin-1").read()
+m = re.search(r"^object Predef extends LowPriorityImplicits \{", s, re.M)
+if m:
+    head, rest = s[:m.start()], s[m.end():]
+    imps = re.findall(r"^import [^\n]*$", head, re.M)
+    if imps:
+        head = re.sub(r"^import [^\n]*$", "", head, flags=re.M)
+        open(p, "w", encoding="latin-1").write(head + m.group(0) + " " + "; ".join(imps) + rest)
+        print("Predef: leading imports moved into the object", file=sys.stderr)
+PY
+fi
 mkdir -p classes; cp -r $FJBG_CLS/. classes/   # FJBG + MSIL reader
 # jline 1.0 for the REPL (from 2007-07); only then: its class files crash earlier compilers (s34's pickler)
 # (from 2009-06 a generified jline jar, the one imported as source 2009-10: $JLINE5_CLS)
@@ -70,6 +87,8 @@ has_opt() { # has_opt CP OPTION : does the compiler on CP know OPTION (settings 
   done; return 1; }
 sc() { local cp=$1 main=$2 g=; shift 2
   [ -n "$GENERICS" ] && has_opt "$cp" '"-Ygenerics"\|-Ygenerics' && g=-Ygenerics
+  # STARR_OPTS: for the previous compiler only (e.g. -Ynewarrays, the array scheme of 2009-09)
+  [ "$cp" = "$PREVCP" ] && g="$g ${STARR_OPTS:-}"
   $J8/bin/java -Xss64m -Xmx3g -cp "$cp" $main -bootclasspath $BOOTJAR $g ${SCALAC_OPTS:-} "$@"; }
 nopredefs() { # option spelling understood by the compiler on classpath $1 (renamed 2007-07, 2012)
   if has_opt "$1" '-Yno-predefs'; then echo -Yno-predefs
@@ -81,7 +100,14 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   ( cd src/library; find . -name '*.java' | sed 's|^\./||' ) > $n.libjava
   if [ -s $n.libjava ]; then
     python3 -I $T/pizza2java.py src/library $n/java-lib --classpath-src src/library --meta-out $n.lib.meta.json $(cat $n.libjava)
-    $J/bin/javac -nowarn -encoding latin1 --release 8 -cp $L:classes:$PREVCP -d $L $(find $n/java-lib -name '*.java') > $n.libjava.log 2>&1 || { cat $n.libjava.log; exit 1; }
+    # (forkjoin, in the library from 2009-09, needs sun.misc.Unsafe: JDK 8's javac)
+    local jc="$J/bin/javac --release 8"; grep -rqs 'sun\.misc\.Unsafe' $n/java-lib && jc=$J8/bin/javac
+    # forkjoin alone first: stale forkjoin classes of the previous library would shadow
+    # java.util.concurrent (its own RunnableFuture, dropped 2009-09)
+    if [ -d $n/java-lib/scala/concurrent/forkjoin ]; then
+      $jc -nowarn -encoding latin1 -cp $L:classes -d $L $(find $n/java-lib/scala/concurrent/forkjoin -name '*.java') > $n.libjava.log 2>&1 || { cat $n.libjava.log; exit 1; }
+    fi
+    $jc -nowarn -encoding latin1 -cp $L:classes:$PREVCP -d $L $(find $n/java-lib -name '*.java' ! -path '*/scala/concurrent/forkjoin/*') >> $n.libjava.log 2>&1 || { cat $n.libjava.log; exit 1; }
     python3 -I $T/pico-classfiles.py $L $n.lib.meta.json
   fi
   echo "== $n: library"
@@ -92,13 +118,18 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
     sp=$n/libsp; rm -rf $sp; mkdir -p $n; cp -rs $PWD/src/library $sp; rm $sp/scala/Array.scala
   fi
   ( cd $L; find . -name '*.class' | sort ) > $n.before-predef
-  sc "$ccp" $main $(nopredefs "$ccp") -d $L -classpath $L:classes$fb -sourcepath $sp src/library/scala/Predef.scala src/library/scala/runtime/ScalaRunTime.scala
-  if [ -n "$GENERICS" ]; then
+  # (with Predef's superclass LowPriorityImplicits from 2009-09)
+  local first="src/library/scala/Predef.scala src/library/scala/runtime/ScalaRunTime.scala"
+  [ -f src/library/scala/LowPriorityImplicits.scala ] && first="src/library/scala/LowPriorityImplicits.scala $first"
+  sc "$ccp" $main $(nopredefs "$ccp") -d $L -classpath $L:classes$fb -sourcepath $sp $first
+  if [ -n "$GENERICS" ] && [ -z "${PREDEF_KEEP:-}" ]; then
+    # (PREDEF_KEEP: keep them, as SABBUS did, where the new compiler needs e.g. :: from a class
+    # file: its case accessor lookup of 2009-07/08 crashes on source symbols, pilib.scala)
     # keep only Predef/ScalaRunTime from this step: other classes it compiled on the way are
     # compiled again below, and stale copies confuse the class path (Stream$cons$$anon$2, 2008-06)
-    ( cd $L; find . -name '*.class' | sort | comm -13 $W/$n.before-predef - | grep -v '^\./scala/Predef\|^\./scala/runtime/ScalaRunTime' | xargs -r rm )
+    ( cd $L; find . -name '*.class' | sort | comm -13 $W/$n.before-predef - | grep -v '^\./scala/Predef\|^\./scala/runtime/ScalaRunTime\|^\./scala/LowPriorityImplicits' | xargs -r rm )
   fi
-  ( cd src/library; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" | grep -v '^scala/Predef.scala$\|^scala/runtime/ScalaRunTime.scala$' ) | sed 's|^|src/library/|' > $n.libscala
+  ( cd src/library; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" | grep -v '^scala/Predef.scala$\|^scala/runtime/ScalaRunTime.scala$\|^scala/LowPriorityImplicits.scala$' ) | sed 's|^|src/library/|' > $n.libscala
   if [ -n "$fb" ]; then
     # library classes an old STARR cannot compile from Scala source (scala.All$/AllRef$,
     # Java until 2006-04): take them from the previous library; quick compiles them properly
@@ -122,6 +153,13 @@ comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/com
   ( cd src/compiler; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" ) | sed 's|^|src/compiler/|' > $n.compscala
   sc "$ccp" $main -d $C -classpath $lcp:$C:classes$fb -sourcepath src/compiler $(cat $n.compscala)
 }
+if [ -n "${UNNEST:-}${LOCKER_PATCH:-}" ]; then
+  # locker from rewritten sources, quick from the real ones: UNNEST (the STARR predates
+  # chained package clauses, package a; package b, 2009-07), LOCKER_PATCH (patches/NAME.patch)
+  mv src src.orig; cp -r src.orig src
+  [ -n "${UNNEST:-}" ] && python3 -I $T/scala-unnest.py src
+  for p in ${LOCKER_PATCH:-}; do patch -s -p1 < $HERE/patches/$p.patch; done
+fi
 # the previous library alone (without its compiler)
 P=$(dirname ${PREVCP%%:*}); PREVLIB=$PREVCP; [ -d $P/quick/lib ] && PREVLIB=$P/quick/lib:$P/classes
 if [ -n "${COMPILER_FIRST:-}" ]; then
@@ -138,12 +176,16 @@ else
   lib locker "$PREVCP" $PREVMAIN "$FB"
   comp locker "$PREVCP" $PREVMAIN locker/lib "$FB"
 fi
+if [ -n "${UNNEST:-}${LOCKER_PATCH:-}" ]; then rm -rf src; mv src.orig src; fi
 if [ -n "$GENERICS" ]; then   # only scala.Array (see lib) from locker, nothing else may leak into quick
   # (with its named nested classes, e.g. Array$Array0 from 2008-07; anonymous ones would pull in more)
   mkdir -p quick/arrayfb/scala
-  ( cd locker/lib/scala; ls Array.class 'Array$'*.class 2>/dev/null | grep -v 'anon' ) | while read f; do cp "locker/lib/scala/$f" quick/arrayfb/scala/; done
+  # (and its superclass FallbackArrayBuilding, 2009-09)
+  ( cd locker/lib/scala; ls Array.class 'Array$'*.class FallbackArrayBuilding*.class 2>/dev/null | grep -v 'anon' ) | while read f; do cp "locker/lib/scala/$f" quick/arrayfb/scala/; done
 fi
-lib quick locker/lib:locker/comp:classes scala.tools.nsc.Main ${GENERICS:+quick/arrayfb}
-comp quick locker/lib:locker/comp:classes scala.tools.nsc.Main quick/lib
+# the locker compiler runs on the library it was compiled against
+LCP=locker/lib:locker/comp:classes; [ -n "${COMPILER_FIRST:-}" ] && LCP=locker/comp:$PREVLIB:classes
+lib quick $LCP scala.tools.nsc.Main ${GENERICS:+quick/arrayfb}
+comp quick $LCP scala.tools.nsc.Main quick/lib
 mkdir -p out2; cp -r quick/lib/. out2/; cp -r quick/comp/. out2/
 echo stage done
