@@ -33,6 +33,8 @@ pkgs.lib.makeScope pkgs.newScope (self: {
     hash = "sha256-oitJW5wFSChB+RnTRA0rOCE64iPgOYWbc6q83kRBmbE=";
   };
   java = self.callPackage ./java { };
+  # ICU4J's data, built from the Unicode data text files (for antlr's icu4j).
+  icuData = self.callPackage ./java/icu { };
   antlr = self.callPackage ./java/antlr.nix { };
   # Groovy needs JDK >= 9 to build.
   jdk11 = self.jdks.openjdk11;

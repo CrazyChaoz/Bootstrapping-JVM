@@ -11,6 +11,7 @@
   writeShellScript,
   java,
   javaLib,
+  icuData,
 }:
 
 let
@@ -201,20 +202,15 @@ lib.fix (self: {
     st4 = self.stringtemplate4;
   };
 
-  # Only used to generate antlr4's Unicode tables.  NOTE: the Unicode data
-  # (icudata.jar) is the prebuilt one shipped in the source release.
+  # Only used to generate antlr4's Unicode tables.  The data (icudata.jar) is
+  # built from the Unicode data text files, see nix/java/icu.
   icu4j = mkJar {
     pname = "icu4j";
     version = "70.1";
-    src = fetchzip {
-      url = "https://github.com/unicode-org/icu/releases/download/release-70-1/icu4j-70_1.tgz";
-      hash = "sha256-yxpesyTTO15dkrdTJZzafTD/tkU7oD1e8anufxsH4FU=";
-      stripRoot = false;
-    };
-    sourceDirs = [ "main/classes/core/src" ];
+    src = icuData.src;
+    sourceDirs = [ "icu4j/main/classes/core/src" ];
     copySourceResources = true;
-    # (relative to the classes directory)
-    mergeJars = [ "../../main/shared/data/icudata.jar" ];
+    mergeJars = [ "${icuData}/share/java/icudata.jar" ];
     javaRelease = "1.8";
   };
 

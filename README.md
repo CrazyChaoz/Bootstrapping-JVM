@@ -13,7 +13,7 @@ Scala, Gradle, IntelliJ or Maven-Central binaries, starting from the
 | `nix/jdk/` | the JDK chain: jikes → GNU Classpath/JamVM → ecj → IcedTea 7 → OpenJDK 8 … 21 (`jdks.openjdkNN`); Guix-derived recipes for 9, 10 and 12–20 |
 | `nix/lib/mk-jar.nix` | `mkJar`: compile a source tree with javac into a jar (like Guix' `ant-build-system #:jar-name`) |
 | `nix/lib/fetch-*.nix` | source fetchers that strip shipped binaries (`*.jar`, `*.class`, …) |
-| `nix/java/` | Ant, ANTLR (2 … tunnelvisionlabs 4.7.4), Groovy 3.0.5, protobuf and ~30 third party Java libraries, from source |
+| `nix/java/` | Ant, ANTLR (2 … tunnelvisionlabs 4.7.4), ICU data, Groovy 3.0.5, protobuf and ~30 third party Java libraries, from source |
 | `nix/intellij/` | IntelliJ SDK modules (util, core, jps-model, javac2, …) for SDKs 139 … 193, 201+ |
 | `nix/kotlin/` | the Kotlin chain 0.6.786 → 1.1 → 1.2 → 1.3 → … → 2.4.0 |
 | `nix/gradle/` | Gradle 9.8.0 and 8.14.3: ~80 third party libs, Groovy 4.0.33/3.0.24, Kotlin plugins/embeddable jars, every Gradle module compiled directly by javac/kotlinc, distribution assembly |
@@ -60,8 +60,9 @@ See `NOTES.md` for the detailed log.
   Scala 2.x, translated from Pizza to Java by `tools/pizza2java.py`) reaches
   the 2.7 / 2.8 collections rewrite so far; the MSIL backend is stubbed.
 * Ant, all Java dependencies, IntelliJ SDK modules: built from source.
-* Remaining non-source inputs: ICU's prebuilt Unicode data (`icudata.jar`) used to
-  generate ANTLR 4's tables.
+* ICU's data (`icudata.jar`, used by icu4j to generate ANTLR 4's Unicode tables)
+  is rebuilt from the Unicode Character Database text files (`nix/java/icu`);
+  the prebuilt data in ICU's sources is deleted at fetch time.
 
 ## Credits
 
