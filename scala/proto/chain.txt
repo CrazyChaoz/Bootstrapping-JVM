@@ -46,6 +46,7 @@ s39 a840917b32e1c0f25b846f48bd0f12088fe170b2 s38 normal
 s40 4192a981366caf4239f9a7719db6c0f42202b32c s39 normal
 s41 34f6ea9cab4723231d9382b92ea165e007bbdb48 s40 normal
 s42 e5d6f338deead8beb992d215ff57ea78c8c5b6f5 s41 normal
+gen 1   # verified in Nix with scala/stages/gen/1 (2026-10-27)
 b42 e5d6f338de s42 bridge:2ed9387915:src/compiler/scala/tools/nsc/symtab/Types.scala,src/compiler/scala/tools/nsc/symtab/classfile/ClassfileParser.scala,src/compiler/scala/tools/nsc/typechecker/Namers.scala,src/compiler/scala/tools/nsc/typechecker/Typers.scala
 s43 422a46993cdb74ccf3650e0b171f65c6c12bdedf b42 normal
 s44 456e20966295a409efc8d2a4edae36067e486db7 s43 normal
@@ -78,5 +79,4 @@ s70 4f62a386bbea074d39cf03967a76c1538a7c343d s69 fresh
 s71 efa181e5777fe72ce686bc8a3671b50fa3e601de s70 normal
 s72 84146e2f53fb1f5e8abbc521121078e932cf82e7 s71 normal
 s73 6a6a0ce2357ef07d27f18f01f20d6f1ab6164c9a s72 cf LOCKER_PATCH=seq-rename-locker
-gen 1   # verified in Nix with scala/stages/gen/1 (2026-10-27)
 s74 b4084fc9c0c00c159245a6c18230ba6d60bab4af s73 fresh

@@ -181,7 +181,7 @@ if [ -n "$GENERICS" ]; then   # only scala.Array (see lib) from locker, nothing 
   # (with its named nested classes, e.g. Array$Array0 from 2008-07; anonymous ones would pull in more)
   mkdir -p quick/arrayfb/scala
   # (and its superclass FallbackArrayBuilding, 2009-09)
-  ( cd locker/lib/scala; ls Array.class 'Array$'*.class FallbackArrayBuilding*.class 2>/dev/null | grep -v 'anon' ) | while read f; do cp "locker/lib/scala/$f" quick/arrayfb/scala/; done
+  ( cd locker/lib/scala; ls Array.class 'Array$'*.class FallbackArrayBuilding*.class 2>/dev/null | grep -v 'anon' || true ) | while read f; do cp "locker/lib/scala/$f" quick/arrayfb/scala/; done
 fi
 # the locker compiler runs on the library it was compiled against
 LCP=locker/lib:locker/comp:classes; [ -n "${COMPILER_FIRST:-}" ] && LCP=locker/comp:$PREVLIB:classes
