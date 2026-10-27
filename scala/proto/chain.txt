@@ -80,3 +80,7 @@ s71 efa181e5777fe72ce686bc8a3671b50fa3e601de s70 normal
 s72 84146e2f53fb1f5e8abbc521121078e932cf82e7 s71 normal
 s73 6a6a0ce2357ef07d27f18f01f20d6f1ab6164c9a s72 cf LOCKER_PATCH=seq-rename-locker
 s74 b4084fc9c0c00c159245a6c18230ba6d60bab4af s73 fresh
+s75 9a9fece5c40f0a8198f74b37f74d4953a7bda781 s74 normal PREDEF_KEEP=1
+s76 3d115bd2a4191c28e6d8a9c2633740288479cec7 s75 normal PREDEF_KEEP=1
+s77 dbf0e12c15a0c0f3ac8833ecf70d0228ab0f1c3e s76 normal PREDEF_KEEP=1
+gen 2   # verified in Nix with scala/stages/gen/2 (2026-10-27)

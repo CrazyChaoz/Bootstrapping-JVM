@@ -88,6 +88,9 @@
     "84146e2f53fb1f5e8abbc521121078e932cf82e7" = "sha256-naHNs5O/dOdmAPiiRBSCoAdOWVg1oAx0dNozfQ5Z/D0=";
     "6a6a0ce2357ef07d27f18f01f20d6f1ab6164c9a" = "sha256-HZWDyRQ9ru2iXvNno7b/Vpvj8HCtDfpBaYRO7XdXiXg=";
     "b4084fc9c0c00c159245a6c18230ba6d60bab4af" = "sha256-1Lrk7OjS5sfxCi9cz1BZdfjHbE1+FQwExzkr5tmGvBE=";
+    "9a9fece5c40f0a8198f74b37f74d4953a7bda781" = "sha256-TlSj8OZQPxa3zY0EkAO+5w0WiVUfuMxfd3DiTRk/hIo=";
+    "3d115bd2a4191c28e6d8a9c2633740288479cec7" = "sha256-O9HKgX9JmCkrKTU0tGkyqKFoxRt1YbqVxBNeIeWaRg8=";
+    "dbf0e12c15a0c0f3ac8833ecf70d0228ab0f1c3e" = "sha256-QefZ8ZNLeBpyDCtv+lPvuWZfJXsEQaCkeLBJdX6pSZQ=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -137,38 +140,41 @@
     { name = "s40"; rev = "4192a981366caf4239f9a7719db6c0f42202b32c"; builder = "stage2.sh"; gen = "1"; prev = "s39"; }
     { name = "s41"; rev = "34f6ea9cab4723231d9382b92ea165e007bbdb48"; builder = "stage2.sh"; gen = "1"; prev = "s40"; }
     { name = "s42"; rev = "e5d6f338deead8beb992d215ff57ea78c8c5b6f5"; builder = "stage2.sh"; gen = "1"; prev = "s41"; }
-    { name = "b42"; rev = "e5d6f338deead8beb992d215ff57ea78c8c5b6f5"; builder = "stage2.sh"; prev = "s42"; overlay = { rev = "2ed9387915c9b813907c811ff889a056333d2ded"; files = [ "src/compiler/scala/tools/nsc/symtab/Types.scala" "src/compiler/scala/tools/nsc/symtab/classfile/ClassfileParser.scala" "src/compiler/scala/tools/nsc/typechecker/Namers.scala" "src/compiler/scala/tools/nsc/typechecker/Typers.scala" ]; }; }
-    { name = "s43"; rev = "422a46993cdb74ccf3650e0b171f65c6c12bdedf"; builder = "stage2.sh"; prev = "b42"; }
-    { name = "s44"; rev = "456e20966295a409efc8d2a4edae36067e486db7"; builder = "stage2.sh"; prev = "s43"; }
-    { name = "s45"; rev = "baad2fbd4e0d013f65e0232ce0aaa534ade8bd40"; builder = "stage2.sh"; prev = "s44"; }
-    { name = "s46"; rev = "2ed788315cbf63ee18d42cf18bb45a3391cd6189"; builder = "stage2.sh"; prev = "s45"; }
-    { name = "s47"; rev = "777083075664e39075c977a9bc47bf0379521611"; builder = "stage2.sh"; prev = "s46"; }
-    { name = "s48"; rev = "323fe887df30250c96c9945e28c1be85441cdc7f"; builder = "stage2.sh"; prev = "s47"; }
-    { name = "s49"; rev = "f6974416057ead15f0903bd4da5b1ccf5f423a84"; builder = "stage2.sh"; prev = "s48"; compilerFirst = true; }
-    { name = "s50"; rev = "6a7a1eeff9a3975d1eb76f3ecd9000bfc97be824"; builder = "stage2.sh"; prev = "s49"; compilerFirst = true; }
-    { name = "s51"; rev = "6700e9988435eb981972754ecf86d11567457e4d"; builder = "stage2.sh"; prev = "s50"; }
-    { name = "s52"; rev = "4afc73f26b99fb13432c9dea8b2eaab3eb7278ab"; builder = "stage2.sh"; prev = "s51"; }
-    { name = "s53"; rev = "020add45b8a91e77e3f32fdb4a321fdb925484c5"; builder = "stage2.sh"; prev = "s51"; compilerFirst = true; }
-    { name = "s54"; rev = "8e28858bd1f1c4e8a4df03b87f51c362bc8e449e"; builder = "stage2.sh"; prev = "s53"; }
-    { name = "s55"; rev = "ae897e4d285782753670b082f62d7f14936a4bef"; builder = "stage2.sh"; prev = "s54"; }
-    { name = "s56"; rev = "2379eb4ebbd28c8892b50a1d9fa8a687099eea4d"; builder = "stage2.sh"; prev = "s55"; }
-    { name = "s57"; rev = "14a631a5fec42d04d0723355a0b93e482b5e4662"; builder = "stage2.sh"; prev = "s56"; fresh = true; }
-    { name = "s58"; rev = "7d7b037bd0c52ce4af09f2177c995b4dd3a7fdc6"; builder = "stage2.sh"; prev = "s57"; fresh = true; }
-    { name = "s59"; rev = "7518d6700f56b1b55cf1bbcc5933a79aecd4733c"; builder = "stage2.sh"; prev = "s58"; }
-    { name = "s60"; rev = "94ade481b2db5d4223741680fdc18b989575bb29"; builder = "stage2.sh"; prev = "s59"; }
-    { name = "s61"; rev = "1c56489b3e008ffb192443a1627df16f245a6c01"; builder = "stage2.sh"; prev = "s60"; }
-    { name = "s62"; rev = "b70cf1f40b36ec686c68f514579d71a44d09a0a3"; builder = "stage2.sh"; prev = "s61"; }
-    { name = "s63"; rev = "8a78d3748319811d7b0adc80d4ee8926dc8d90bf"; builder = "stage2.sh"; prev = "s62"; }
-    { name = "s64"; rev = "6a9d9f379a6208397f96f0dc6d5c53e8e4a9bf64"; builder = "stage2.sh"; prev = "s63"; unnest = true; }
-    { name = "s65"; rev = "2c39b8b0839a5dfd48dfd073944f7b176cc63f4b"; builder = "stage2.sh"; prev = "s64"; }
-    { name = "s66"; rev = "5f5b82e792094d3d51985167f96742f4ea210a31"; builder = "stage2.sh"; prev = "s65"; }
-    { name = "s67"; rev = "27f573afb47fcc38627df20058fae1cfa0fcb947"; builder = "stage2.sh"; prev = "s66"; }
-    { name = "s68"; rev = "ced5ee337f45d0209ec3e7c69a6e04e956257ec0"; builder = "stage2.sh"; prev = "s67"; }
-    { name = "s69"; rev = "d5b02c8652d7edbdfb0b5a02570d370d3bad299f"; builder = "stage2.sh"; prev = "s68"; fresh = true; env = { STARR_OPTS = "-Ynewarrays"; }; }
-    { name = "s70"; rev = "4f62a386bbea074d39cf03967a76c1538a7c343d"; builder = "stage2.sh"; prev = "s69"; fresh = true; }
-    { name = "s71"; rev = "efa181e5777fe72ce686bc8a3671b50fa3e601de"; builder = "stage2.sh"; prev = "s70"; }
-    { name = "s72"; rev = "84146e2f53fb1f5e8abbc521121078e932cf82e7"; builder = "stage2.sh"; prev = "s71"; }
-    { name = "s73"; rev = "6a6a0ce2357ef07d27f18f01f20d6f1ab6164c9a"; builder = "stage2.sh"; prev = "s72"; compilerFirst = true; env = { LOCKER_PATCH = "seq-rename-locker"; }; }
-    { name = "s74"; rev = "b4084fc9c0c00c159245a6c18230ba6d60bab4af"; builder = "stage2.sh"; prev = "s73"; fresh = true; }
+    { name = "b42"; rev = "e5d6f338deead8beb992d215ff57ea78c8c5b6f5"; builder = "stage2.sh"; gen = "2"; prev = "s42"; overlay = { rev = "2ed9387915c9b813907c811ff889a056333d2ded"; files = [ "src/compiler/scala/tools/nsc/symtab/Types.scala" "src/compiler/scala/tools/nsc/symtab/classfile/ClassfileParser.scala" "src/compiler/scala/tools/nsc/typechecker/Namers.scala" "src/compiler/scala/tools/nsc/typechecker/Typers.scala" ]; }; }
+    { name = "s43"; rev = "422a46993cdb74ccf3650e0b171f65c6c12bdedf"; builder = "stage2.sh"; gen = "2"; prev = "b42"; }
+    { name = "s44"; rev = "456e20966295a409efc8d2a4edae36067e486db7"; builder = "stage2.sh"; gen = "2"; prev = "s43"; }
+    { name = "s45"; rev = "baad2fbd4e0d013f65e0232ce0aaa534ade8bd40"; builder = "stage2.sh"; gen = "2"; prev = "s44"; }
+    { name = "s46"; rev = "2ed788315cbf63ee18d42cf18bb45a3391cd6189"; builder = "stage2.sh"; gen = "2"; prev = "s45"; }
+    { name = "s47"; rev = "777083075664e39075c977a9bc47bf0379521611"; builder = "stage2.sh"; gen = "2"; prev = "s46"; }
+    { name = "s48"; rev = "323fe887df30250c96c9945e28c1be85441cdc7f"; builder = "stage2.sh"; gen = "2"; prev = "s47"; }
+    { name = "s49"; rev = "f6974416057ead15f0903bd4da5b1ccf5f423a84"; builder = "stage2.sh"; gen = "2"; prev = "s48"; compilerFirst = true; }
+    { name = "s50"; rev = "6a7a1eeff9a3975d1eb76f3ecd9000bfc97be824"; builder = "stage2.sh"; gen = "2"; prev = "s49"; compilerFirst = true; }
+    { name = "s51"; rev = "6700e9988435eb981972754ecf86d11567457e4d"; builder = "stage2.sh"; gen = "2"; prev = "s50"; }
+    { name = "s52"; rev = "4afc73f26b99fb13432c9dea8b2eaab3eb7278ab"; builder = "stage2.sh"; gen = "2"; prev = "s51"; }
+    { name = "s53"; rev = "020add45b8a91e77e3f32fdb4a321fdb925484c5"; builder = "stage2.sh"; gen = "2"; prev = "s51"; compilerFirst = true; }
+    { name = "s54"; rev = "8e28858bd1f1c4e8a4df03b87f51c362bc8e449e"; builder = "stage2.sh"; gen = "2"; prev = "s53"; }
+    { name = "s55"; rev = "ae897e4d285782753670b082f62d7f14936a4bef"; builder = "stage2.sh"; gen = "2"; prev = "s54"; }
+    { name = "s56"; rev = "2379eb4ebbd28c8892b50a1d9fa8a687099eea4d"; builder = "stage2.sh"; gen = "2"; prev = "s55"; }
+    { name = "s57"; rev = "14a631a5fec42d04d0723355a0b93e482b5e4662"; builder = "stage2.sh"; gen = "2"; prev = "s56"; fresh = true; }
+    { name = "s58"; rev = "7d7b037bd0c52ce4af09f2177c995b4dd3a7fdc6"; builder = "stage2.sh"; gen = "2"; prev = "s57"; fresh = true; }
+    { name = "s59"; rev = "7518d6700f56b1b55cf1bbcc5933a79aecd4733c"; builder = "stage2.sh"; gen = "2"; prev = "s58"; }
+    { name = "s60"; rev = "94ade481b2db5d4223741680fdc18b989575bb29"; builder = "stage2.sh"; gen = "2"; prev = "s59"; }
+    { name = "s61"; rev = "1c56489b3e008ffb192443a1627df16f245a6c01"; builder = "stage2.sh"; gen = "2"; prev = "s60"; }
+    { name = "s62"; rev = "b70cf1f40b36ec686c68f514579d71a44d09a0a3"; builder = "stage2.sh"; gen = "2"; prev = "s61"; }
+    { name = "s63"; rev = "8a78d3748319811d7b0adc80d4ee8926dc8d90bf"; builder = "stage2.sh"; gen = "2"; prev = "s62"; }
+    { name = "s64"; rev = "6a9d9f379a6208397f96f0dc6d5c53e8e4a9bf64"; builder = "stage2.sh"; gen = "2"; prev = "s63"; unnest = true; }
+    { name = "s65"; rev = "2c39b8b0839a5dfd48dfd073944f7b176cc63f4b"; builder = "stage2.sh"; gen = "2"; prev = "s64"; }
+    { name = "s66"; rev = "5f5b82e792094d3d51985167f96742f4ea210a31"; builder = "stage2.sh"; gen = "2"; prev = "s65"; }
+    { name = "s67"; rev = "27f573afb47fcc38627df20058fae1cfa0fcb947"; builder = "stage2.sh"; gen = "2"; prev = "s66"; }
+    { name = "s68"; rev = "ced5ee337f45d0209ec3e7c69a6e04e956257ec0"; builder = "stage2.sh"; gen = "2"; prev = "s67"; }
+    { name = "s69"; rev = "d5b02c8652d7edbdfb0b5a02570d370d3bad299f"; builder = "stage2.sh"; gen = "2"; prev = "s68"; fresh = true; env = { STARR_OPTS = "-Ynewarrays"; }; }
+    { name = "s70"; rev = "4f62a386bbea074d39cf03967a76c1538a7c343d"; builder = "stage2.sh"; gen = "2"; prev = "s69"; fresh = true; }
+    { name = "s71"; rev = "efa181e5777fe72ce686bc8a3671b50fa3e601de"; builder = "stage2.sh"; gen = "2"; prev = "s70"; }
+    { name = "s72"; rev = "84146e2f53fb1f5e8abbc521121078e932cf82e7"; builder = "stage2.sh"; gen = "2"; prev = "s71"; }
+    { name = "s73"; rev = "6a6a0ce2357ef07d27f18f01f20d6f1ab6164c9a"; builder = "stage2.sh"; gen = "2"; prev = "s72"; compilerFirst = true; env = { LOCKER_PATCH = "seq-rename-locker"; }; }
+    { name = "s74"; rev = "b4084fc9c0c00c159245a6c18230ba6d60bab4af"; builder = "stage2.sh"; gen = "2"; prev = "s73"; fresh = true; }
+    { name = "s75"; rev = "9a9fece5c40f0a8198f74b37f74d4953a7bda781"; builder = "stage2.sh"; gen = "2"; prev = "s74"; env = { PREDEF_KEEP = "1"; }; }
+    { name = "s76"; rev = "3d115bd2a4191c28e6d8a9c2633740288479cec7"; builder = "stage2.sh"; gen = "2"; prev = "s75"; env = { PREDEF_KEEP = "1"; }; }
+    { name = "s77"; rev = "dbf0e12c15a0c0f3ac8833ecf70d0228ab0f1c3e"; builder = "stage2.sh"; gen = "2"; prev = "s76"; env = { PREDEF_KEEP = "1"; }; }
   ];
 }

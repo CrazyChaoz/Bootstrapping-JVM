@@ -121,6 +121,9 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   # (with Predef's superclass LowPriorityImplicits from 2009-09)
   local first="src/library/scala/Predef.scala src/library/scala/runtime/ScalaRunTime.scala"
   [ -f src/library/scala/LowPriorityImplicits.scala ] && first="src/library/scala/LowPriorityImplicits.scala $first"
+  # (from 2009-11 ScalaObject has no `import Predef._`, so read from the source path it would
+  # import Predef: the new compiler compiles it first (pkgObjectsFirst), as we do here)
+  grep -q 'import Predef' src/library/scala/ScalaObject.scala || first="src/library/scala/ScalaObject.scala $first"
   sc "$ccp" $main $(nopredefs "$ccp") -d $L -classpath $L:classes$fb -sourcepath $sp $first
   if [ -n "$GENERICS" ] && [ -z "${PREDEF_KEEP:-}" ]; then
     # (PREDEF_KEEP: keep them, as SABBUS did, where the new compiler needs e.g. :: from a class
