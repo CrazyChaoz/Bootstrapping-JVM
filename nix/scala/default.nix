@@ -155,7 +155,15 @@ let
     if s ? overlay then
       # a bridge: the tree of `rev` with some files of a later commit (stands in for
       # the unpublished intermediate compilers behind historical reference-compiler updates)
-      runCommand "scala-src-${s.name}" { } ''
+      runCommand "scala-src-${s.name}"
+        (
+          # (python3 for the bridge scripts that use it, from b119 on; the others keep their hash)
+          lib.optionalAttrs (
+            s.overlay ? script
+            && lib.hasInfix "python3" (builtins.readFile (../../scala/bridges + "/${s.overlay.script}"))
+          ) { nativeBuildInputs = [ python3 ]; }
+        )
+        ''
         cp -r --no-preserve=mode ${sources.${s.rev}} $out
         ${
           if s.overlay ? script then
