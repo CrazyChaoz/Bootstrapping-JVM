@@ -114,6 +114,8 @@
     "8922c4ed092a2fb4c3f6002f7c49d304f299cd02" = "sha256-goL8P4BZB0uFe+sjx4AwY8ejleXA9HSe3zukDRnOZWM=";
     "cd52c9797d1ac04cd87da794c80f4735503593ea" = "sha256-LppUcAs3r7eOkREb9ZTBL5jxLXY3nd/2DdCr1pqVkoM=";
     "e20693030316e4854886f7a945e6a6a3117ca071" = "sha256-Az3G5nodM4Tps7GpGUD24NN3C+lr3oRp7gXXPT9KGEw=";
+    "1cbe06c2dcde9606c3d3f6fe86e89fbba3a404e3" = "sha256-EgC2JMmPAAnNffakRsfNO10U0sZHEz24sM/oSF27IuE=";
+    "4253124eecba6bed38f1dc961c5c4ee39a29f730" = "sha256-KPcVHx1eUK1vpLNCSNXIb2q+ibTO1+VmVk3fzrto1BQ=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -224,5 +226,7 @@
     { name = "s98"; rev = "8922c4ed092a2fb4c3f6002f7c49d304f299cd02"; builder = "stage2.sh"; gen = "7"; prev = "b98"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "scala/Annotation,scala/ClassfileAnnotation,scala/StaticAnnotation,scala/TypeConstraint"; }; }
     { name = "s99"; rev = "cd52c9797d1ac04cd87da794c80f4735503593ea"; builder = "stage2.sh"; gen = "8"; prev = "s98"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; }
     { name = "s100"; rev = "e20693030316e4854886f7a945e6a6a3117ca071"; builder = "stage2.sh"; gen = "8"; prev = "s99"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package"; }; }
+    { name = "s101"; rev = "1cbe06c2dcde9606c3d3f6fe86e89fbba3a404e3"; builder = "stage2.sh"; prev = "s100"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package"; }; }
+    { name = "s102"; rev = "4253124eecba6bed38f1dc961c5c4ee39a29f730"; builder = "stage2.sh"; prev = "s101"; compilerFirst = true; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit"; }; }
   ];
 }
