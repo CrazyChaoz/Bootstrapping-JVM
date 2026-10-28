@@ -158,7 +158,7 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   [ -f src/library/scala/LowPriorityImplicits.scala ] && first="src/library/scala/LowPriorityImplicits.scala $first"
   # (from 2009-11 ScalaObject has no `import Predef._`, so read from the source path it would
   # import Predef: the new compiler compiles it first (pkgObjectsFirst), as we do here)
-  grep -q 'import Predef' src/library/scala/ScalaObject.scala || first="src/library/scala/ScalaObject.scala $first"
+  [ ! -f src/library/scala/ScalaObject.scala ] || grep -q 'import Predef' src/library/scala/ScalaObject.scala || first="src/library/scala/ScalaObject.scala $first"
   # and then the package objects (scala's aliases into scala.math, scala.math's min/max, from
   # 2009-11), whose members the compilers of 9a9fece5c4 on only see from their class files;
   # quick with locker's library behind: scala.BigInt needs ScalaNumericConversions, which the
@@ -213,6 +213,11 @@ comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/com
   fi
   echo "== $n: compiler"
   ( cd src/compiler; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" ) | sed 's|^|src/compiler/|' > $n.compscala
+  # CF_LIBSRC=DIR,...: library parts the new compiler needs that the previous library lacks,
+  # compiled with it (compiler first; the reflection API in scala/reflect/api, 2012-03)
+  if [ -n "${COMPILER_FIRST:-}" ] && [ $n = locker ] && [ -n "${CF_LIBSRC:-}" ]; then
+    IFS=, read -ra cfl <<< "$CF_LIBSRC"; for d in "${cfl[@]}"; do find src/library/$d -name '*.scala'; done >> $n.compscala
+  fi
   sc "$ccp" $main -d $C -classpath $lcp:$C:classes$fb -sourcepath src/compiler $(cat $n.compscala)
 }
 if [ -n "${UNNEST:-}${LOCKER_PATCH:-}" ]; then
