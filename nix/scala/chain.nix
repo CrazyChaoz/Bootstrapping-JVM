@@ -112,6 +112,7 @@
     "4be5e11cccace4974ed9a449052455392570139f" = "sha256-OidErDF3xRqpgEJUTC/d5vtD4sg5kOGE7aUcCENeK3k=";
     "b6db478a9641dd488f00fab0c0a113ef83fec5d3" = "sha256-KyJ6+f883Z2mgWEoLopqTuySCOhVlkC5i7GOkXHTTQY=";
     "8922c4ed092a2fb4c3f6002f7c49d304f299cd02" = "sha256-goL8P4BZB0uFe+sjx4AwY8ejleXA9HSe3zukDRnOZWM=";
+    "cd52c9797d1ac04cd87da794c80f4735503593ea" = "sha256-LppUcAs3r7eOkREb9ZTBL5jxLXY3nd/2DdCr1pqVkoM=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -217,8 +218,9 @@
     { name = "s95"; rev = "402d96dd3fab6ae677966a9a258c00b3f34a37ed"; builder = "stage2.sh"; gen = "6"; prev = "s94"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; }
     { name = "b96"; rev = "4be5e11cccace4974ed9a449052455392570139f"; builder = "stage2.sh"; gen = "6"; prev = "s95"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; overlay = { rev = "402d96dd3fab6ae677966a9a258c00b3f34a37ed"; files = [ "src/library/scala/package.scala" "src/library/scala/serializable.scala" ]; }; }
     { name = "s96"; rev = "4be5e11cccace4974ed9a449052455392570139f"; builder = "stage2.sh"; gen = "6"; prev = "b96"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "scala/serializable"; FALLBACK_RENAME = "serializable:Serializable"; }; }
-    { name = "s97"; rev = "b6db478a9641dd488f00fab0c0a113ef83fec5d3"; builder = "stage2.sh"; prev = "s96"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; }
-    { name = "b98"; rev = "8922c4ed092a2fb4c3f6002f7c49d304f299cd02"; builder = "stage2.sh"; prev = "s97"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; overlay = { rev = "b6db478a9641dd488f00fab0c0a113ef83fec5d3"; script = "annotation-move.sh"; }; }
-    { name = "s98"; rev = "8922c4ed092a2fb4c3f6002f7c49d304f299cd02"; builder = "stage2.sh"; prev = "b98"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "scala/Annotation,scala/ClassfileAnnotation,scala/StaticAnnotation,scala/TypeConstraint"; }; }
+    { name = "s97"; rev = "b6db478a9641dd488f00fab0c0a113ef83fec5d3"; builder = "stage2.sh"; gen = "7"; prev = "s96"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; }
+    { name = "b98"; rev = "8922c4ed092a2fb4c3f6002f7c49d304f299cd02"; builder = "stage2.sh"; gen = "7"; prev = "s97"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; overlay = { rev = "b6db478a9641dd488f00fab0c0a113ef83fec5d3"; script = "annotation-move.sh"; }; }
+    { name = "s98"; rev = "8922c4ed092a2fb4c3f6002f7c49d304f299cd02"; builder = "stage2.sh"; gen = "7"; prev = "b98"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "scala/Annotation,scala/ClassfileAnnotation,scala/StaticAnnotation,scala/TypeConstraint"; }; }
+    { name = "s99"; rev = "cd52c9797d1ac04cd87da794c80f4735503593ea"; builder = "stage2.sh"; prev = "s98"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; }
   ];
 }
