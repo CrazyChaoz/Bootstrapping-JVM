@@ -53,7 +53,7 @@ grep -rqs 'org\.fusesource' src/jline && cp -r $JANSI_CLS/. classes/
 [ -d src/jline/src/main/resources ] && cp -r src/jline/src/main/resources/. classes/
 . $HERE/nsc-patches.sh
 LOCKER_SKIP=${LOCKER_SKIP:-'^src/library/scala/All\$\.scala$\|^src/library/scala/AllRef\$\.scala$'}
-EXCL=${NSC_EXCLUDES:-'/ant/\|/dbc/\|scala/tools/nsc/doc/'}
+EXCL=${NSC_EXCLUDES:-'/ant/\|/dbc/\|scala/tools/nsc/doc/\|scala/tools/nsc/ScalaDoc\.scala$'}
 # the doc generator is needed once Main uses it (2007)
 if [ -z "${NSC_EXCLUDES:-}" ] && grep -rlq 'DocGenerator' --include=*.scala src/compiler/scala/tools/nsc --exclude-dir=doc; then EXCL='/ant/\|/dbc/'; fi
 # MSIL backend: msil.jar (with the Scala-written emit API) was a binary until 2009;
@@ -91,6 +91,9 @@ sc() { local cp=$1 main=$2 g=; shift 2
   [ "$cp" = "$PREVCP" ] && g="$g ${STARR_OPTS:-}"
   # (from 2010-02, e9a60f236b, -bootclasspath no longer replaces the running JVM's classes)
   has_opt "$cp" '-javabootclasspath' && g="$g -javabootclasspath $BOOTJAR"
+  # (from 2010-03, PathResolver, the compiler's own class path comes first: for the previous
+  # compiler that is the previous library; quick's, locker's library, is wanted there)
+  [ "$cp" = "$PREVCP" ] && has_opt "$cp" '-javaignorecp' && g="$g -javaignorecp"
   $J8/bin/java -Xss64m -Xmx3g -cp "$cp" $main -bootclasspath $BOOTJAR $g ${SCALAC_OPTS:-} "$@"; }
 nopredefs() { # option spelling understood by the compiler on classpath $1 (renamed 2007-07, 2012)
   if has_opt "$1" '-Yno-predefs'; then echo -Yno-predefs
