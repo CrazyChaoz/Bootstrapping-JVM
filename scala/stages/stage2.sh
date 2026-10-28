@@ -114,8 +114,9 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
     find $F -name '*$mc*$sp*.class' -delete
     # FALLBACK_DROP: classes left out as well, comma-separated paths (scala/serializable, which an alias
     # of the scala package object stands for from 2010-11: "contains wrong class"; and */package,
-    # the package objects that refer to it)
-    for c in $(echo ${FALLBACK_DROP:-} | tr , " "); do find $F \( -path "$F/$c.class" -o -path "$F/$c\$*.class" \) -delete; done
+    # the package objects that refer to it, or whose members became top-level objects in 2011-01:
+    # "DebugUtils is already defined")
+    IFS=, read -ra drops <<< "${FALLBACK_DROP:-}"; for c in "${drops[@]}"; do find $F \( -path "$F/$c.class" -o -path "$F/$c\$*.class" \) -delete; done
     # FALLBACK_RENAME=OLD:NEW: a type name renamed in the fallback's pickles (the inherited
     # @scala.serializable, see tools/scala-pickle-rename.py)
     for r in ${FALLBACK_RENAME:-}; do

@@ -113,3 +113,4 @@ b98 8922c4ed092a2fb4c3f6002f7c49d304f299cd02 s97 bridge-script:b6db478a9641dd488
 s98 8922c4ed092a2fb4c3f6002f7c49d304f299cd02 b98 normal PREDEF_KEEP=1 ARRAY_SRC=1 LIB_NOSP=1 LIB_ONESTEP=1 FALLBACK_DROP=scala/Annotation,scala/ClassfileAnnotation,scala/StaticAnnotation,scala/TypeConstraint
 gen 7   # verified in Nix with scala/stages/gen/7 (2026-10-28)
 s99 cd52c9797d1ac04cd87da794c80f4735503593ea s98 normal PREDEF_KEEP=1 ARRAY_SRC=1 LIB_NOSP=1 LIB_ONESTEP=1
+s100 e20693030316e4854886f7a945e6a6a3117ca071 s99 normal PREDEF_KEEP=1 ARRAY_SRC=1 LIB_NOSP=1 LIB_ONESTEP=1 FALLBACK_DROP=*/package
