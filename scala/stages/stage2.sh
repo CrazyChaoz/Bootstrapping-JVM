@@ -47,6 +47,8 @@ for d in src/jline/src/main/java src/forkjoin src/fjbg src/msil src/asm; do
   [ -d $d ] || continue
   find $d -name '*.java' | grep -v '/msil/tests/\|/msil/util/VJSAssembly\.java$' > javadeps.files
   [ -s javadeps.files ] || continue
+  # (712ebe2943, 2010-05, put Scala's ## into msil's Type.java, which scalac compiled)
+  { grep -l '\.##' $(cat javadeps.files) || true; } | xargs -r sed -i 's/\.##\([^#]\)/.hashCode()\1/g'
   $J8/bin/javac -nowarn -encoding utf8 -cp classes${JANSI_CLS:+:$JANSI_CLS} -d classes @javadeps.files > javadeps.log 2>&1 || { cat javadeps.log; exit 1; }
 done
 grep -rqs 'org\.fusesource' src/jline && cp -r $JANSI_CLS/. classes/
@@ -102,6 +104,14 @@ nopredefs() { # option spelling understood by the compiler on classpath $1 (rena
 lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   local n=$1 ccp=$2 main=$3 fb=${4:+:$4}; local L=$n/lib
   mkdir -p $L
+  if [ -n "$fb" ] && [ -n "$(for d in ${4//:/ }; do find $d/scala -maxdepth 1 -name '*$mc*$sp.class' 2>/dev/null; done | head -1)" ]; then
+    # the fallback without its specialized subclasses (Tuple1$mcD$sp, 2010-05): compiled
+    # from source as well, they would be "defined twice"
+    local F=$n/fallback; rm -rf $F; mkdir -p $F
+    for d in ${4//:/ }; do cp -rsn $(realpath $d)/. $F/; done
+    find $F -name '*$mc*$sp*.class' -delete
+    fb=:$F
+  fi
   ( cd src/library; find . -name '*.java' | sed 's|^\./||' ) > $n.libjava
   if [ -s $n.libjava ]; then
     python3 -I $T/pizza2java.py src/library $n/java-lib --classpath-src src/library --meta-out $n.lib.meta.json $(cat $n.libjava)
