@@ -183,12 +183,12 @@
     { name = "s75"; rev = "9a9fece5c40f0a8198f74b37f74d4953a7bda781"; builder = "stage2.sh"; gen = "2"; prev = "s74"; env = { PREDEF_KEEP = "1"; }; }
     { name = "s76"; rev = "3d115bd2a4191c28e6d8a9c2633740288479cec7"; builder = "stage2.sh"; gen = "2"; prev = "s75"; env = { PREDEF_KEEP = "1"; }; }
     { name = "s77"; rev = "dbf0e12c15a0c0f3ac8833ecf70d0228ab0f1c3e"; builder = "stage2.sh"; gen = "2"; prev = "s76"; env = { PREDEF_KEEP = "1"; }; }
-    { name = "s78"; rev = "decbd55f6195026cf8551fe8ad141cbbc8ca6175"; builder = "stage2.sh"; prev = "s77"; env = { PREDEF_KEEP = "1"; }; }
-    { name = "s79"; rev = "d92679d81c8674e2e21cc18103d10ab16a3b8e0d"; builder = "stage2.sh"; prev = "s78"; env = { PREDEF_KEEP = "1"; }; }
-    { name = "s80"; rev = "5472e3afc9e1ce3e6550932e70e600ecf886702e"; builder = "stage2.sh"; prev = "s79"; env = { PREDEF_KEEP = "1"; }; }
-    { name = "s81"; rev = "74c615c83567c930ce371833ff4b275312a4540f"; builder = "stage2.sh"; prev = "s80"; env = { PREDEF_KEEP = "1"; }; }
-    { name = "s82"; rev = "7c19904e484f2021b186a81d335fa564a0638baf"; builder = "stage2.sh"; prev = "s81"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; }; }
-    { name = "s83"; rev = "a78bf650be7cc82e43907d1bbf966b3d802fc301"; builder = "stage2.sh"; prev = "s82"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; }; }
-    { name = "s84"; rev = "217415af22e2909a44405cf75ab34933023d1612"; builder = "stage2.sh"; prev = "s83"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; }; }
+    { name = "s78"; rev = "decbd55f6195026cf8551fe8ad141cbbc8ca6175"; builder = "stage2.sh"; gen = "3"; prev = "s77"; env = { PREDEF_KEEP = "1"; }; }
+    { name = "s79"; rev = "d92679d81c8674e2e21cc18103d10ab16a3b8e0d"; builder = "stage2.sh"; gen = "3"; prev = "s78"; env = { PREDEF_KEEP = "1"; }; }
+    { name = "s80"; rev = "5472e3afc9e1ce3e6550932e70e600ecf886702e"; builder = "stage2.sh"; gen = "3"; prev = "s79"; env = { PREDEF_KEEP = "1"; }; }
+    { name = "s81"; rev = "74c615c83567c930ce371833ff4b275312a4540f"; builder = "stage2.sh"; gen = "3"; prev = "s80"; env = { PREDEF_KEEP = "1"; }; }
+    { name = "s82"; rev = "7c19904e484f2021b186a81d335fa564a0638baf"; builder = "stage2.sh"; gen = "3"; prev = "s81"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; }; }
+    { name = "s83"; rev = "a78bf650be7cc82e43907d1bbf966b3d802fc301"; builder = "stage2.sh"; gen = "3"; prev = "s82"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; }; }
+    { name = "s84"; rev = "217415af22e2909a44405cf75ab34933023d1612"; builder = "stage2.sh"; gen = "3"; prev = "s83"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; }; }
   ];
 }
