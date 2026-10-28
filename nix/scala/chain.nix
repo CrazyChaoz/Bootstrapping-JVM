@@ -118,6 +118,7 @@
     "4253124eecba6bed38f1dc961c5c4ee39a29f730" = "sha256-KPcVHx1eUK1vpLNCSNXIb2q+ibTO1+VmVk3fzrto1BQ=";
     "78007ac467c9d6e88ae183a9126772829072704c" = "sha256-K4kGYzBWsbp9PILLJffrQ2fzzitbmWXiFADvX9VfYFk=";
     "78a48c46cf3727dd06179cb1360b2f9057647042" = "sha256-s64lSmGTatlOWGam9XnBpfyOETSrsoFfO3mDSNFy+mM=";
+    "d6f3184fc8a9eae1bb0dff86ed13b4946f0d4170" = "sha256-Pa6DfNoBW6nd7PJec55rQXbyYlAaUwt1rTijcIpHu1k=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -232,5 +233,6 @@
     { name = "s102"; rev = "4253124eecba6bed38f1dc961c5c4ee39a29f730"; builder = "stage2.sh"; gen = "9"; prev = "s101"; compilerFirst = true; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit"; }; }
     { name = "s103"; rev = "78007ac467c9d6e88ae183a9126772829072704c"; builder = "stage2.sh"; prev = "s102"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit"; }; }
     { name = "s104"; rev = "78a48c46cf3727dd06179cb1360b2f9057647042"; builder = "stage2.sh"; prev = "s103"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit,scala/collection/parallel/UnrolledBuffer"; }; }
+    { name = "s105"; rev = "d6f3184fc8a9eae1bb0dff86ed13b4946f0d4170"; builder = "stage2.sh"; prev = "s104"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit,scala/collection/parallel/UnrolledBuffer"; }; }
   ];
 }
