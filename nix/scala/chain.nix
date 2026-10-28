@@ -119,6 +119,9 @@
     "78007ac467c9d6e88ae183a9126772829072704c" = "sha256-K4kGYzBWsbp9PILLJffrQ2fzzitbmWXiFADvX9VfYFk=";
     "78a48c46cf3727dd06179cb1360b2f9057647042" = "sha256-s64lSmGTatlOWGam9XnBpfyOETSrsoFfO3mDSNFy+mM=";
     "d6f3184fc8a9eae1bb0dff86ed13b4946f0d4170" = "sha256-Pa6DfNoBW6nd7PJec55rQXbyYlAaUwt1rTijcIpHu1k=";
+    "60463a8721728545d7d626d96f77e8688084c71f" = "sha256-7JtAMftuus+UBMM/5b2ofQbJ/kTSxegNNOwLJ6+B/Rs=";
+    "87b1b727692fca063882dd81fcfb219e955aa1a8" = "sha256-CVwV32tdthHVxynLe7VeP4XSyJ6zg/U5yTrfjSLPRzE=";
+    "67a63278a6c4e9347792219086f11a87d177eee7" = "sha256-SqDUaUZVZF2y/5zOAagB8BxUR5SPDjnHUCA9yC9XkYc=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -234,5 +237,8 @@
     { name = "s103"; rev = "78007ac467c9d6e88ae183a9126772829072704c"; builder = "stage2.sh"; gen = "10"; prev = "s102"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit"; }; }
     { name = "s104"; rev = "78a48c46cf3727dd06179cb1360b2f9057647042"; builder = "stage2.sh"; gen = "10"; prev = "s103"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit,scala/collection/parallel/UnrolledBuffer"; }; }
     { name = "s105"; rev = "d6f3184fc8a9eae1bb0dff86ed13b4946f0d4170"; builder = "stage2.sh"; gen = "10"; prev = "s104"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit,scala/collection/parallel/UnrolledBuffer"; }; }
+    { name = "s106"; rev = "60463a8721728545d7d626d96f77e8688084c71f"; builder = "stage2.sh"; prev = "s105"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit,scala/collection/parallel/UnrolledBuffer"; }; }
+    { name = "s107"; rev = "87b1b727692fca063882dd81fcfb219e955aa1a8"; builder = "stage2.sh"; prev = "s106"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit,scala/collection/parallel/UnrolledBuffer"; }; }
+    { name = "s108"; rev = "67a63278a6c4e9347792219086f11a87d177eee7"; builder = "stage2.sh"; prev = "s107"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit,scala/collection/parallel/UnrolledBuffer"; }; }
   ];
 }
