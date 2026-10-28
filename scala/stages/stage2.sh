@@ -216,16 +216,34 @@ comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/com
   # CF_LIBSRC=DIR,...: library parts the new compiler needs that the previous library lacks,
   # compiled with it (compiler first; the reflection API in scala/reflect/api, 2012-03)
   if [ -n "${COMPILER_FIRST:-}" ] && [ $n = locker ] && [ -n "${CF_LIBSRC:-}" ]; then
-    IFS=, read -ra cfl <<< "$CF_LIBSRC"; for d in "${cfl[@]}"; do find src/library/$d -name '*.scala'; done >> $n.compscala
+    # (copies: macro definitions, `def f = macro impl` from 2012-04, which the previous compiler
+    # cannot parse, become ??? there; CF_LIBPATCH=NAME: cfpatch/NAME.sh CFLIBDIR adapts them
+    # further; only the compiler first is built from them)
+    IFS=, read -ra cfl <<< "$CF_LIBSRC"
+    for d in "${cfl[@]}"; do find src/library/$d -name '*.scala'; done | while read -r f; do
+      mkdir -p "$n/cf-libsrc/$(dirname "$f")"; sed -E 's/=\s*macro\s.*$/= ???/' "$f" > "$n/cf-libsrc/$f"
+    done
+    [ -z "${CF_LIBPATCH:-}" ] || bash $HERE/cfpatch/$CF_LIBPATCH.sh $n/cf-libsrc/src/library
+    find $n/cf-libsrc -name '*.scala' >> $n.compscala
+    # CF_LIBDROP=CLASS,...: previous library classes that these sources replace by aliases
+    if [ -n "${CF_LIBDROP:-}" ]; then
+      local F=$n/cf-lib; mkdir -p $F
+      for d in ${lcp//:/ }; do cp -rsn $(realpath $d)/. $F/; done
+      IFS=, read -ra cfd <<< "$CF_LIBDROP"
+      for c in "${cfd[@]}"; do find $F \( -path "$F/$c.class" -o -path "$F/$c\$*.class" \) -delete; done
+      lcp=$F
+    fi
   fi
   sc "$ccp" $main -d $C -classpath $lcp:$C:classes$fb -sourcepath src/compiler $(cat $n.compscala)
 }
-if [ -n "${UNNEST:-}${LOCKER_PATCH:-}" ]; then
+if [ -n "${UNNEST:-}${LOCKER_PATCH:-}${LOCKER_SCRIPT:-}" ]; then
   # locker from rewritten sources, quick from the real ones: UNNEST (the STARR predates
-  # chained package clauses, package a; package b, 2009-07), LOCKER_PATCH (patches/NAME.patch)
+  # chained package clauses, package a; package b, 2009-07), LOCKER_PATCH (patches/NAME.patch),
+  # LOCKER_SCRIPT (lockerpatch/NAME.sh SRCDIR, comma-separated)
   mv src src.orig; cp -r src.orig src
   [ -n "${UNNEST:-}" ] && python3 -I $T/scala-unnest.py src
   for p in ${LOCKER_PATCH:-}; do patch -s -p1 < $HERE/patches/$p.patch; done
+  IFS=, read -ra lks <<< "${LOCKER_SCRIPT:-}"; for p in "${lks[@]}"; do bash $HERE/lockerpatch/$p.sh src; done
 fi
 # the previous library alone (without its compiler)
 P=$(dirname ${PREVCP%%:*}); PREVLIB=$PREVCP; [ -d $P/quick/lib ] && PREVLIB=$P/quick/lib:$P/classes
@@ -243,7 +261,7 @@ else
   lib locker "$PREVCP" $PREVMAIN "$FB"
   comp locker "$PREVCP" $PREVMAIN locker/lib "$FB"
 fi
-if [ -n "${UNNEST:-}${LOCKER_PATCH:-}" ]; then rm -rf src; mv src.orig src; fi
+if [ -n "${UNNEST:-}${LOCKER_PATCH:-}${LOCKER_SCRIPT:-}" ]; then rm -rf src; mv src.orig src; fi
 if [ -n "$GENERICS" ]; then   # only scala.Array (see lib) from locker, nothing else may leak into quick
   # (with its named nested classes, e.g. Array$Array0 from 2008-07; anonymous ones would pull in more)
   mkdir -p quick/arrayfb/scala
@@ -252,6 +270,10 @@ if [ -n "$GENERICS" ]; then   # only scala.Array (see lib) from locker, nothing 
 fi
 # the locker compiler runs on the library it was compiled against
 LCP=locker/lib:locker/comp:classes; [ -n "${COMPILER_FIRST:-}" ] && LCP=locker/comp:$PREVLIB:classes
+# (LOCKER_RUN_FB: and on the previous library behind it, when the locker compiler's own code
+# needs classes the new library lacks: scala.reflect.Manifest, a type alias from e4976678fa,
+# 2012-04, and its superclass ClassManifest, which FALLBACK_DROP leaves out of the fallback)
+[ -n "${LOCKER_RUN_FB:-}" ] && LCP=$LCP:$PREVLIB
 lib quick $LCP scala.tools.nsc.Main ${GENERICS:+quick/arrayfb}
 comp quick $LCP scala.tools.nsc.Main quick/lib
 mkdir -p out2; cp -r quick/lib/. out2/; cp -r quick/comp/. out2/

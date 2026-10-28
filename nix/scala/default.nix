@@ -66,6 +66,10 @@ let
       fileset = lib.fileset.unions (
         map (n: d + "/${n}") ([ "env.sh" ] ++ scripts.${builder})
         ++ lib.optional (builder == "stage2.sh") (d + "/patches")
+        # (CF_LIBPATCH and LOCKER_SCRIPT scripts, from generation 15 on)
+        ++ lib.filter builtins.pathExists (
+          lib.optionals (builder == "stage2.sh") [ (d + "/cfpatch") (d + "/lockerpatch") ]
+        )
       );
     };
 
