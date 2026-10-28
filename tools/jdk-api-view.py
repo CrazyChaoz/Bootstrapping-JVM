@@ -253,8 +253,14 @@ def main(srczip, rtjar, maxv, outjar):
         return len(cf["pool"]) - 1
     ref = re.compile(r"L([\w/$]+)[;<]")
 
+    def gone(n):
+        """For Java 5-7 views (as ct.sym): a non-public nested java/javax class, left out
+        (JDK 8 internals like HashMap$TreeNode, which the 2010 compilers fail to read)."""
+        return (5 <= maxv < 8 and "$" in n and n in classes and n.startswith(("java/", "javax/"))
+                and not struct.unpack(">H", get(n)["head"][0:2])[0] & 0x0001)
+
     def mentions_hidden(desc):
-        return any(top(m) in hidden for m in ref.findall(desc))
+        return any(top(m) in hidden or gone(m) for m in ref.findall(desc))
 
     name_of = lambda t: re.match(r"L([\w/$]+)", t).group(1)
 
@@ -320,7 +326,16 @@ def main(srczip, rtjar, maxv, outjar):
             if top(name) in hidden:
                 dropped += 1
                 continue
+            if gone(name):
+                dropped += 1
+                continue
             cf = get(name)
+            if 5 <= maxv < 8 and name.startswith(("java/", "javax/")):
+                # likewise only the public and protected members
+                for key in ("fields", "methods"):
+                    keep = [m for m in cf[key] if m[0] & 0x0005]
+                    stripped += len(cf[key]) - len(keep)
+                    cf[key] = keep
             if maxv < 5:
                 strip_java5(cf)
             else:
@@ -384,7 +399,8 @@ def main(srczip, rtjar, maxv, outjar):
                     cnt = struct.unpack(">H", data[:2])[0]
                     ents = [data[2 + 8 * k:10 + 8 * k] for k in range(cnt)]
                     ents = [e for e in ents
-                            if top(cls_name(cf, struct.unpack(">H", e[:2])[0])) not in hidden]
+                            if top(cls_name(cf, struct.unpack(">H", e[:2])[0])) not in hidden
+                            and not gone(cls_name(cf, struct.unpack(">H", e[:2])[0]))]
                     data = struct.pack(">H", len(ents)) + b"".join(ents)
                 attrs.append((aname, data))
             cf["attrs"] = attrs
