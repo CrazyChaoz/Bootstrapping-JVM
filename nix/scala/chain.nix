@@ -106,6 +106,7 @@
     "59dc9f40bda5a1958f9187714f68568b039e0bcb" = "sha256-rSgdV3P5JAdm0qqNn+sWMvtRIG5PsLA9N/QzT60p3pk=";
     "ceec792d1af5bb7b2d618f27f6fd48cdf75cf92f" = "sha256-EDHf75MRdwoWbL5mqtIWxVV7MljOBPhNPOHP0tte+EE=";
     "e938bb961f3db41dba329c6649c9f292a1748d7d" = "sha256-PqEF6f3Aj4vzXN+9FeeqlDTldxVIZQd7KSGQpcGm+5Q=";
+    "4b9de7deb27682100e09e0b55780f029754e0b7e" = "sha256-xdnlUE+S9zeS++2mq3ylU0Cd4od6YH8dzFrn+JoZqRM=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -206,5 +207,6 @@
     { name = "s90"; rev = "59dc9f40bda5a1958f9187714f68568b039e0bcb"; builder = "stage2.sh"; prev = "s89"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; }; }
     { name = "s91"; rev = "ceec792d1af5bb7b2d618f27f6fd48cdf75cf92f"; builder = "stage2.sh"; prev = "s90"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; }; }
     { name = "s92"; rev = "e938bb961f3db41dba329c6649c9f292a1748d7d"; builder = "stage2.sh"; prev = "s91"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; }
+    { name = "s93"; rev = "4b9de7deb27682100e09e0b55780f029754e0b7e"; builder = "stage2.sh"; prev = "s92"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; }
   ];
 }

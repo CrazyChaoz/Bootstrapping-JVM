@@ -49,7 +49,9 @@ for d in src/jline/src/main/java src/forkjoin src/fjbg src/msil src/asm; do
   [ -s javadeps.files ] || continue
   # (712ebe2943, 2010-05, put Scala's ## into msil's Type.java, which scalac compiled)
   { grep -l '\.##' $(cat javadeps.files) || true; } | xargs -r sed -i 's/\.##\([^#]\)/.hashCode()\1/g'
-  $J8/bin/javac -nowarn -encoding utf8 -cp classes${JANSI_CLS:+:$JANSI_CLS} -d classes @javadeps.files > javadeps.log 2>&1 || { cat javadeps.log; exit 1; }
+  # (msil's sources have Latin-1 comments, 2010-08)
+  enc=utf8; [ $d = src/msil ] && enc=latin1
+  $J8/bin/javac -nowarn -encoding $enc -cp classes${JANSI_CLS:+:$JANSI_CLS} -d classes @javadeps.files > javadeps.log 2>&1 || { cat javadeps.log; exit 1; }
 done
 grep -rqs 'org\.fusesource' src/jline && cp -r $JANSI_CLS/. classes/
 [ -d src/jline/src/main/resources ] && cp -r src/jline/src/main/resources/. classes/
