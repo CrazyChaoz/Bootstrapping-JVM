@@ -144,6 +144,11 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
     ( cd $L; find . -name '*.class' | sort | comm -13 $W/$n.before-predef - | grep -v '^\./scala/Predef\|^\./scala/runtime/ScalaRunTime\|^\./scala/LowPriorityImplicits' | xargs -r rm )
   fi
   ( cd src/library; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" | grep -v '^scala/Predef.scala$\|^scala/runtime/ScalaRunTime.scala$\|^scala/LowPriorityImplicits.scala$' ) | sed 's|^|src/library/|' > $n.libscala
+  # (and ScalaObject and the package objects of the step: from 2010-03 compiling ScalaObject
+  # again gives the cyclic reference involving Predef)
+  if [ -n "${PREDEF_KEEP:-}" ]; then
+    printf '%s\n' $first | grep -vxF -f - $n.libscala > $n.libscala2 || true; mv $n.libscala2 $n.libscala
+  fi
   if [ -n "$fb" ]; then
     # library classes an old STARR cannot compile from Scala source (scala.All$/AllRef$,
     # Java until 2006-04): take them from the previous library; quick compiles them properly
@@ -152,7 +157,10 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
       c=${f#src/library/}; c=${c%.scala}; for d in ${PREVCP//:/ }; do [ -f $d/$c.class ] && { mkdir -p $L/$(dirname $c); cp $d/$c.class $L/$c.class; break; }; done
     done
   fi
-  sc "$ccp" $main -d $L -classpath $L:classes$fb -sourcepath $sp $(cat $n.libscala)
+  # (LIB_NOSP: without the source path, as SABBUS from a4895b8592: from 2010-03 the compilers
+  # take Predef from the source path rather than from the class file of the step above)
+  local msp="-sourcepath $sp"; [ -n "${LIB_NOSP:-}" ] && msp=
+  sc "$ccp" $main -d $L -classpath $L:classes$fb $msp $(cat $n.libscala)
 }
 comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/comp, against LIBCP
   local n=$1 ccp=$2 main=$3 lcp=$4 fb=${5:+:$5}; local C=$n/comp
