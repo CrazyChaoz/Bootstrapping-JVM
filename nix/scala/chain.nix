@@ -103,6 +103,9 @@
     "d76943f9ae43176980f21f90f400053fe2da3fbf" = "sha256-9uQthf06o277ZupzOCK6rwRKwpkenMGmxJYq/UxZGdk=";
     "f1044e136b067ad303b21c14b24f44ca62ca1977" = "sha256-zbfN6HhOC/INDeauBJ513giNjcguI5BieFKM8+H2lZk=";
     "4382c7dd6e1b079919587639b6979ad55a783db5" = "sha256-cLLMbRrxyjhiv23F/GCO9rLiYgyAkTIxwkosCUIMfSw=";
+    "59dc9f40bda5a1958f9187714f68568b039e0bcb" = "sha256-rSgdV3P5JAdm0qqNn+sWMvtRIG5PsLA9N/QzT60p3pk=";
+    "ceec792d1af5bb7b2d618f27f6fd48cdf75cf92f" = "sha256-EDHf75MRdwoWbL5mqtIWxVV7MljOBPhNPOHP0tte+EE=";
+    "e938bb961f3db41dba329c6649c9f292a1748d7d" = "sha256-PqEF6f3Aj4vzXN+9FeeqlDTldxVIZQd7KSGQpcGm+5Q=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -200,5 +203,8 @@
     { name = "s87"; rev = "d76943f9ae43176980f21f90f400053fe2da3fbf"; builder = "stage2.sh"; gen = "4"; prev = "s86"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; }; }
     { name = "s88"; rev = "f1044e136b067ad303b21c14b24f44ca62ca1977"; builder = "stage2.sh"; gen = "4"; prev = "s87"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; }; }
     { name = "s89"; rev = "4382c7dd6e1b079919587639b6979ad55a783db5"; builder = "stage2.sh"; prev = "s88"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; }; }
+    { name = "s90"; rev = "59dc9f40bda5a1958f9187714f68568b039e0bcb"; builder = "stage2.sh"; prev = "s89"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; }; }
+    { name = "s91"; rev = "ceec792d1af5bb7b2d618f27f6fd48cdf75cf92f"; builder = "stage2.sh"; prev = "s90"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; }; }
+    { name = "s92"; rev = "e938bb961f3db41dba329c6649c9f292a1748d7d"; builder = "stage2.sh"; prev = "s91"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; }
   ];
 }
