@@ -210,6 +210,10 @@ def main(srczip, rtjar, maxv, outjar):
         see those either)."""
         if top(n) in hidden:
             return True
+        if 5 <= maxv < 8:
+            # (Java 5-7 views, as ct.sym: non-public top-level supertypes stay, their public
+            # members are the subclasses' (StringBuilder's setLength, from AbstractStringBuilder))
+            return gone(n)
         if n in classes and n.startswith(("java/", "javax/")):
             acc = struct.unpack(">H", get(n)["head"][0:2])[0]
             return not acc & 0x0001
