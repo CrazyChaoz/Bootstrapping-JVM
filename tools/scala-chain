@@ -6,7 +6,8 @@ usage: tools/scala-chain [GITDIR]    (GITDIR: a clone of scala/scala, default /t
 chain.txt lines are "NAME COMMIT PREV MODE [VAR=VALUE...]" (VARs: builder environment); PREV "1" is stage 1 (stage1.sh),
 MODE is normal, cf (compiler-first), fresh (no fallback library, Array from
 source), unnest (locker from single-package-clause sources), nsc0 (the first Scala 2 compiler) or
-bridge:FROMCOMMIT:FILE,... (COMMIT with FILEs taken from FROMCOMMIT).
+bridge:FROMCOMMIT:FILE,... (COMMIT with FILEs taken from FROMCOMMIT),
+bridge-script:FROMCOMMIT:SCRIPT (COMMIT's tree changed by scala/bridges/SCRIPT TREE FROMTREE).
 "gen N" lines: the stages above them (since the previous such line) build with
 the frozen scripts of scala/stages/gen/N (nix/scala/default.nix).  The
 builder follows from the position in the chain: stage.sh (Scala 1.x) up to
@@ -99,6 +100,9 @@ def main():
         if mode.startswith("bridge:"):
             _, frm, files = mode.split(":", 2)
             s["overlay"] = dict(rev=rev_parse(frm), files=files.split(","))
+        if mode.startswith("bridge-script:"):
+            _, frm, script = mode.split(":", 2)
+            s["overlay"] = dict(rev=rev_parse(frm), script=script)
         names[name] = name
         stages.append(s)
 
@@ -138,8 +142,12 @@ def main():
         if "env" in s:
             a.append("env = { %s };" % " ".join('%s = "%s";' % kv for kv in s["env"].items()))
         if "overlay" in s:
-            fs = " ".join(f'"{f}"' for f in s["overlay"]["files"])
-            a.append(f'overlay = {{ rev = "{s["overlay"]["rev"]}"; files = [ {fs} ]; }};')
+            ov = s["overlay"]
+            if "script" in ov:
+                a.append(f'overlay = {{ rev = "{ov["rev"]}"; script = "{ov["script"]}"; }};')
+            else:
+                fs = " ".join(f'"{f}"' for f in ov["files"])
+                a.append(f'overlay = {{ rev = "{ov["rev"]}"; files = [ {fs} ]; }};')
         o.append("    { " + " ".join(a) + " }")
     o += ["  ];", "}", ""]
     open(OUT, "w").write("\n".join(o))

@@ -153,7 +153,12 @@ let
       # the unpublished intermediate compilers behind historical reference-compiler updates)
       runCommand "scala-src-${s.name}" { } ''
         cp -r --no-preserve=mode ${sources.${s.rev}} $out
-        ${lib.concatMapStringsSep "\n" (f: "cp ${sources.${s.overlay.rev}}/${f} $out/${f}") s.overlay.files}
+        ${
+          if s.overlay ? script then
+            "bash ${../../scala/bridges + "/${s.overlay.script}"} $out ${sources.${s.overlay.rev}}"
+          else
+            lib.concatMapStringsSep "\n" (f: "cp ${sources.${s.overlay.rev}}/${f} $out/${f}") s.overlay.files
+        }
       ''
     else
       sources.${s.rev};

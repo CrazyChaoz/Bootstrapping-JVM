@@ -112,10 +112,10 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
     local F=$n/fallback; rm -rf $F; mkdir -p $F
     for d in ${4//:/ }; do cp -rsn $(realpath $d)/. $F/; done
     find $F -name '*$mc*$sp*.class' -delete
-    # FALLBACK_DROP: classes left out as well, path patterns (scala/serializable, which an alias
+    # FALLBACK_DROP: classes left out as well, comma-separated paths (scala/serializable, which an alias
     # of the scala package object stands for from 2010-11: "contains wrong class"; and */package,
     # the package objects that refer to it)
-    for c in ${FALLBACK_DROP:-}; do find $F \( -path "$F/$c.class" -o -path "$F/$c\$*.class" \) -delete; done
+    for c in $(echo ${FALLBACK_DROP:-} | tr , " "); do find $F \( -path "$F/$c.class" -o -path "$F/$c\$*.class" \) -delete; done
     # FALLBACK_RENAME=OLD:NEW: a type name renamed in the fallback's pickles (the inherited
     # @scala.serializable, see tools/scala-pickle-rename.py)
     for r in ${FALLBACK_RENAME:-}; do
