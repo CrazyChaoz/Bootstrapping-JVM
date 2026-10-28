@@ -16,7 +16,7 @@ mkdir -p $G/tools
 git ls-files scala/stages | grep -v '^scala/stages/gen/' | while read -r f; do
   r=${f#scala/stages/}; mkdir -p "$G/$(dirname "$r")"; cp -p "$f" "$G/$r"
 done
-for t in pizza2java.py pico-classfiles.py jdk-api-view.py scala-unnest.py; do cp -p tools/$t $G/tools/; done
+for t in pizza2java.py pico-classfiles.py jdk-api-view.py scala-unnest.py scala-pickle-rename.py; do cp -p tools/$t $G/tools/; done
 git add $G   # the flake only sees tracked files
 for c in scala/proto/chain.txt /tmp/sc/work/chain.txt; do
   [ -f $c ] || continue

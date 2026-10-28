@@ -109,6 +109,7 @@
     "4b9de7deb27682100e09e0b55780f029754e0b7e" = "sha256-xdnlUE+S9zeS++2mq3ylU0Cd4od6YH8dzFrn+JoZqRM=";
     "5d1052f36a889607eb365c37450bb9b5c7862d9e" = "sha256-yCuBARN0fMjaU6V3+ktztLX1mK3MD3R9RkpffjIdt6c=";
     "402d96dd3fab6ae677966a9a258c00b3f34a37ed" = "sha256-BjOpNiaLhZ93pyJwhtNWOUJCYi5uIOtdBGWq1EJWzWo=";
+    "4be5e11cccace4974ed9a449052455392570139f" = "sha256-OidErDF3xRqpgEJUTC/d5vtD4sg5kOGE7aUcCENeK3k=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -212,5 +213,7 @@
     { name = "s93"; rev = "4b9de7deb27682100e09e0b55780f029754e0b7e"; builder = "stage2.sh"; gen = "5"; prev = "s92"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; }
     { name = "s94"; rev = "5d1052f36a889607eb365c37450bb9b5c7862d9e"; builder = "stage2.sh"; prev = "s93"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; }
     { name = "s95"; rev = "402d96dd3fab6ae677966a9a258c00b3f34a37ed"; builder = "stage2.sh"; prev = "s94"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; }
+    { name = "b96"; rev = "4be5e11cccace4974ed9a449052455392570139f"; builder = "stage2.sh"; prev = "s95"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; }; overlay = { rev = "402d96dd3fab6ae677966a9a258c00b3f34a37ed"; files = [ "src/library/scala/package.scala" "src/library/scala/serializable.scala" ]; }; }
+    { name = "s96"; rev = "4be5e11cccace4974ed9a449052455392570139f"; builder = "stage2.sh"; prev = "b96"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "scala/serializable"; FALLBACK_RENAME = "serializable:Serializable"; }; }
   ];
 }

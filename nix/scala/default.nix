@@ -39,12 +39,16 @@ let
   toolsDir = gen: if gen == null then ../../tools else stagesDir gen + "/tools";
   toolsFor =
     gen:
-    files (toolsDir gen) [
-      "pizza2java.py"
-      "pico-classfiles.py"
-      "jdk-api-view.py"
-      "scala-unnest.py"
-    ];
+    files (toolsDir gen) (
+      [
+        "pizza2java.py"
+        "pico-classfiles.py"
+        "jdk-api-view.py"
+        "scala-unnest.py"
+      ]
+      # (from generation 6 on)
+      ++ lib.optional (builtins.pathExists (toolsDir gen + "/scala-pickle-rename.py")) "scala-pickle-rename.py"
+    );
   # each builder sees only its own scripts, so that changing one does not rebuild the whole chain
   scripts = {
     "stage1.sh" = [ "stage1.sh" "stage-java.sh" ];
