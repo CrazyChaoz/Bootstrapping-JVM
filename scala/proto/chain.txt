@@ -117,3 +117,4 @@ s100 e20693030316e4854886f7a945e6a6a3117ca071 s99 normal PREDEF_KEEP=1 ARRAY_SRC
 gen 8   # verified in Nix with scala/stages/gen/8 (2026-10-28)
 s101 1cbe06c2dcde9606c3d3f6fe86e89fbba3a404e3 s100 normal PREDEF_KEEP=1 ARRAY_SRC=1 LIB_NOSP=1 LIB_ONESTEP=1 FALLBACK_DROP=*/package
 s102 4253124eecba6bed38f1dc961c5c4ee39a29f730 s101 cf PREDEF_KEEP=1 ARRAY_SRC=1 LIB_ONESTEP=1 FALLBACK_DROP=*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit
+gen 9   # verified in Nix with scala/stages/gen/9 (2026-10-28)
