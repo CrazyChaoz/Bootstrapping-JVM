@@ -12,6 +12,7 @@ elif FALLBACK=none ARRAY_SRC=1 TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/nul
 elif UNNEST=1 TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: unnest ok"
 else echo "$1: FAILED"; grep -v '^Note\|not applicable' /tmp/sc/log-$1.txt | tail -${TAILN:-20}; exit 1; fi
 if [ "${BUILDER:-}" = stage2.sh ]; then
-  /tmp/sc/work/hello2.sh /tmp/sc/st-$1 2>&1 | tee /tmp/sc/hello-$1.txt | head -1
+  # (to a file first: a warning may come before the greeting, and `tee | head -1` cut it off)
+  /tmp/sc/work/hello2.sh /tmp/sc/st-$1 > /tmp/sc/hello-$1.txt 2>&1; grep -m1 '^Hello from' /tmp/sc/hello-$1.txt
   grep -q '^Hello from' /tmp/sc/hello-$1.txt || { echo "$1: hello2 FAILED"; exit 1; }
 else /tmp/sc/work/hello.sh /tmp/sc/st-$1 | head -1; fi
