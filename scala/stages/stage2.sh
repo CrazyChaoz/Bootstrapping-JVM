@@ -112,7 +112,15 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
     if [ -d $n/java-lib/scala/concurrent/forkjoin ]; then
       $jc -nowarn -encoding latin1 -cp $L:classes -d $L $(find $n/java-lib/scala/concurrent/forkjoin -name '*.java') > $n.libjava.log 2>&1 || { cat $n.libjava.log; exit 1; }
     fi
-    $jc -nowarn -encoding latin1 -cp $L:classes:$PREVCP -d $L $(find $n/java-lib -name '*.java' ! -path '*/scala/concurrent/forkjoin/*') >> $n.libjava.log 2>&1 || { cat $n.libjava.log; exit 1; }
+    # the previous library behind, without its scala.runtime.Boolean, Int, ... (the primitive
+    # companions, moved to scala in 2010-04), which would shadow java.lang's
+    local pj=$PREVCP
+    if [ -f $(echo $PREVCP | cut -d: -f1)/scala/runtime/Boolean.class ] && [ ! -f src/library/scala/runtime/Boolean.scala ]; then
+      pj=$n/prev-java; rm -rf $pj; mkdir -p $pj
+      for d in ${PREVCP//:/ }; do cp -rsn $(realpath $d)/. $pj/; done
+      for t in Boolean Byte Short Char Int Long Float Double Unit; do rm -f $pj/scala/runtime/$t.class $pj/scala/runtime/$t\$.class; done
+    fi
+    $jc -nowarn -encoding latin1 -cp $L:classes:$pj -d $L $(find $n/java-lib -name '*.java' ! -path '*/scala/concurrent/forkjoin/*') >> $n.libjava.log 2>&1 || { cat $n.libjava.log; exit 1; }
     python3 -I $T/pico-classfiles.py $L $n.lib.meta.json
   fi
   echo "== $n: library"
