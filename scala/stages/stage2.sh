@@ -156,7 +156,10 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
     first="$first $(find src/library -name package.scala | sort | tr '\n' ' ')"
     [ $n = quick ] && fcp=$fcp:locker/lib
   fi
-  sc "$ccp" $main $(nopredefs "$ccp") -d $L -classpath $fcp -sourcepath $sp $first
+  # (LIB_ONESTEP: all in one run, as SABBUS from a4895b8592, the compilers ordering ScalaObject,
+  # Predef and the package objects first themselves; from 2010-06 the step above would need much
+  # of the library from the source path, under names it cannot find there: the parallel collections)
+  [ -n "${LIB_ONESTEP:-}" ] || sc "$ccp" $main $(nopredefs "$ccp") -d $L -classpath $fcp -sourcepath $sp $first
   if [ -n "$GENERICS" ] && [ -z "${PREDEF_KEEP:-}" ]; then
     # (PREDEF_KEEP: keep them, as SABBUS did, where the new compiler needs e.g. :: from a class
     # file: its case accessor lookup of 2009-07/08 crashes on source symbols, pilib.scala)
@@ -165,9 +168,10 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
     ( cd $L; find . -name '*.class' | sort | comm -13 $W/$n.before-predef - | grep -v '^\./scala/Predef\|^\./scala/runtime/ScalaRunTime\|^\./scala/LowPriorityImplicits' | xargs -r rm )
   fi
   ( cd src/library; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" | grep -v '^scala/Predef.scala$\|^scala/runtime/ScalaRunTime.scala$\|^scala/LowPriorityImplicits.scala$' ) | sed 's|^|src/library/|' > $n.libscala
+  [ -n "${LIB_ONESTEP:-}" ] && ( cd src/library; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" ) | sed 's|^|src/library/|' > $n.libscala
   # (and ScalaObject and the package objects of the step: from 2010-03 compiling ScalaObject
   # again gives the cyclic reference involving Predef)
-  if [ -n "${PREDEF_KEEP:-}" ]; then
+  if [ -n "${PREDEF_KEEP:-}" ] && [ -z "${LIB_ONESTEP:-}" ]; then
     printf '%s\n' $first | grep -vxF -f - $n.libscala > $n.libscala2 || true; mv $n.libscala2 $n.libscala
   fi
   if [ -n "$fb" ]; then
