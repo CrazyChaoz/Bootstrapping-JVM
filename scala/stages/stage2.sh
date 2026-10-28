@@ -89,6 +89,8 @@ sc() { local cp=$1 main=$2 g=; shift 2
   [ -n "$GENERICS" ] && has_opt "$cp" '"-Ygenerics"\|-Ygenerics' && g=-Ygenerics
   # STARR_OPTS: for the previous compiler only (e.g. -Ynewarrays, the array scheme of 2009-09)
   [ "$cp" = "$PREVCP" ] && g="$g ${STARR_OPTS:-}"
+  # (from 2010-02, e9a60f236b, -bootclasspath no longer replaces the running JVM's classes)
+  has_opt "$cp" '-javabootclasspath' && g="$g -javabootclasspath $BOOTJAR"
   $J8/bin/java -Xss64m -Xmx3g -cp "$cp" $main -bootclasspath $BOOTJAR $g ${SCALAC_OPTS:-} "$@"; }
 nopredefs() { # option spelling understood by the compiler on classpath $1 (renamed 2007-07, 2012)
   if has_opt "$1" '-Yno-predefs'; then echo -Yno-predefs
