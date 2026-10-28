@@ -162,8 +162,11 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   fi
   # (LIB_NOSP: without the source path, as SABBUS from a4895b8592: from 2010-03 the compilers
   # take Predef from the source path rather than from the class file of the step above)
-  local msp="-sourcepath $sp"; [ -n "${LIB_NOSP:-}" ] && msp=
-  sc "$ccp" $main -d $L -classpath $L:classes$fb $msp $(cat $n.libscala)
+  local msp="-sourcepath $sp" mcp=$L:classes$fb; [ -n "${LIB_NOSP:-}" ] && msp=
+  # (quick: locker's library behind, which the compilers took from their own class path until
+  # ae8c065594, 2010-03)
+  [ -n "${LIB_NOSP:-}" ] && [ $n = quick ] && mcp=$mcp:locker/lib
+  sc "$ccp" $main -d $L -classpath $mcp $msp $(cat $n.libscala)
 }
 comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/comp, against LIBCP
   local n=$1 ccp=$2 main=$3 lcp=$4 fb=${5:+:$5}; local C=$n/comp
