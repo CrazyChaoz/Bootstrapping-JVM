@@ -116,6 +116,7 @@
     "e20693030316e4854886f7a945e6a6a3117ca071" = "sha256-Az3G5nodM4Tps7GpGUD24NN3C+lr3oRp7gXXPT9KGEw=";
     "1cbe06c2dcde9606c3d3f6fe86e89fbba3a404e3" = "sha256-EgC2JMmPAAnNffakRsfNO10U0sZHEz24sM/oSF27IuE=";
     "4253124eecba6bed38f1dc961c5c4ee39a29f730" = "sha256-KPcVHx1eUK1vpLNCSNXIb2q+ibTO1+VmVk3fzrto1BQ=";
+    "78007ac467c9d6e88ae183a9126772829072704c" = "sha256-K4kGYzBWsbp9PILLJffrQ2fzzitbmWXiFADvX9VfYFk=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -228,5 +229,6 @@
     { name = "s100"; rev = "e20693030316e4854886f7a945e6a6a3117ca071"; builder = "stage2.sh"; gen = "8"; prev = "s99"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package"; }; }
     { name = "s101"; rev = "1cbe06c2dcde9606c3d3f6fe86e89fbba3a404e3"; builder = "stage2.sh"; gen = "9"; prev = "s100"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package"; }; }
     { name = "s102"; rev = "4253124eecba6bed38f1dc961c5c4ee39a29f730"; builder = "stage2.sh"; gen = "9"; prev = "s101"; compilerFirst = true; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit"; }; }
+    { name = "s103"; rev = "78007ac467c9d6e88ae183a9126772829072704c"; builder = "stage2.sh"; prev = "s102"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_NOSP = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit"; }; }
   ];
 }
