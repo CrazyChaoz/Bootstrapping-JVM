@@ -95,3 +95,5 @@ gen 3   # verified in Nix with scala/stages/gen/3 (2026-10-28)
 s85 70d4eb9654a2e7a6ba7dad2b62df36793678d99f s84 normal PREDEF_KEEP=1 ARRAY_SRC=1 LIB_NOSP=1
 s86 88aab1cf8e06f98ccd18437974c09162ee54149f s85 normal PREDEF_KEEP=1 ARRAY_SRC=1 LIB_NOSP=1
 s87 d76943f9ae43176980f21f90f400053fe2da3fbf s86 normal PREDEF_KEEP=1 ARRAY_SRC=1 LIB_NOSP=1
+s88 f1044e136b067ad303b21c14b24f44ca62ca1977 s87 normal PREDEF_KEEP=1 ARRAY_SRC=1 LIB_NOSP=1
+gen 4   # verified in Nix with scala/stages/gen/4 (2026-10-28)
