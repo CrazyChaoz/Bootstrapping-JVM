@@ -7,6 +7,29 @@ prev=$1; pc=$2; target=$(cd /tmp/sc/full && git rev-parse "$3^{commit}")
 n=$(grep -c '^s' /tmp/sc/work/chain.txt)
 while true; do
   next=$(/tmp/sc/work/${BISECT:-pbisect.sh} $prev $pc $target 2>>/tmp/sc/climb.log)
+  if { [ -z "$next" ] || [ "$next" = none ]; } && [ -z "${SIDE:-}" ]; then
+    # a merge that does not build: climb its merged branch from the stage at the branch's base
+    # (STARR updates on the branch, fe1110f2fe 2012-04), then the merge from the branch's end
+    m=$(cd /tmp/sc/full && git rev-list --first-parent --reverse $pc..$target | head -1)
+    for side in $(cd /tmp/sc/full && git rev-list --parents -n1 $m | cut -d' ' -f3-); do
+      b=$(cd /tmp/sc/full && git merge-base $pc $side)
+      bs=$(awk -v c=$b '$2 == c && $1 ~ /^s/ { s = $1 } END { print s }' /tmp/sc/work/chain.txt)
+      [ -n "$bs" ] || continue
+      echo "SIDE $(cd /tmp/sc/full && git log -1 --format=%h $side) from $bs"
+      out=$(SIDE=1 /tmp/sc/work/climb.sh $bs $b $side); rc=$?
+      echo "$out" | grep -v '^REACHED'; [ $rc = 0 ] || continue
+      sp=$(awk '$1 ~ /^s/ { s = $1 } END { print s }' /tmp/sc/work/chain.txt)
+      n=$(grep -c '^s' /tmp/sc/work/chain.txt); name=s$((n+1))
+      if /tmp/sc/work/auto.sh $name $m $sp > /tmp/sc/climb-$name.txt 2>&1; then
+        mode=normal; grep -q compiler-first /tmp/sc/climb-$name.txt && mode=cf
+        echo "$name $m $sp $mode${CLIMB_ENV:+ $CLIMB_ENV}" >> /tmp/sc/work/chain.txt
+        echo "STEP $name $(cd /tmp/sc/full && git log -1 --format='%h %ad' --date=short $m) $mode (merge)"
+        n=$((n+1)); prev=$name; pc=$m
+        [ "$m" = "$target" ] && { echo "REACHED $3"; exit 0; }
+        continue 2
+      fi
+    done
+  fi
   if [ -z "$next" ] || [ "$next" = none ]; then
     # isolated broken commits: probe some following ones (in parallel), take the farthest good one
     next=; j=0; cs=()
