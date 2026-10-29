@@ -70,7 +70,7 @@ done
 av=$(sed -n 's/^scala-asm\.version=\([^ ]*\).*/\1/p' $TREE/versions.properties 2>/dev/null || true)
 [ -n "${ASM_SRCS:-}" ] && [ -n "$av" ] && [ -d "$ASM_SRCS/$av" ] && ASM_SRC=$ASM_SRCS/$av
 if [ ! -d src/asm ] && grep -rqs 'scala\.tools\.asm' src/compiler; then
-  find $ASM_SRC -name '*.java' > javadeps.files
+  find $ASM_SRC/ -name '*.java' > javadeps.files
   $J8/bin/javac -nowarn -encoding utf8 -d classes @javadeps.files > javadeps.log 2>&1 || { cat javadeps.log; exit 1; }
 fi
 grep -rqs 'org\.fusesource' src/jline && cp -r $JANSI_CLS/. classes/
