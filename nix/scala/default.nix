@@ -123,6 +123,15 @@ let
     installPhase = "true";
   };
 
+  # scala-asm, the ASM fork the compiler uses once src/asm is gone (2015-05): ASM 5.1 with
+  # Scala's cherry-picks, a superset of the 5.0.x-scala-N and 5.1.0-scala-1 the 2.12 builds name
+  scalaAsm = fetchFromGitHub {
+    owner = "scala";
+    repo = "scala-asm";
+    rev = "v5.1.0-scala-2";
+    hash = "sha256-DHrPEcX6QcuK6rsqMU32xB/b2OcL0Pbe9Q76kKLuXzc=";
+  };
+
   # Scala's generified jline (lib/jline.jar from 2009-06), as imported as source 2009-10
   jline5 = runCommand "jline-scala-2009" { } ''
     mkdir -p $out
@@ -227,7 +236,7 @@ let
       # (only where used: the other stages keep their hash)
       // lib.optionalAttrs ((s.env or { }) ? JAVA_API) { RT16 = "${views."1.6"}"; }
       # (scala.tools.asm from source once it left the tree, 2015-05; from generation 24 on)
-      // lib.optionalAttrs (gen == null || lib.toInt gen >= 24) { ASM_SRC = "${sources.${chain.asm}}/src/asm"; }
+      // lib.optionalAttrs (gen == null || lib.toInt gen >= 24) { ASM_SRC = "${scalaAsm}/src/main/java"; }
       // (s.env or { });
       buildPhase = ''
         runHook preBuild

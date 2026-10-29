@@ -3,13 +3,11 @@
   fjbg = "0f10ffedc8d0cdf8410cc6fc143a08a9333c9832";
   msil = "4304b157308ef9511f63abc66e8da44291bf7c41";
   jline5 = "c107643d20f3c68051c0dd8dd12b2a3919909d20";
-  asm = "9c1d5cedecd8d367c50533b09c543844f1c0d314";
   # scala/scala trees: rev -> hash of fetchScala
   sources = {
     "0f10ffedc8d0cdf8410cc6fc143a08a9333c9832" = "sha256-efly7uHNJC/OlaAOW8K85VRIKmWXYz8513qPfZLnWNc=";
     "4304b157308ef9511f63abc66e8da44291bf7c41" = "sha256-soSZPyfJP3mkkeH0D7z3wR6p4Ev/5du+Nj6fmJmr8vg=";
     "c107643d20f3c68051c0dd8dd12b2a3919909d20" = "sha256-Ut9MDWjjzXOczTejpG62sEIwVmTTZQsPTnXWb3+1Yw8=";
-    "9c1d5cedecd8d367c50533b09c543844f1c0d314" = "sha256-nAFtpQ8V7ayX4YbeKAZwi3rLsO3uWqKBiVtgoylCo4Q=";
     "3b4e70e1bdf4dcf237d398157b13cbd941e1001e" = "sha256-J4IJhMn03XVlmh/zgTePBbot46oVf4J9OWkd8awr9hc=";
     "8408bce1b7f9b46d3b80be82d75906ea573a5a2b" = "sha256-O3QN313gQb8k4nKkjhlEOyJBrxOYv3XOwhAKGblYFU0=";
     "645f87a5a839685fde5ee9fbeb55d242a32445d4" = "sha256-2cPuqjBmA30/NuwigG65XPN7p+kuA2rYJCghjwiLBss=";

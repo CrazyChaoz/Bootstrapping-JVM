@@ -33,7 +33,6 @@ STAGE1 = "d19cd4e679~1"   # the last commit with a complete Java "scalacboot" (2
 FJBG = "0f10ffedc8"       # src/fjbg (2009)
 MSIL = "4304b15730"       # src/msil (2009)
 JLINE5 = "c107643d20"     # src/jline (2009-10), the generified jline of lib/jline.jar from 2009-06
-ASM = "6fc2a6897b~1"      # src/asm (2015-05), the last in-tree scala.tools.asm, before the scala-asm artifact
 # keep in sync with fetchScala in nix/scala/default.nix
 BINARIES = (".jar", ".class", ".so", ".dll", ".dylib", ".exe", ".zip", ".a", ".jnilib")
 
@@ -107,7 +106,7 @@ def main():
         names[name] = name
         stages.append(s)
 
-    revs = [rev_parse(FJBG), rev_parse(MSIL), rev_parse(JLINE5), rev_parse(ASM)]
+    revs = [rev_parse(FJBG), rev_parse(MSIL), rev_parse(JLINE5)]
     for s in stages:
         revs.append(s["rev"])
         if "overlay" in s:
@@ -124,7 +123,6 @@ def main():
          f'  fjbg = "{revs[0]}";',
          f'  msil = "{revs[1]}";',
          f'  jline5 = "{revs[2]}";',
-         f'  asm = "{revs[3]}";',
          "  # scala/scala trees: rev -> hash of fetchScala",
          "  sources = {"]
     o += [f'    "{r}" = "{h}";' for r, h in hashes.items()]

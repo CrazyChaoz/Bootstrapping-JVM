@@ -10,6 +10,8 @@ GENERICS=; grep -q 'type Class\[T\]' $TREE/src/library/scala/Predef.scala 2>/dev
 # (JAVA_API=1.6: the Java 6 API from 2012-04, when the compilers no longer get by with a stub
 # for java.util.concurrent.RunnableFuture, which forkjoin's ForkJoinPool refers to)
 if [ "${JAVA_API:-}" = 1.6 ]; then BOOTJAR=${BOOTJAR:-$RT16}; fi
+# (JAVA_API=1.8: the whole Java 8 class library, the platform of 2.12, from 2015-07 e.g. ReflectiveOperationException)
+if [ "${JAVA_API:-}" = 1.8 ]; then BOOTJAR=${BOOTJAR:-$J8/lib/openjdk/jre/lib/rt.jar}; fi
 if [ -n "$GENERICS" ]; then BOOTJAR=${BOOTJAR:-$RT15}; else BOOTJAR=${BOOTJAR:-$RT14}; fi
 rm -rf $W; mkdir -p $W; cd $W
 if [ -d $TREE/src/library ]; then cp -r $TREE/src src; else
@@ -62,7 +64,7 @@ for d in src/jline/src/main/java src/forkjoin src/fjbg src/msil src/asm; do
   enc=utf8; [ $d = src/msil ] && enc=latin1
   $J8/bin/javac -nowarn -encoding $enc -cp classes${JANSI_CLS:+:$JANSI_CLS} -d classes @javadeps.files > javadeps.log 2>&1 || { cat javadeps.log; exit 1; }
 done
-# (from 2015-05 ASM is the scala-asm artifact, no longer in the tree: the same sources, $ASM_SRC)
+# (from 2015-05 ASM is the scala-asm artifact, no longer in the tree: its sources, $ASM_SRC)
 if [ ! -d src/asm ] && grep -rqs 'scala\.tools\.asm' src/compiler; then
   find $ASM_SRC -name '*.java' > javadeps.files
   $J8/bin/javac -nowarn -encoding utf8 -d classes @javadeps.files > javadeps.log 2>&1 || { cat javadeps.log; exit 1; }
@@ -119,9 +121,16 @@ nopredefs() { # option spelling understood by the compiler on classpath $1 (rena
   if has_opt "$1" '-Yno-predefs'; then echo -Yno-predefs
   elif has_opt "$1" '-Yno-predef'; then echo -Yno-predef
   else echo -nopredefs; fi; }
+props() { # props DIR CATEGORY : CATEGORY.properties with version.number, as the Ant/sbt builds write it
+  # (from 2015-03 the compiler parses the library's version.number at start-up, ScalaVersion.current)
+  local b=$TREE/build.number v
+  if [ -f $b ]; then v=$(for k in major minor patch; do sed -n "s/^version\.$k=\([0-9]*\).*/\1/p" $b; done | paste -sd.)
+  else v=$(sed -n 's/^maven\.version\.base=\([0-9.]*\).*/\1/p' $TREE/versions.properties); fi
+  printf 'version.number=%s-bootstrap\n' "$v" > $1/$2.properties; }
 lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   local n=$1 ccp=$2 main=$3 fb=${4:+:$4}; local L=$n/lib
   mkdir -p $L
+  props $L library
   if [ -n "$fb" ] && [ -n "$(for d in ${4//:/ }; do find $d/scala -maxdepth 1 -name '*$mc*$sp.class' 2>/dev/null; done | head -1)" ]; then
     # the fallback without its specialized subclasses (Tuple1$mcD$sp, 2010-05): compiled
     # from source as well, they would be "defined twice"
@@ -222,6 +231,7 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
 comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/comp, against LIBCP
   local n=$1 ccp=$2 main=$3 lcp=$4 fb=${5:+:$5}; local C=$n/comp
   mkdir -p $C
+  props $C compiler
   ( cd src/compiler; find . -name '*.java' | sed 's|^\./||' ) > $n.compjava
   if [ -s $n.compjava ]; then
     python3 -I $T/pizza2java.py src/compiler $n/java-comp --classpath-src src/compiler --meta-out $n.comp.meta.json $(cat $n.compjava)
