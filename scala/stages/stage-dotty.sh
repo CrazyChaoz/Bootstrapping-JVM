@@ -68,8 +68,6 @@ srcpath() { echo $TREE/library/src $extra | tr ' ' :; }
 compile -d lib0 -classpath $lcp $( [ $KIND = dotty ] && echo -sourcepath $(srcpath) $lopts ) @lib.files
 jl=$(grep '\.java$' lib.files || true)
 [ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib0:$lcp -d lib0 $jl
-# (and what of it the new sources lack, for the compiler built on lib0: e.g. src-bootstrapped only parts)
-[ $KIND = scala2 ] || cp -rn $PREV/lib/. lib0/
 
 # tasty-core (the TASTy format, its own project from 2019-12), by the reference compiler
 mkdir -p tasty

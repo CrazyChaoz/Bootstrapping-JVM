@@ -300,6 +300,16 @@ comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/com
       lcp=$F
     fi
   fi
+  # REFLECT_FIRST: src/reflect in a run of its own, the compiler against its classes (the sbt
+  # projects; joint compilation infers other types once Name became a CharSequence, 2020-11)
+  if [ -n "${REFLECT_FIRST:-}" ] && [ -d src/reflect ]; then
+    local rjava; rjava=$(echo $cjava | tr ' ' '\n' | grep '^src/reflect/' || true)
+    echo "== $n: reflect"
+    sc "$ccp" $main -d $C -classpath $lcp:$C:classes$fb -sourcepath src/reflect $(grep '^src/reflect/' $n.compscala) $rjava
+    [ -z "$rjava" ] || $J/bin/javac -nowarn -encoding utf8 --release 8 -cp $lcp:$C:classes -d $C $rjava > $n.compjava.log 2>&1 || { cat $n.compjava.log; exit 1; }
+    grep -v '^src/reflect/' $n.compscala > $n.compscala.c; mv $n.compscala.c $n.compscala
+    csp=src/compiler; cjava=$(echo $cjava | tr ' ' '\n' | grep -v '^src/reflect/' | paste -sd' ' || true)
+  fi
   sc "$ccp" $main -d $C -classpath $lcp:$C:classes$fb -sourcepath $csp $(cat $n.compscala) $cjava
   if [ -n "$cjava" ]; then
     $J/bin/javac -nowarn -encoding utf8 --release 8 -cp $lcp:$C:classes -d $C $cjava > $n.compjava.log 2>&1 || { cat $n.compjava.log; exit 1; }
