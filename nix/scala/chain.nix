@@ -214,6 +214,12 @@
     "53710db488bdef4f502041aa67adc4be04738646" = "sha256-YgzdyCdJu7adxH2fpSZqhNdtPtsPV15SOiElfQCTMtA=";
     "cec3982dc73fcc5026e63b5a7e8ba58419abf2e4" = "sha256-1Nn4Kt/vufMFQWBp7MnbbsOjlTxpPy0fz7k422U+j6M=";
     "980833e92d3f58d76477704f9af0aff4c71cbd63" = "sha256-ya+mFTUJnn8REYDF/X6Ao4EK4D34+yXNaEhBiBKYZMQ=";
+    "874494ab229fbc68cf135de6febf6ba387fb2f7c" = "sha256-ZM7pPKq0m5loMaiP+8n6XecHZaTR6kfWdvthP3g4tMw=";
+    "0f926ac0988e4968f311711416b8da62c2575418" = "sha256-Ow1HpaYjqTsPz6/G6PQHb07DY7p3HEuah4RpbiSti+g=";
+    "caf0db9bc68d9d87494c49631e6ed64acd4d6208" = "sha256-HwVxzhYtsDR86snekMzDHFY3xkPtkAflwTSphIGTlKw=";
+    "5d118abb206c4bf0ef9fd71b6ec2c58a232ec404" = "sha256-eCN5oi9FkhmX53Eg/p0brv5dG+Tvrp2WK5qPLJyZAhU=";
+    "dc11644dbcaafdc938635622604f26f3f8f2c298" = "sha256-V/ZCbv7rMFMBGW/ZRjFcUG7WXcgtviUsDMGgOTuEv0M=";
+    "43e040ff7e4ba92ccf223e77540580b32c1473c0" = "sha256-MOEFMbcikVzDnL7i5b/Wd21qfCc0Mh5AJ1bML3Z8XjY=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -426,5 +432,11 @@
     { name = "s198"; rev = "53710db488bdef4f502041aa67adc4be04738646"; builder = "stage2.sh"; gen = "27"; prev = "s197"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
     { name = "s199"; rev = "cec3982dc73fcc5026e63b5a7e8ba58419abf2e4"; builder = "stage2.sh"; gen = "27"; prev = "s198"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
     { name = "s200"; rev = "980833e92d3f58d76477704f9af0aff4c71cbd63"; builder = "stage2.sh"; gen = "27"; prev = "s199"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; FALLBACK_DROP = "scala/collection/mutable/IterableOps"; }; }
+    { name = "s201"; rev = "874494ab229fbc68cf135de6febf6ba387fb2f7c"; builder = "stage2.sh"; prev = "s200"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s202"; rev = "0f926ac0988e4968f311711416b8da62c2575418"; builder = "stage2.sh"; prev = "s201"; compilerFirst = true; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s203"; rev = "caf0db9bc68d9d87494c49631e6ed64acd4d6208"; builder = "stage2.sh"; prev = "s202"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s204"; rev = "5d118abb206c4bf0ef9fd71b6ec2c58a232ec404"; builder = "stage2.sh"; prev = "s203"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; FALLBACK_DROP = "scala/reflect/package"; }; }
+    { name = "s205"; rev = "dc11644dbcaafdc938635622604f26f3f8f2c298"; builder = "stage2.sh"; prev = "s204"; compilerFirst = true; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s206"; rev = "43e040ff7e4ba92ccf223e77540580b32c1473c0"; builder = "stage2.sh"; prev = "s205"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
   ];
 }
