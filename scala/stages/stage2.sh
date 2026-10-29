@@ -227,12 +227,15 @@ comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/com
   # compiled with it (compiler first; the reflection API in scala/reflect/api, 2012-03)
   if [ -n "${COMPILER_FIRST:-}" ] && [ $n = locker ] && [ -n "${CF_LIBSRC:-}" ]; then
     # (copies: macro definitions, `def f = macro impl` from 2012-04, become ??? there when the
-    # previous compiler cannot parse them, i.e. has no -Xmacros; kept otherwise, so that the
-    # tag materializers of scala.reflect.makro.internal stay macros; CF_LIBPATCH=NAME:
-    # cfpatch/NAME.sh CFLIBDIR adapts them further; only the compiler first is built from them)
-    local stub='s/=\s*macro\s.*$/= ???/'; has_opt "$PREVCP" '-Xmacros' && stub=
+    # previous compiler cannot parse them, i.e. predates -Xmacro-settings (which came with them and
+    # outlived -Xmacros); kept otherwise, so that the tag materializers of scala.reflect.makro.internal
+    # stay macros; CF_LIBPATCH=NAME: cfpatch/NAME.sh CFLIBDIR adapts them further; only the
+    # compiler first is built from them)
+    local stub='s/=\s*macro\s.*$/= ???/'; has_opt "$PREVCP" '-Xmacro-settings' && stub=
+    # (!PATH entries: left out, e.g. a stand-in for the IDE that clashes with the previous library)
     IFS=, read -ra cfl <<< "$CF_LIBSRC"
-    for d in "${cfl[@]}"; do find src/library/$d -name '*.scala'; done | while read -r f; do
+    local cfx=; for d in "${cfl[@]}"; do [[ $d == !* ]] && cfx="$cfx|src/library/${d#!}"; done
+    for d in "${cfl[@]}"; do [[ $d == !* ]] || find src/library/$d -name '*.scala'; done | grep -vxE "${cfx#|}${cfx:+|}^$" | while read -r f; do
       mkdir -p "$n/cf-libsrc/$(dirname "$f")"; sed -E "$stub" "$f" > "$n/cf-libsrc/$f"
     done
     [ -z "${CF_LIBPATCH:-}" ] || bash $HERE/cfpatch/$CF_LIBPATCH.sh $n/cf-libsrc/src/library
