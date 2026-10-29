@@ -212,13 +212,20 @@ Not done: AWS/GCS/maven modules, JNI libraries (jansi, native-platform), Scala c
 
 Goal: a current Scala without any Scala binary.  No from-source Pizza compiler exists, so the chain starts at the
 last scala/scala commit with a complete Java ("scalacboot") compiler, 3b4e70e1bd (2004-02-19), and goes commit by
-commit (`scala/proto/chain.txt`) through Scala 1.x, the first Scala 2 compiler (nsc, 2005-12) and 2.0.0 (s14) on.
-`nix build .#scala.stages.<name>`, `.#scala."2.0.0"`, `.#scala.latest`; every stage's compiler must compile and run
-`scala/stages/Hello*.scala` (installCheck).
+commit (`scala/proto/chain.txt`) through Scala 1.x, the first Scala 2 compiler (nsc, 2005-12), 2.0.0 (s14)
+and 2.x, to s184 (2015-07-08) on the way to 2.12.
+`nix build .#scala.stages.<name>`, `.#scala.\"1.4.0.4\"`, `.#scala.\"2.0.0\"`, `.#scala.\"2.7.7\"`,
+`.#scala.\"2.11.0\"`, `.#scala.latest`; every stage's compiler must compile and run `scala/stages/Hello*.scala`
+(installCheck).
 * Pizza (algebraic `case` classes, pattern `switch`, …) → Java: `tools/pizza2java.py`, then javac; PiCo classfile
   conventions (JacoMeta/JacoInterface attributes, case fields) by `tools/pico-classfiles.py`.
 * FJBG and the MSIL reader API from the 2009 sources (src/fjbg 0f10ffedc8, src/msil 4304b15730); the MSIL backend
-  is stubbed in every stage (msil.jar was a binary until 2009).  jline 1.0 from source for the REPL (2007-07+).
+  is stubbed in every stage (msil.jar was a binary until 2009).  jline 1.0 from source for the REPL (2007-07+),
+  the generified jline (lib/jline.jar from 2009-06, imported as source 2009-10) and jansi 1.4 with
+  jansi-native/hawtjni-runtime for Scala's jline fork (2010-12+; Java parts only, the native Windows console
+  support is never loaded on Unix).
+* The compiler's ASM: from source, scala-asm v5.1.0-scala-2 (a superset of the 5.0.x-scala-N and
+  5.1.0-scala-1 the 2.12 builds name) once src/asm left the tree (2015-05+).
 * Old classfile readers are patched for Java 8 class files; they see the JDK through period-accurate API views
   (`tools/jdk-api-view.py`: Java 1.4 without Java 5 attributes, Java 1.5 with generic signatures; hidden supertypes
   flattened, signatures rewritten with substituted type arguments).
@@ -236,4 +243,12 @@ rebuild the whole chain (hours, strictly sequential).  Stages verified in Nix ar
 STAGE` copies the current `scala/stages` and stage tools to `scala/stages/gen/N` and puts `gen N` after STAGE in
 `chain.txt`; those stages then build with the frozen copy (byte-identical, so their derivations and store paths do
 not change) and later fixes only rebuild the stages after them.  Stages without a generation use the current
-scripts.  gen 1: st1–s73 (through Sequence→Seq, 2009-10-02).
+scripts.  Gens 1–23 (verified in Nix 2026-10-27 … 29) cover v111–s180, through 2.11.0 (2014-04-15):
+```
+g1 v111–s42   g2 b42–s77 (through Sequence→Seq, 2009-10-02)   g3 s78–s84   g4 s85–s88
+g5 s89–s93    g6 s94–s96   g7 s97–s98   g8 s99–s100   g9 s101–s102   g10 s103–s105
+g11 s106–s108  g12 s109–s110  g13 s111–s113  g14 s114–s116  g15 s117–s119  g16 s120–s125
+g17 s126–s129  g18 s130–s136  g19 s137–s143  g20 s144–s159  g21 s160–s175
+g22 s176–s178  g23 s179–s180
+```
+s181–s184 (through 2015-07-08, on the way to 2.12) run with the current scripts.
