@@ -14,7 +14,17 @@ while true; do
     for side in $(cd /tmp/sc/full && git rev-list --parents -n1 $m | cut -d' ' -f3-); do
       b=$(cd /tmp/sc/full && git merge-base $pc $side)
       bs=$(awk -v c=$b '$2 == c && $1 ~ /^s/ { s = $1 } END { print s }' /tmp/sc/work/chain.txt)
-      [ -n "$bs" ] || continue
+      if [ -z "$bs" ]; then
+        # (the base not a stage yet: climbed to first, from the last stage before it)
+        read -r as ac < <(awk '$1 ~ /^s/ { print $1, $2 }' /tmp/sc/work/chain.txt | tac | while read -r x y; do
+          (cd /tmp/sc/full && git merge-base --is-ancestor $y $b) && { echo $x $y; break; }; done)
+        [ -n "${as:-}" ] || continue
+        echo "BASE $(cd /tmp/sc/full && git log -1 --format=%h $b) from $as"
+        out=$(SIDE=1 /tmp/sc/work/climb.sh $as $ac $b); rc=$?
+        echo "$out" | grep -v '^REACHED'; [ $rc = 0 ] || continue
+        bs=$(awk -v c=$b '$2 == c && $1 ~ /^s/ { s = $1 } END { print s }' /tmp/sc/work/chain.txt)
+        [ -n "$bs" ] || continue
+      fi
       echo "SIDE $(cd /tmp/sc/full && git log -1 --format=%h $side) from $bs"
       out=$(SIDE=1 /tmp/sc/work/climb.sh $bs $b $side); rc=$?
       echo "$out" | grep -v '^REACHED'; [ $rc = 0 ] || continue
