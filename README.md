@@ -33,8 +33,8 @@ nix build .#kotlin."0.6.786"                # first Kotlin stage, pure Java
 nix build .#kotlin."2.4.0"                  # Kotlin 2.4.0 (many stages later)
 nix build .#gradleDist                      # Gradle 9.8.0 (= .#gradle."9.8.0".dist)
 nix build .#gradle."8.14.3".dist            # Gradle 8.14.3
-nix build .#scala.\"2.7.7\"                  # Scala 2.7.7, from the 2004 Java scalac
-nix build .#scala.latest                    # the newest Scala stage of the chain
+nix build .#scala.\"2.11.0\"                 # Scala 2.11.0, from the 2004 Java scalac
+nix build .#scala.latest                    # the newest stage of the chain (on the way to 2.12)
 ```
 
 Smoke test of the Gradle build:
@@ -57,8 +57,10 @@ See `NOTES.md` for the detailed log.
   modules (`resources-s3`, `resources-gcs`, `build-init`), JNI libraries, and
   Scala compilation (the Zinc worker is stubbed).
 * **Scala**: in progress.  A chain of scala/scala commits (Java scalac of 2004 →
-  Scala 2.x, translated from Pizza to Java by `tools/pizza2java.py`) reaches
-  the 2.7 / 2.8 collections rewrite so far; the MSIL backend is stubbed.
+  Scala 2.x, translated from Pizza to Java by `tools/pizza2java.py`), each stage
+  compiled by the previous one, reaches 2.11.0 (2014-04-15), verified in Nix;
+  the tip is on the way to 2.12 (2015-07-08).  The MSIL backend is stubbed;
+  `scala.tools.asm` (the scala-asm fork) is built from source.
 * Ant, all Java dependencies, IntelliJ SDK modules: built from source.
 * ICU's data (`icudata.jar`, used by icu4j to generate ANTLR 4's Unicode tables)
   is rebuilt from the Unicode Character Database text files (`nix/java/icu`);
