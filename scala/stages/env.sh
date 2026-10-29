@@ -9,6 +9,7 @@ FJBG_SRC=${FJBG_SRC:-$S/fjbg/src/fjbg}     # src/fjbg of scala/scala 0f10ffedc8 
 MSIL_SRC=${MSIL_SRC:-$S/msil/src/msil}     # src/msil of scala/scala 4304b15730 (2009)
 ASM_SRC=${ASM_SRC:-$S/scala-asm-5.1/src/main/java}  # scala/scala-asm v5.1.0-scala-2 (ASM 5.1 + Scala's cherry-picks)
 ASM_SRCS=${ASM_SRCS:-$S/scala-asm-srcs}     # scala/scala-asm sources by version (the tags' src/main/java)
+DIFFUTILS_SRCS=${DIFFUTILS_SRCS:-$S/deps/diffutils}  # java-diff-utils by version (the tags' trees), for the 2.13 compiler from 2022-05
 FJBG_CLS=${FJBG_CLS:-$S/st-n0/fjbg-cls}    # FJBG + MSIL reader classes, as built for the first nsc
 JLINE_CLS=${JLINE_CLS:-$S/deps/jline-cls}  # jline 1.0
 JLINE5_CLS=${JLINE5_CLS:-$S/deps/jline5-cls}  # Scala's generified jline (src/jline of c107643d20, 2009-10)

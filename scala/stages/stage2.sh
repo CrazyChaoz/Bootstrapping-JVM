@@ -73,6 +73,14 @@ if [ ! -d src/asm ] && grep -rqs 'scala\.tools\.asm' src/compiler; then
   find $ASM_SRC/ -name '*.java' > javadeps.files
   $J8/bin/javac -nowarn -encoding utf8 -d classes @javadeps.files > javadeps.log 2>&1 || { cat javadeps.log; exit 1; }
 fi
+# (from 2022-05 the compiler uses java-diff-utils, -Yprint-trees:diff: the version build.sbt names,
+# from DIFFUTILS_SRCS, its core module)
+if grep -rqs 'com\.github\.difflib' src/compiler; then
+  dv=$(sed -n 's/.*"java-diff-utils" *% *"\([^"]*\)".*/\1/p' $TREE/build.sbt | head -1)
+  [ -d "${DIFFUTILS_SRCS:-}/$dv" ] || { echo "no java-diff-utils $dv" >&2; exit 1; }
+  find $DIFFUTILS_SRCS/$dv/java-diff-utils/src/main/java/ -name '*.java' > diffutils.files
+  $J8/bin/javac -nowarn -encoding utf8 -d classes @diffutils.files > diffutils.log 2>&1 || { cat diffutils.log; exit 1; }
+fi
 grep -rqs 'org\.fusesource' src/jline && cp -r $JANSI_CLS/. classes/
 [ -d src/jline/src/main/resources ] && cp -r src/jline/src/main/resources/. classes/
 . $HERE/nsc-patches.sh
