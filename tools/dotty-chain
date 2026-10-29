@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""dotty-chain.py DOTTYGIT FINALTAG : the dotty reference-compiler chain, one line per stage:
+NAME COMMIT PREVNAME VERSION SCALAC  (PREVNAME "-": built by Scala 2, SCALAC = scalacVersion)."""
+import re, subprocess, sys
+G, final = sys.argv[1], sys.argv[2]
+def git(*a): return subprocess.run(["git", "-C", G, *a], capture_output=True, text=True).stdout
+def show(c, f):
+    r = subprocess.run(["git", "-C", G, "show", f"{c}:{f}"], capture_output=True, text=True)
+    return r.stdout if r.returncode == 0 else ""
+def ref_of(c):
+    for f in ("project/Versions.scala", "project/Build.scala"):
+        m = re.search(r'val referenceVersion\s*=\s*"([^"]+)"', show(c, f))
+        if m: return m.group(1)
+    return None
+def scalac_of(c):
+    for f in ("project/Versions.scala", "project/Build.scala"):
+        m = re.search(r'val scalacVersion\s*=\s*"([^"]+)"', show(c, f))
+        if m: return m.group(1)
+    return "-"
+def commit_of(v):
+    m = re.search(r'-bin-\d{8}-([0-9a-f]{7,})-NIGHTLY$', v)
+    c = git("rev-parse", "--verify", "-q", (m.group(1) if m else v) + "^{commit}").strip()
+    if not c: sys.exit(f"no commit for {v}")
+    return c
+# walk back from the final tag: each tree names the compiler that builds it
+stages, c, v = [], git("rev-parse", final + "^{commit}").strip(), final
+while True:
+    r = ref_of(c)
+    stages.append((v, c, r))
+    if r is None: break
+    v, c = r, commit_of(r)
+stages.reverse()
+names = {}
+for i, (v, c, r) in enumerate(stages):
+    names[v] = f"d{i}"
+    print(f"d{i} {c} {names[r] if r else '-'} {v} {scalac_of(c)}")
