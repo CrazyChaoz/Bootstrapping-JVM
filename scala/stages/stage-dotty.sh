@@ -63,7 +63,9 @@ find $TREE/library/src $extra -name '*.scala' -o -name '*.java' | sort > lib.fil
 echo "== library ($KIND)"
 # (by a dotty: with its released library on the class path, as sbt's scalaInstance has it)
 if [ $KIND = dotty ]; then lcp=$PREV/lib:$S2; else lcp=$S2; fi
-compile -d lib0 -classpath $lcp $( [ $KIND = dotty ] && echo -sourcepath $TREE/library/src ) @lib.files
+lopts=$(sed -n 's/^libopts //p' deps.versions)
+srcpath() { echo $TREE/library/src $extra | tr ' ' :; }
+compile -d lib0 -classpath $lcp $( [ $KIND = dotty ] && echo -sourcepath $(srcpath) $lopts ) @lib.files
 jl=$(grep '\.java$' lib.files || true)
 [ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib0:$lcp -d lib0 $jl
 # (and what of it the new sources lack, for the compiler built on lib0: e.g. src-bootstrapped only parts)
@@ -97,7 +99,7 @@ x=$TREE/library/src-3.x; extra=$TREE/library/src-bootstrapped; [ ! -d $x ] || ex
 find $TREE/library/src $extra -name '*.scala' -o -name '*.java' | sort > lib2.files
 echo "== library (new compiler)"
 $JAVA -cp comp:lib0:tasty:interfaces:deps:$S2 dotty.tools.dotc.Main -nowarn -encoding UTF8 -language:existentials,higherKinds,implicitConversions \
-  -d lib -classpath $S2B -sourcepath $TREE/library/src @lib2.files
+  -d lib -classpath $S2B -sourcepath $(srcpath) $lopts $(sed -n 's/^libopts-boot //p' deps.versions) @lib2.files
 jl=$(grep '\.java$' lib2.files || true)
 [ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib:$S2B -d lib $jl
 echo "stage done"
