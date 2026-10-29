@@ -50,8 +50,10 @@ for d in src/jline/src/main/java src/forkjoin src/fjbg src/msil src/asm; do
   [ -d $d ] || continue
   find $d -name '*.java' | grep -v '/msil/tests/\|/msil/util/VJSAssembly\.java$' > javadeps.files
   [ -s javadeps.files ] || continue
-  # (forkjoin takes sun.misc.Unsafe from the library's scala.concurrent.util.Unsafe, plain Java, 2012-06)
-  [ $d = src/forkjoin ] && grep -rqs 'scala\.concurrent\.util\.Unsafe' $d && echo src/library/scala/concurrent/util/Unsafe.java >> javadeps.files
+  # (forkjoin takes sun.misc.Unsafe from the library's scala.concurrent.util.Unsafe, plain Java,
+  # 2012-06, until that moved into src/forkjoin itself)
+  u=src/library/scala/concurrent/util/Unsafe.java
+  [ $d = src/forkjoin ] && [ -f $u ] && grep -rqs 'scala\.concurrent\.util\.Unsafe' $d && echo $u >> javadeps.files
   # (712ebe2943, 2010-05, put Scala's ## into msil's Type.java, which scalac compiled)
   { grep -l '\.##' $(cat javadeps.files) || true; } | xargs -r sed -i 's/\.##\([^#]\)/.hashCode()\1/g'
   # (msil's sources have Latin-1 comments, 2010-08)
@@ -135,7 +137,8 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   if [ -s $n.libjava ]; then
     python3 -I $T/pizza2java.py src/library $n/java-lib --classpath-src src/library --meta-out $n.lib.meta.json $(cat $n.libjava)
     # (forkjoin, in the library from 2009-09, needs sun.misc.Unsafe: JDK 8's javac)
-    local jc="$J/bin/javac --release 8"; grep -rqs 'sun\.misc\.Unsafe' $n/java-lib && jc=$J8/bin/javac
+    # (or through scala.concurrent.util.Unsafe.instance, AbstractPromise 2012-06)
+    local jc="$J/bin/javac --release 8"; grep -rqs 'sun\.misc\.Unsafe\|Unsafe\.instance' $n/java-lib && jc=$J8/bin/javac
     # forkjoin alone first: stale forkjoin classes of the previous library would shadow
     # java.util.concurrent (its own RunnableFuture, dropped 2009-09)
     if [ -d $n/java-lib/scala/concurrent/forkjoin ]; then
