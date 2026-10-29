@@ -21,7 +21,9 @@ chmod -R u+w src
 # from 2009-09 Predef extends LowPriorityImplicits and starts with imports, so the compilers
 # no longer see Predef.scala as the Predef unit and import Predef into it: an illegal cyclic
 # reference.  The same imports inside the object do not count as leading ones.
-if [ -f src/library/scala/LowPriorityImplicits.scala ]; then
+# Only with PREDEF_MOVE=1: the stages that need it are frozen in builder generations, and
+# from 2013-04 the move itself makes the previous compiler fail (cyclic reference on Predef).
+if [ -f src/library/scala/LowPriorityImplicits.scala ] && [ -n "${PREDEF_MOVE:-}" ]; then
   python3 - src/library/scala/Predef.scala <<'PY'
 import re, sys
 p = sys.argv[1]; s = open(p, encoding="latin-1").read()
