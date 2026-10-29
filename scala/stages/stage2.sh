@@ -50,6 +50,8 @@ for d in src/jline/src/main/java src/forkjoin src/fjbg src/msil src/asm; do
   [ -d $d ] || continue
   find $d -name '*.java' | grep -v '/msil/tests/\|/msil/util/VJSAssembly\.java$' > javadeps.files
   [ -s javadeps.files ] || continue
+  # (forkjoin takes sun.misc.Unsafe from the library's scala.concurrent.util.Unsafe, plain Java, 2012-06)
+  [ $d = src/forkjoin ] && grep -rqs 'scala\.concurrent\.util\.Unsafe' $d && echo src/library/scala/concurrent/util/Unsafe.java >> javadeps.files
   # (712ebe2943, 2010-05, put Scala's ## into msil's Type.java, which scalac compiled)
   { grep -l '\.##' $(cat javadeps.files) || true; } | xargs -r sed -i 's/\.##\([^#]\)/.hashCode()\1/g'
   # (msil's sources have Latin-1 comments, 2010-08)
