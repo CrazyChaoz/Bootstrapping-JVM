@@ -198,6 +198,10 @@
     "4783a25d3068c2f756b8517b69a95b5d77d24654" = "sha256-4HINin+Euq1GwUJmRlQOSxaHsDBvGLIoJ571ZViJHLM=";
     "662e23eefbe67d843945b31495e138d02f60fe5e" = "sha256-tlyomcA1UR/uYkv3MsQZIocP8z9hGGL/dlVPug9KD/U=";
     "41edbe65a738a4a109f1b76b977354a3fee474c0" = "sha256-YkX+Sn/6suzCVIGjjjTG58fht5vUtOiF6CeFS4RU7B8=";
+    "99a82be91cbb85239f70508f6695c6b21fd3558c" = "sha256-02jQoFqy4Voc3mjwd4JTbfXO1UXYKiqZZSycolxC5jc=";
+    "699a5d907943330c59cea8e7b1abb536af8e5885" = "sha256-A1sa3LNtJjbSk8b6Luc57ho/Ul2kKmheK6DqMm+l2LY=";
+    "c8e6050c3c190dd064642b6b77fc179f27b0495d" = "sha256-gmob+DtSZqIcR/9afAToeMu8aCn9UTSBX2z0XwFiHKE=";
+    "06485eb4d9a41dd99086c204fa76089395f01d61" = "sha256-Okeju66O8RuS4+I1wV9aI1ydUq2HIMlvFyzgxafOdAw=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -394,5 +398,9 @@
     { name = "s182"; rev = "4783a25d3068c2f756b8517b69a95b5d77d24654"; builder = "stage2.sh"; gen = "24"; prev = "s181"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; }; }
     { name = "s183"; rev = "662e23eefbe67d843945b31495e138d02f60fe5e"; builder = "stage2.sh"; gen = "24"; prev = "s182"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; }; }
     { name = "s184"; rev = "41edbe65a738a4a109f1b76b977354a3fee474c0"; builder = "stage2.sh"; gen = "24"; prev = "s183"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; }; }
+    { name = "s185"; rev = "99a82be91cbb85239f70508f6695c6b21fd3558c"; builder = "stage2.sh"; prev = "s184"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; }; }
+    { name = "s186"; rev = "699a5d907943330c59cea8e7b1abb536af8e5885"; builder = "stage2.sh"; prev = "s185"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; }; }
+    { name = "s187"; rev = "c8e6050c3c190dd064642b6b77fc179f27b0495d"; builder = "stage2.sh"; prev = "s185"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LOCKER_ONLY = "1"; }; }
+    { name = "s188"; rev = "06485eb4d9a41dd99086c204fa76089395f01d61"; builder = "stage2.sh"; prev = "s187"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; }; }
   ];
 }

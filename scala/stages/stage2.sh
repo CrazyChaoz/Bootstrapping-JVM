@@ -129,6 +129,7 @@ props() { # props DIR CATEGORY : CATEGORY.properties with version.number, as the
   printf 'version.number=%s-bootstrap\n' "$v" > $1/$2.properties; }
 lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   local n=$1 ccp=$2 main=$3 fb=${4:+:$4}; local L=$n/lib
+  local fi_src=
   mkdir -p $L
   props $L library
   if [ -n "$fb" ] && [ -n "$(for d in ${4//:/ }; do find $d/scala -maxdepth 1 -name '*$mc*$sp.class' 2>/dev/null; done | head -1)" ]; then
@@ -152,6 +153,13 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   ( cd src/library; find . -name '*.java' | sed 's|^\./||' ) > $n.libjava
   if [ -s $n.libjava ]; then
     python3 -I $T/pizza2java.py src/library $n/java-lib --classpath-src src/library --meta-out $n.lib.meta.json $(cat $n.libjava)
+    # (the Java parts are compiled first, against the previous library, whose trait encoding may be
+    # older than the sources: then javac rejects the @FunctionalInterface of JFunctionN, which needs
+    # the new one, default methods, 2016-03; quick compiles them again after its Scala, below)
+    if grep -rlq '@FunctionalInterface' $n/java-lib; then
+      fi_src=$n/java-lib-fi; rm -rf $fi_src; cp -r $n/java-lib $fi_src
+      grep -rl '@FunctionalInterface' $n/java-lib | xargs sed -i 's/@FunctionalInterface//'
+    fi
     # (forkjoin, in the library from 2009-09, needs sun.misc.Unsafe: JDK 8's javac)
     # (or through scala.concurrent.util.Unsafe.instance, AbstractPromise 2012-06)
     local jc="$J/bin/javac --release 8"; grep -rqs 'sun\.misc\.Unsafe\|Unsafe\.instance' $n/java-lib && jc=$J8/bin/javac
@@ -227,6 +235,9 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   # ae8c065594, 2010-03)
   [ -n "${LIB_NOSP:-}" ] && [ $n = quick ] && mcp=$mcp:locker/lib
   sc "$ccp" $main -d $L -classpath $mcp $msp $(cat $n.libscala)
+  if [ -n "$fi_src" ] && [ $n = quick ]; then
+    $J/bin/javac -nowarn --release 8 -encoding latin1 -cp $L:classes -d $L $(find $fi_src -name '*.java' -path '*/scala/runtime/java8/*') > $n.libjava2.log 2>&1 || { cat $n.libjava2.log; exit 1; }
+  fi
 }
 comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/comp, against LIBCP
   local n=$1 ccp=$2 main=$3 lcp=$4 fb=${5:+:$5}; local C=$n/comp
@@ -309,6 +320,13 @@ LCP=locker/lib:locker/comp:classes; [ -n "${COMPILER_FIRST:-}" ] && LCP=locker/c
 # needs classes the new library lacks: scala.reflect.Manifest, a type alias from e4976678fa,
 # 2012-04, and its superclass ClassManifest, which FALLBACK_DROP leaves out of the fallback)
 [ -n "${LOCKER_RUN_FB:-}" ] && LCP=$LCP:$PREVLIB
+# (LOCKER_ONLY=1: the stage is its locker, for a commit that does not build itself consistently:
+# c8e6050c3c, the new trait encoding of 2016-03, whose JFunctionN still call the impl classes of
+# the old one; its locker, old-encoding classes on the old-encoding library, compiles the new)
+if [ -n "${LOCKER_ONLY:-}" ]; then
+  mkdir -p out2; cp -r locker/lib/. out2/; cp -r locker/comp/. out2/
+  echo stage done; exit 0
+fi
 lib quick $LCP scala.tools.nsc.Main ${GENERICS:+quick/arrayfb}
 comp quick $LCP scala.tools.nsc.Main quick/lib
 mkdir -p out2; cp -r quick/lib/. out2/; cp -r quick/comp/. out2/
