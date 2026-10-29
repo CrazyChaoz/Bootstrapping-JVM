@@ -255,7 +255,12 @@ comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/com
   mkdir -p $C
   props $C compiler
   ( cd src/compiler; find . -name '*.java' | sed 's|^\./||' ) > $n.compjava
-  if [ -s $n.compjava ]; then
+  local cjava=
+  if [ -n "${LIB_JAVA_AFTER:-}" ]; then
+    # (LIB_JAVA_AFTER: the sbt order here too, with src/reflect's Java sources, from 2017-10,
+    # e.g. StatisticsStatics: to scalac with the Scala sources, then javac)
+    cjava=$(find src/compiler $([ -d src/reflect ] && echo src/reflect) -name '*.java' | grep -v "$EXCL" || true)
+  elif [ -s $n.compjava ]; then
     python3 -I $T/pizza2java.py src/compiler $n/java-comp --classpath-src src/compiler --meta-out $n.comp.meta.json $(cat $n.compjava)
     $J/bin/javac -nowarn -encoding latin1 --release 8 -cp $lcp:$C:classes -d $C $(find $n/java-comp -name '*.java') > $n.compjava.log 2>&1 || { cat $n.compjava.log; exit 1; }
     python3 -I $T/pico-classfiles.py $C $n.comp.meta.json
@@ -291,7 +296,10 @@ comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/com
       lcp=$F
     fi
   fi
-  sc "$ccp" $main -d $C -classpath $lcp:$C:classes$fb -sourcepath $csp $(cat $n.compscala)
+  sc "$ccp" $main -d $C -classpath $lcp:$C:classes$fb -sourcepath $csp $(cat $n.compscala) $cjava
+  if [ -n "$cjava" ]; then
+    $J/bin/javac -nowarn -encoding utf8 --release 8 -cp $lcp:$C:classes -d $C $cjava > $n.compjava.log 2>&1 || { cat $n.compjava.log; exit 1; }
+  fi
 }
 if [ -n "${UNNEST:-}${LOCKER_PATCH:-}${LOCKER_SCRIPT:-}" ]; then
   # locker from rewritten sources, quick from the real ones: UNNEST (the STARR predates
