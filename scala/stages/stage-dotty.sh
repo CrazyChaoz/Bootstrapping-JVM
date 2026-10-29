@@ -85,7 +85,7 @@ jl=$(grep '\.java$' lib.files || true)
 mkdir -p tasty
 if [ -d $TREE/tasty/src ]; then
   echo "== tasty-core ($KIND)"
-  compile -d tasty -classpath lib0:$S2 $(find $TREE/tasty/src -name '*.scala' | sort)
+  compile -d tasty -classpath lib0:$S2 $(find $TREE/tasty/src $([ -d $TREE/tasty/src-non-bootstrapped ] && echo $TREE/tasty/src-non-bootstrapped) -name '*.scala' | sort)
 fi
 
 # dotty-compiler (with the scalajs-ir sources the build unpacks; src-non-bootstrapped: what the

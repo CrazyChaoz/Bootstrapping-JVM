@@ -40,7 +40,7 @@ for d, _, fs in os.walk(reflib):
     for f in fs:
         if not (f.endswith(".class") or f.endswith(".tasty")):
             continue
-        top = re.split(r"[$.]", f, 1)[0]
+        top = re.split(r"[$.]", f, maxsplit=1)[0]
         if f.split(".")[0].endswith("$package") or "$package$" in f:
             top = f.split("$package")[0] + "$package"
         stem = f"{pkg}/{top}" if pkg else top
