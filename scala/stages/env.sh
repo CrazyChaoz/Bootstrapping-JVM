@@ -21,7 +21,7 @@ cp() { command cp --no-preserve=mode "$@"; }
 # Old scalac prefers a source over a class file that is not older, and the Nix store dates
 # everything at 1: put a previous stage's sources on a class path as a copy dated before it.
 oldsrc() { cp -r "$1" "$2"; find "$2" -exec touch -h -d @0 {} +; }
-ZINC_SRC=${ZINC_SRC:-$S/deps/zinc-v1.2.5}           # sbt/zinc (internal/compiler-interface), for dotty
-JLINE3_SRC=${JLINE3_SRC:-$S/deps/jline3-3.9.0}      # jline/jline3 (reader, terminal), for dotty's REPL
-SCALAJS_SRC=${SCALAJS_SRC:-$S/deps/scala-js-v1.0.0-M7}  # scala-js/scala-js (ir), for dotty's Scala.js backend
-SBTUTIL_SRC=${SBTUTIL_SRC:-$S/deps/sbt-util-v1.2.2}    # sbt/util (internal/util-interface: xsbti.Position etc.), for zinc
+ZINC_SRCS=${ZINC_SRCS:-$S/deps/zinc}       # sbt/zinc by version (internal/compiler-interface), for dotty
+SBTUTIL_SRCS=${SBTUTIL_SRCS:-$S/deps/sbtutil}  # util-interface (xsbti.Position etc.) by sbt util version: sbt/util 1.2, then sbt/sbt
+JLINE3_SRCS=${JLINE3_SRCS:-$S/deps/jline}  # jline/jline3 by version (reader, terminal), for dotty's REPL
+SCALAJS_SRCS=${SCALAJS_SRCS:-$S/deps/scalajs}  # scala-js/scala-js by version (ir), for dotty's Scala.js backend
