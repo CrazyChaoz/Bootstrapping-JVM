@@ -13,6 +13,7 @@ JLINE5_CLS=${JLINE5_CLS:-$S/deps/jline5-cls}  # Scala's generified jline (src/jl
 JANSI_CLS=${JANSI_CLS:-$S/deps/jansi-cls}  # jansi 1.4 + jansi-native 1.0 + hawtjni-runtime 1.0 (for the jline fork, 2010-12)
 RT14=${RT14:-$S/rt14b.jar}                 # JDK API views (tools/jdk-api-view.py) as of Java 1.4 / 1.5
 RT15=${RT15:-$S/rt15.jar}
+RT16=${RT16:-$S/rt16.jar}                  # (and 1.6, JAVA_API=1.6)
 # inputs may be read-only (the Nix store): copies of them have to be writable
 cp() { command cp --no-preserve=mode "$@"; }
 # Old scalac prefers a source over a class file that is not older, and the Nix store dates

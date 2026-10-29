@@ -7,6 +7,9 @@ set -euo pipefail
 TREE=$1; W=$2; PREVCP=$3; PREVMAIN=${4:-scala.tools.nsc.Main}
 # from 2007-12 (dual-mode compiler, Predef.Class[T]) Scala is built against the generic Java 5 API
 GENERICS=; grep -q 'type Class\[T\]' $TREE/src/library/scala/Predef.scala 2>/dev/null && GENERICS=1
+# (JAVA_API=1.6: the Java 6 API from 2012-04, when the compilers no longer get by with a stub
+# for java.util.concurrent.RunnableFuture, which forkjoin's ForkJoinPool refers to)
+if [ "${JAVA_API:-}" = 1.6 ]; then BOOTJAR=${BOOTJAR:-$RT16}; fi
 if [ -n "$GENERICS" ]; then BOOTJAR=${BOOTJAR:-$RT15}; else BOOTJAR=${BOOTJAR:-$RT14}; fi
 rm -rf $W; mkdir -p $W; cd $W
 if [ -d $TREE/src/library ]; then cp -r $TREE/src src; else
@@ -216,12 +219,14 @@ comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/com
   # CF_LIBSRC=DIR,...: library parts the new compiler needs that the previous library lacks,
   # compiled with it (compiler first; the reflection API in scala/reflect/api, 2012-03)
   if [ -n "${COMPILER_FIRST:-}" ] && [ $n = locker ] && [ -n "${CF_LIBSRC:-}" ]; then
-    # (copies: macro definitions, `def f = macro impl` from 2012-04, which the previous compiler
-    # cannot parse, become ??? there; CF_LIBPATCH=NAME: cfpatch/NAME.sh CFLIBDIR adapts them
-    # further; only the compiler first is built from them)
+    # (copies: macro definitions, `def f = macro impl` from 2012-04, become ??? there when the
+    # previous compiler cannot parse them, i.e. has no -Xmacros; kept otherwise, so that the
+    # tag materializers of scala.reflect.makro.internal stay macros; CF_LIBPATCH=NAME:
+    # cfpatch/NAME.sh CFLIBDIR adapts them further; only the compiler first is built from them)
+    local stub='s/=\s*macro\s.*$/= ???/'; has_opt "$PREVCP" '-Xmacros' && stub=
     IFS=, read -ra cfl <<< "$CF_LIBSRC"
     for d in "${cfl[@]}"; do find src/library/$d -name '*.scala'; done | while read -r f; do
-      mkdir -p "$n/cf-libsrc/$(dirname "$f")"; sed -E 's/=\s*macro\s.*$/= ???/' "$f" > "$n/cf-libsrc/$f"
+      mkdir -p "$n/cf-libsrc/$(dirname "$f")"; sed -E "$stub" "$f" > "$n/cf-libsrc/$f"
     done
     [ -z "${CF_LIBPATCH:-}" ] || bash $HERE/cfpatch/$CF_LIBPATCH.sh $n/cf-libsrc/src/library
     find $n/cf-libsrc -name '*.scala' >> $n.compscala

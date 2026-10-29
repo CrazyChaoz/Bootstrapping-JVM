@@ -26,7 +26,8 @@ while true; do
     /tmp/sc/work/auto.sh $name $next $prev > /tmp/sc/climb-$name.txt 2>&1 || { echo "rebuild of $name ($next) failed"; exit 1; }
   fi
   mode=normal; grep -q compiler-first /tmp/sc/climb-$name.txt && mode=cf; grep -q 'fresh ok' /tmp/sc/climb-$name.txt && mode=fresh; grep -q 'unnest ok' /tmp/sc/climb-$name.txt && mode=unnest
-  echo "$name $next $prev $mode${CLIMB_ENV:+ $CLIMB_ENV}" >> /tmp/sc/work/chain.txt
+  extra=; grep -q 'cflib ok' /tmp/sc/climb-$name.txt && { mode=cf; extra=" CF_LIBSRC=${CFLIB:-scala/reflect/api,scala/reflect/makro}"; }
+  echo "$name $next $prev $mode${CLIMB_ENV:+ $CLIMB_ENV}$extra" >> /tmp/sc/work/chain.txt
   echo "STEP $name $(cd /tmp/sc/full && git log -1 --format='%h %ad' --date=short $next) $mode"
   prev=$name; pc=$next
   [ "$next" = "$target" ] && { echo "REACHED $3"; exit 0; }

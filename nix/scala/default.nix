@@ -98,6 +98,7 @@ let
   apiViewsFor = gen: {
     "1.4" = apiView gen "1.4";
     "1.5" = apiView gen "1.5";
+    "1.6" = apiView gen "1.6";
   };
   apiViews = apiViewsFor null;
 
@@ -223,6 +224,8 @@ let
         ARRAY_SRC = "1";
       }
       // lib.optionalAttrs (s.unnest or false) { UNNEST = "1"; }
+      # (only where used: the other stages keep their hash)
+      // lib.optionalAttrs ((s.env or { }) ? JAVA_API) { RT16 = "${views."1.6"}"; }
       // (s.env or { });
       buildPhase = ''
         runHook preBuild

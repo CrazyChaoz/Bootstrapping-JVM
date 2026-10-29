@@ -6,10 +6,16 @@
 P=/tmp/sc/st-$3; PREV=$P/out2:$P/classes
 [ "$3" = 1 ] && PREV=/tmp/sc/st1/sc2:/tmp/sc/st1/lib2:/tmp/sc/st1/classes
 ok() { grep -q 'stage done' /tmp/sc/log-$1.txt; }
-if TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: normal ok"
-elif COMPILER_FIRST=1 TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: compiler-first ok"; echo "$1 CF" >> /tmp/sc/cf.txt
-elif FALLBACK=none ARRAY_SRC=1 TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: fresh ok"
-elif UNNEST=1 TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: unnest ok"
+# (AUTO_MODES, or else /tmp/sc/auto-modes: the modes to try, e.g. "normal cf" past 2009, where
+# fresh and unnest only cost time)
+# (cflib: compiler first with the library's reflection API and macro context, 2012: CFLIB)
+CFLIB=${CFLIB:-scala/reflect/api,scala/reflect/makro}
+M=" ${AUTO_MODES:-$(cat /tmp/sc/auto-modes 2>/dev/null || echo normal cf fresh unnest)} "; m() { [[ $M == *" $1 "* ]]; }
+if m normal && TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: normal ok"
+elif m cf && COMPILER_FIRST=1 TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: compiler-first ok"; echo "$1 CF" >> /tmp/sc/cf.txt
+elif m cflib && COMPILER_FIRST=1 CF_LIBSRC=$CFLIB TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: cflib ok"
+elif m fresh && FALLBACK=none ARRAY_SRC=1 TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: fresh ok"
+elif m unnest && UNNEST=1 TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: unnest ok"
 else echo "$1: FAILED"; grep -v '^Note\|not applicable' /tmp/sc/log-$1.txt | tail -${TAILN:-20}; exit 1; fi
 if [ "${BUILDER:-}" = stage2.sh ]; then
   # (to a file first: a warning may come before the greeting, and `tee | head -1` cut it off)

@@ -23,7 +23,8 @@ while [ $((hi-lo)) -gt 1 ]; do
     j=$((j+1)); ( /tmp/sc/work/auto.sh bis$j ${C[p]} $1 > /tmp/sc/bisect-$j.txt 2>&1; echo "rc=$?" >> /tmp/sc/bisect-$j.txt ) &
   done
   wait
-  # results
+  # results (the failed probes' logs kept as /tmp/sc/fail-COMMIT.txt)
+  j=0; for p in "${pts[@]}"; do j=$((j+1)); grep -q '^rc=0$' /tmp/sc/bisect-$j.txt || cp /tmp/sc/log-bis$j.txt /tmp/sc/fail-${C[p]:0:10}.txt 2>/dev/null; done
   j=0; good=$lo; bad=$hi
   for p in "${pts[@]}"; do
     j=$((j+1))
