@@ -3,8 +3,9 @@
 # PREV is a Scala 2 stage (out2: library + compiler; from it the dotty of 2019-04 that the
 # Scala 3 chain starts with) or a dotty stage (OUT/{lib,comp,...}, the reference compiler
 # a dotty tree names in project/Build.scala: referenceVersion).
-# OUT gets: deps (the external Java/Scala inputs), interfaces, lib (dotty-library), comp
-# (dotty-compiler), scala2lib (the scala-library the stage runs on).
+# OUT gets: deps (the external Java/Scala inputs), interfaces, comp (dotty-compiler), lib0 (its
+# dotty-library, compiled by PREV: the compiler runs on it), lib (dotty-library compiled by the new
+# compiler, as released: what programs compile against), scala2lib (the scala-library).
 # SCALA2LIB: the Scala 2 stage whose library the stage builds on (default: PREV's). Inputs (env.sh): ASM_SRCS, ZINC_SRC,
 # JLINE3_SRC, SCALAJS_SRC.
 set -euo pipefail
@@ -20,7 +21,7 @@ if [ -d $PREV/out2/scala/tools/nsc ]; then
   compile() { $JAVA -cp $PREV/out2:$PREV/classes scala.tools.nsc.Main -nowarn -encoding UTF8 -language:existentials,higherKinds,implicitConversions "$@"; }
 else
   KIND=dotty; if [ -n "${SCALA2LIB:-}" ]; then S2=$SCALA2LIB/out2; else S2=$(readlink -f $PREV/scala2lib); fi
-  pcp=$PREV/comp:$PREV/lib:$PREV/interfaces:$PREV/deps:$PREV/scala2lib
+  pcp=$PREV/comp:$PREV/lib0:$PREV/interfaces:$PREV/deps:$PREV/scala2lib
   compile() { $JAVA -cp $pcp dotty.tools.dotc.Main -nowarn -encoding UTF8 -language:existentials,higherKinds,implicitConversions "$@"; }
 fi
 ln -s $S2 scala2lib
@@ -46,14 +47,14 @@ $J8/bin/javac -nowarn -d interfaces $(find $TREE/interfaces/src -name '*.java')
 
 # dotty-library: src, the sources for the compiler kind (src-2.x / src-3.x, 2019-04 on) and
 # src-non-bootstrapped (what the reference compiler compiles: scalac up to 2019-04, then dotty)
-mkdir -p lib
+mkdir -p lib0
 x=$TREE/library/src-$([ $KIND = scala2 ] && echo 2 || echo 3).x
 extra=$TREE/library/src-non-bootstrapped; [ ! -d $x ] || extra="$x $extra"
 find $TREE/library/src $extra -name '*.scala' -o -name '*.java' | sort > lib.files
 echo "== library ($KIND)"
-compile -d lib -classpath $S2 $( [ $KIND = dotty ] && echo -sourcepath $TREE/library/src ) @lib.files
+compile -d lib0 -classpath $S2 $( [ $KIND = dotty ] && echo -sourcepath $TREE/library/src ) @lib.files
 jl=$(grep '\.java$' lib.files || true)
-[ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib:$S2 -d lib $jl
+[ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib0:$S2 -d lib0 $jl
 
 # dotty-compiler (with the scalajs-ir sources the build unpacks)
 mkdir -p comp
@@ -63,7 +64,18 @@ mkdir -p comp
 v=$(sed -n 's/.*val baseVersion = "\([^"]*\)".*/\1/p' $bld | head -1)
 printf 'version.number=%s-bootstrap\nmaven.version.number=%s-bootstrap\ngit.hash=unknown\ncopyright.string=Copyright 2002-2019, LAMP/EPFL\n' $v $v > comp/compiler.properties
 echo "== compiler ($KIND)"
-compile -d comp -classpath lib:interfaces:deps:$S2 @comp.files
+compile -d comp -classpath lib0:interfaces:deps:$S2 @comp.files
 cj=$(grep '\.java$' comp.files || true)
-[ -z "$cj" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp comp:lib:interfaces:deps:$S2 -d comp $cj
+[ -z "$cj" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp comp:lib0:interfaces:deps:$S2 -d comp $cj
+
+# the library again, by the new compiler (src-bootstrapped: what only it compiles); TASTy
+# versions change between stages, so programs (and the next stage) need this one
+mkdir -p lib
+x=$TREE/library/src-3.x; extra=$TREE/library/src-bootstrapped; [ ! -d $x ] || extra="$x $extra"
+find $TREE/library/src $extra -name '*.scala' -o -name '*.java' | sort > lib2.files
+echo "== library (new compiler)"
+$JAVA -cp comp:lib0:interfaces:deps:$S2 dotty.tools.dotc.Main -nowarn -encoding UTF8 -language:existentials,higherKinds,implicitConversions \
+  -d lib -classpath $S2 -sourcepath $TREE/library/src @lib2.files
+jl=$(grep '\.java$' lib2.files || true)
+[ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib:$S2 -d lib $jl
 echo "stage done"
