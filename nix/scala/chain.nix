@@ -420,11 +420,11 @@
     { name = "s192"; rev = "04c7fae7b886e19d2006ab3146db3a8fc92c9bcd"; builder = "stage2.sh"; gen = "26"; prev = "s191"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
     { name = "s193"; rev = "d29df860e5b10181f6c37bde3bd7539bdc843e0d"; builder = "stage2.sh"; gen = "26"; prev = "s192"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
     { name = "s194"; rev = "8684ae833dcfeac6107343fcca5501301e509eef"; builder = "stage2.sh"; gen = "26"; prev = "s193"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
-    { name = "s195"; rev = "a258aacb33a74ba4e2cbde8c9e4909a46917b91b"; builder = "stage2.sh"; prev = "s194"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
-    { name = "s196"; rev = "56c0fe5a8479a4558cef8e50640b4f34b99730bf"; builder = "stage2.sh"; prev = "s195"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
-    { name = "s197"; rev = "4a5ecd4211d6219f2b3004d57b60cb95d6b199fa"; builder = "stage2.sh"; prev = "s196"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
-    { name = "s198"; rev = "53710db488bdef4f502041aa67adc4be04738646"; builder = "stage2.sh"; prev = "s197"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
-    { name = "s199"; rev = "cec3982dc73fcc5026e63b5a7e8ba58419abf2e4"; builder = "stage2.sh"; prev = "s198"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
-    { name = "s200"; rev = "980833e92d3f58d76477704f9af0aff4c71cbd63"; builder = "stage2.sh"; prev = "s199"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; FALLBACK_DROP = "scala/collection/mutable/IterableOps"; }; }
+    { name = "s195"; rev = "a258aacb33a74ba4e2cbde8c9e4909a46917b91b"; builder = "stage2.sh"; gen = "27"; prev = "s194"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s196"; rev = "56c0fe5a8479a4558cef8e50640b4f34b99730bf"; builder = "stage2.sh"; gen = "27"; prev = "s195"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s197"; rev = "4a5ecd4211d6219f2b3004d57b60cb95d6b199fa"; builder = "stage2.sh"; gen = "27"; prev = "s196"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s198"; rev = "53710db488bdef4f502041aa67adc4be04738646"; builder = "stage2.sh"; gen = "27"; prev = "s197"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s199"; rev = "cec3982dc73fcc5026e63b5a7e8ba58419abf2e4"; builder = "stage2.sh"; gen = "27"; prev = "s198"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s200"; rev = "980833e92d3f58d76477704f9af0aff4c71cbd63"; builder = "stage2.sh"; gen = "27"; prev = "s199"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; FALLBACK_DROP = "scala/collection/mutable/IterableOps"; }; }
   ];
 }
