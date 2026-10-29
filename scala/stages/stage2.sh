@@ -103,7 +103,9 @@ sc() { local cp=$1 main=$2 g=; shift 2
   # (from 2010-03, PathResolver, the compiler's own class path comes first: for the previous
   # compiler that is the previous library; quick's, locker's library, is wanted there)
   [ "$cp" = "$PREVCP" ] && has_opt "$cp" '-javaignorecp' && g="$g -javaignorecp"
-  $J8/bin/java -Xss64m -Xmx3g -cp "$cp" $main -bootclasspath $BOOTJAR $g ${SCALAC_OPTS:-} "$@"; }
+  # SCALAC_OPTS: for the compilers that know them (-Xmacros, 2012-04 until its retirement 2012-06)
+  local o; for o in ${SCALAC_OPTS:-}; do has_opt "$cp" "$o" && g="$g $o"; done
+  $J8/bin/java -Xss64m -Xmx3g -cp "$cp" $main -bootclasspath $BOOTJAR $g "$@"; }
 nopredefs() { # option spelling understood by the compiler on classpath $1 (renamed 2007-07, 2012)
   if has_opt "$1" '-Yno-predefs'; then echo -Yno-predefs
   elif has_opt "$1" '-Yno-predef'; then echo -Yno-predef
@@ -218,6 +220,9 @@ comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/com
   fi
   echo "== $n: compiler"
   ( cd src/compiler; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" ) | sed 's|^|src/compiler/|' > $n.compscala
+  # (with src/reflect, the reflection library split off from 2012-06, scala-reflect.jar: compiled
+  # with the compiler, into its classes)
+  local csp=src/compiler; [ -d src/reflect ] && { find src/reflect -name '*.scala' >> $n.compscala; csp=src/compiler:src/reflect; }
   # CF_LIBSRC=DIR,...: library parts the new compiler needs that the previous library lacks,
   # compiled with it (compiler first; the reflection API in scala/reflect/api, 2012-03)
   if [ -n "${COMPILER_FIRST:-}" ] && [ $n = locker ] && [ -n "${CF_LIBSRC:-}" ]; then
@@ -241,7 +246,7 @@ comp() { # comp NAME COMPILERCP MAIN LIBCP [FALLBACKCP] : compiler into NAME/com
       lcp=$F
     fi
   fi
-  sc "$ccp" $main -d $C -classpath $lcp:$C:classes$fb -sourcepath src/compiler $(cat $n.compscala)
+  sc "$ccp" $main -d $C -classpath $lcp:$C:classes$fb -sourcepath $csp $(cat $n.compscala)
 }
 if [ -n "${UNNEST:-}${LOCKER_PATCH:-}${LOCKER_SCRIPT:-}" ]; then
   # locker from rewritten sources, quick from the real ones: UNNEST (the STARR predates

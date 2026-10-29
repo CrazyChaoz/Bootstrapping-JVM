@@ -9,7 +9,7 @@ ok() { grep -q 'stage done' /tmp/sc/log-$1.txt; }
 # (AUTO_MODES, or else /tmp/sc/auto-modes: the modes to try, e.g. "normal cf" past 2009, where
 # fresh and unnest only cost time)
 # (cflib: compiler first with the library's reflection API and macro context, 2012: CFLIB)
-CFLIB=${CFLIB:-scala/reflect/api,scala/reflect/makro}
+CFLIB=${CFLIB:-scala/reflect}
 M=" ${AUTO_MODES:-$(cat /tmp/sc/auto-modes 2>/dev/null || echo normal cf fresh unnest)} "; m() { [[ $M == *" $1 "* ]]; }
 if m normal && TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: normal ok"
 elif m cf && COMPILER_FIRST=1 TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: compiler-first ok"; echo "$1 CF" >> /tmp/sc/cf.txt
