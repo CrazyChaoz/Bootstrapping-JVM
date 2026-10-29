@@ -273,5 +273,6 @@ in
   "2.0.0" = stages.s14;
   "2.7.7" = stages.s52;
   "2.11.0" = stages.s180;
+  "2.12.0" = stages.s194;
   latest = stages.${(lib.last chain.stages).name};
 }

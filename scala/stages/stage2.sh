@@ -125,11 +125,14 @@ props() { # props DIR CATEGORY : CATEGORY.properties with version.number, as the
   # (from 2015-03 the compiler parses the library's version.number at start-up, ScalaVersion.current)
   local b=$TREE/build.number v
   if [ -f $b ]; then v=$(for k in major minor patch; do sed -n "s/^version\.$k=\([0-9]*\).*/\1/p" $b; done | paste -sd.)
-  else v=$(sed -n 's/^maven\.version\.base=\([0-9.]*\).*/\1/p' $TREE/versions.properties); fi
+  else v=$(sed -n 's/^maven\.version\.base=\([0-9.]*\).*/\1/p' $TREE/versions.properties 2>/dev/null); fi
+  # (from 2016-09 only in build.sbt: baseVersion in Global := "2.12.0")
+  [ -n "$v" ] || v=$(sed -n 's/.*baseVersion.*:= *"\([0-9.]*\)".*/\1/p' $TREE/build.sbt 2>/dev/null | head -1)
+  [ -n "$v" ] || { echo "props: no version number found" >&2; exit 1; }
   printf 'version.number=%s-bootstrap\n' "$v" > $1/$2.properties; }
 lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   local n=$1 ccp=$2 main=$3 fb=${4:+:$4}; local L=$n/lib
-  local fi_src=
+  local fi_src= java_after=
   mkdir -p $L
   props $L library
   if [ -n "$fb" ] && [ -n "$(for d in ${4//:/ }; do find $d/scala -maxdepth 1 -name '*$mc*$sp.class' 2>/dev/null; done | head -1)" ]; then
@@ -153,6 +156,9 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   ( cd src/library; find . -name '*.java' | sed 's|^\./||' ) > $n.libjava
   if [ -s $n.libjava ]; then
     python3 -I $T/pizza2java.py src/library $n/java-lib --classpath-src src/library --meta-out $n.lib.meta.json $(cat $n.libjava)
+    # (LIB_JAVA_AFTER=1: as the sbt build, scalac reads the Java sources and javac compiles them
+    # afterwards, against the new library: from 2016-08 they call its Scala code, LambdaDeserializer)
+    if [ -n "${LIB_JAVA_AFTER:-}" ]; then java_after=$n/java-lib; else
     # (the Java parts are compiled first, against the previous library, whose trait encoding may be
     # older than the sources: then javac rejects the @FunctionalInterface of JFunctionN, which needs
     # the new one, default methods, 2016-03; quick compiles them again after its Scala, below)
@@ -178,6 +184,7 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
     fi
     $jc -nowarn -encoding latin1 -cp $L:classes:$pj -d $L $(find $n/java-lib -name '*.java' ! -path '*/scala/concurrent/forkjoin/*') >> $n.libjava.log 2>&1 || { cat $n.libjava.log; exit 1; }
     python3 -I $T/pico-classfiles.py $L $n.lib.meta.json
+    fi
   fi
   echo "== $n: library"
   local sp=src/library
@@ -234,7 +241,11 @@ lib() { # lib NAME COMPILERCP MAIN [FALLBACKCP] : library into NAME/lib
   # (quick: locker's library behind, which the compilers took from their own class path until
   # ae8c065594, 2010-03)
   [ -n "${LIB_NOSP:-}" ] && [ $n = quick ] && mcp=$mcp:locker/lib
-  sc "$ccp" $main -d $L -classpath $mcp $msp $(cat $n.libscala)
+  sc "$ccp" $main -d $L -classpath $mcp $msp $(cat $n.libscala) ${java_after:+$(find $java_after -name '*.java')}
+  if [ -n "$java_after" ]; then
+    $J/bin/javac -nowarn --release 8 -encoding latin1 -cp $L:classes -d $L $(find $java_after -name '*.java') > $n.libjava.log 2>&1 || { cat $n.libjava.log; exit 1; }
+    python3 -I $T/pico-classfiles.py $L $n.lib.meta.json
+  fi
   if [ -n "$fi_src" ] && [ $n = quick ]; then
     $J/bin/javac -nowarn --release 8 -encoding latin1 -cp $L:classes -d $L $(find $fi_src -name '*.java' -path '*/scala/runtime/java8/*') > $n.libjava2.log 2>&1 || { cat $n.libjava2.log; exit 1; }
   fi
