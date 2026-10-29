@@ -25,6 +25,10 @@ else
   compile() { $JAVA -cp $pcp dotty.tools.dotc.Main -nowarn -encoding UTF8 -language:existentials,higherKinds,implicitConversions "$@"; }
 fi
 ln -s $S2 scala2lib
+# SCALA2LIB_BOOT: the Scala 2 stage whose library the released dotty-library builds on, where the
+# build names another one for it (stdlibVersion Bootstrapped: 2.13.0 in 2019-08, against 2.12.8)
+S2B=${SCALA2LIB_BOOT:+$SCALA2LIB_BOOT/out2}; S2B=${S2B:-$S2}
+[ "$S2B" = "$S2" ] || ln -s $S2B scala2lib-boot
 
 # (Java compiled by JDK 8's javac: javac 21's MethodParameters without names break Scala 2's classfile reader)
 # external inputs: scala-asm (the version the build names), zinc's compiler-interface (Java,
@@ -52,18 +56,24 @@ x=$TREE/library/src-$([ $KIND = scala2 ] && echo 2 || echo 3).x
 extra=$TREE/library/src-non-bootstrapped; [ ! -d $x ] || extra="$x $extra"
 find $TREE/library/src $extra -name '*.scala' -o -name '*.java' | sort > lib.files
 echo "== library ($KIND)"
-compile -d lib0 -classpath $S2 $( [ $KIND = dotty ] && echo -sourcepath $TREE/library/src ) @lib.files
+# (by a dotty: with its released library on the class path, as sbt's scalaInstance has it)
+if [ $KIND = dotty ]; then lcp=$PREV/lib:$S2; else lcp=$S2; fi
+compile -d lib0 -classpath $lcp $( [ $KIND = dotty ] && echo -sourcepath $TREE/library/src ) @lib.files
 jl=$(grep '\.java$' lib.files || true)
-[ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib0:$S2 -d lib0 $jl
+[ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib0:$lcp -d lib0 $jl
+# (and what of it the new sources lack, for the compiler built on lib0: e.g. src-bootstrapped only parts)
+[ $KIND = scala2 ] || cp -rn $PREV/lib/. lib0/
 
-# dotty-compiler (with the scalajs-ir sources the build unpacks)
+# dotty-compiler (with the scalajs-ir sources the build unpacks; src-non-bootstrapped: what the
+# reference compiler compiles, from 2019-08)
 mkdir -p comp
-{ find $TREE/compiler/src -name '*.scala' -o -name '*.java'
+{ find $TREE/compiler/src $([ -d $TREE/compiler/src-non-bootstrapped ] && echo $TREE/compiler/src-non-bootstrapped) -name '*.scala' -o -name '*.java'
   [ -d $TREE/compiler/src/dotty/tools/backend/sjs ] && find $SCALAJS_SRC/ir/src/main/scala -name '*.scala'
 } | sort > comp.files
 v=$(sed -n 's/.*val baseVersion = "\([^"]*\)".*/\1/p' $bld | head -1)
 printf 'version.number=%s-bootstrap\nmaven.version.number=%s-bootstrap\ngit.hash=unknown\ncopyright.string=Copyright 2002-2019, LAMP/EPFL\n' $v $v > comp/compiler.properties
 echo "== compiler ($KIND)"
+[ ! -d $TREE/compiler/resources ] || cp -r $TREE/compiler/resources/. comp/
 compile -d comp -classpath lib0:interfaces:deps:$S2 @comp.files
 cj=$(grep '\.java$' comp.files || true)
 [ -z "$cj" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp comp:lib0:interfaces:deps:$S2 -d comp $cj
@@ -75,7 +85,7 @@ x=$TREE/library/src-3.x; extra=$TREE/library/src-bootstrapped; [ ! -d $x ] || ex
 find $TREE/library/src $extra -name '*.scala' -o -name '*.java' | sort > lib2.files
 echo "== library (new compiler)"
 $JAVA -cp comp:lib0:interfaces:deps:$S2 dotty.tools.dotc.Main -nowarn -encoding UTF8 -language:existentials,higherKinds,implicitConversions \
-  -d lib -classpath $S2 -sourcepath $TREE/library/src @lib2.files
+  -d lib -classpath $S2B -sourcepath $TREE/library/src @lib2.files
 jl=$(grep '\.java$' lib2.files || true)
-[ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib:$S2 -d lib $jl
+[ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib:$S2B -d lib $jl
 echo "stage done"
