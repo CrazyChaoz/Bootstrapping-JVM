@@ -390,9 +390,9 @@
     { name = "s178"; rev = "9def2ada8261ca14f0059c7d2b01e85830705e9b"; builder = "stage2.sh"; gen = "22"; prev = "s177"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.6"; }; }
     { name = "s179"; rev = "8bed4a8b2211f8c6d84ae66ec95e71d3485162a9"; builder = "stage2.sh"; gen = "23"; prev = "s178"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.6"; }; }
     { name = "s180"; rev = "cac6383e6658dc5956540b76b9b46c3b664774ac"; builder = "stage2.sh"; gen = "23"; prev = "s179"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.6"; }; }
-    { name = "s181"; rev = "e6e5b146f19ac7bebf046a4bc0cbc0b8ce88a3a1"; builder = "stage2.sh"; prev = "s180"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; }; }
-    { name = "s182"; rev = "4783a25d3068c2f756b8517b69a95b5d77d24654"; builder = "stage2.sh"; prev = "s181"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; }; }
-    { name = "s183"; rev = "662e23eefbe67d843945b31495e138d02f60fe5e"; builder = "stage2.sh"; prev = "s182"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; }; }
-    { name = "s184"; rev = "41edbe65a738a4a109f1b76b977354a3fee474c0"; builder = "stage2.sh"; prev = "s183"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; }; }
+    { name = "s181"; rev = "e6e5b146f19ac7bebf046a4bc0cbc0b8ce88a3a1"; builder = "stage2.sh"; gen = "24"; prev = "s180"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; }; }
+    { name = "s182"; rev = "4783a25d3068c2f756b8517b69a95b5d77d24654"; builder = "stage2.sh"; gen = "24"; prev = "s181"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; }; }
+    { name = "s183"; rev = "662e23eefbe67d843945b31495e138d02f60fe5e"; builder = "stage2.sh"; gen = "24"; prev = "s182"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; }; }
+    { name = "s184"; rev = "41edbe65a738a4a109f1b76b977354a3fee474c0"; builder = "stage2.sh"; gen = "24"; prev = "s183"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; }; }
   ];
 }
