@@ -68,7 +68,7 @@ See `NOTES.md` for the detailed log.
 
 ## Credits
 
-The bootstrap path is the work of Emmanuel Bourg
+The bootstrap path for Kotlin 1.0 is the work of Emmanuel Bourg
 ([ebourg/kotlin-bootstrapping](https://github.com/ebourg/kotlin-bootstrapping)),
 Julien Lepiller
 ([guix-android](https://framagit.org/tyreunom/guix-android)) and TarCV
