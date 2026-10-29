@@ -132,6 +132,26 @@ let
     hash = "sha256-DHrPEcX6QcuK6rsqMU32xB/b2OcL0Pbe9Q76kKLuXzc=";
   };
 
+  # the scala-asm releases the trees name in versions.properties (scala-asm.version) from 2017 on,
+  # by version: stage2.sh compiles the one its tree names (ASM_SRCS), else scalaAsm
+  scalaAsms = lib.mapAttrs (
+    v: hash:
+    fetchFromGitHub {
+      owner = "scala";
+      repo = "scala-asm";
+      rev = "v${v}";
+      inherit hash;
+    }
+  ) {
+    "5.2.0-scala-1" = "sha256-DubVrroyP7k0fgqCBVDx/u5plk8cysG0Z2HgaMb+tcs=";
+    "6.0.0-scala-1" = "sha256-G4P2CZv44E4LfZhIuuxoD8a21PLbymR0Md2X04neWM8=";
+    "6.2.0-scala-2" = "sha256-vJbPzDHCReqzeClrktocMRIn0Y/DiC0kE3hK0EpHNDc=";
+    "7.0.0-scala-1" = "sha256-Q5EFV2W1uernQugwHOiEPqFiEV24tpsAIUXpSSDxLmk=";
+  };
+  scalaAsmSrcs = runCommand "scala-asm-srcs" { } (
+    "mkdir $out\n" + lib.concatStrings (lib.mapAttrsToList (v: src: "ln -s ${src}/src/main/java $out/${v}\n") scalaAsms)
+  );
+
   # Scala's generified jline (lib/jline.jar from 2009-06), as imported as source 2009-10
   jline5 = runCommand "jline-scala-2009" { } ''
     mkdir -p $out
@@ -237,6 +257,8 @@ let
       // lib.optionalAttrs ((s.env or { }) ? JAVA_API) { RT16 = "${views."1.6"}"; }
       # (scala.tools.asm from source once it left the tree, 2015-05; from generation 24 on)
       // lib.optionalAttrs (gen == null || lib.toInt gen >= 24) { ASM_SRC = "${scalaAsm}/src/main/java"; }
+      # (and the version the tree names; from generation 27 on)
+      // lib.optionalAttrs (gen == null || lib.toInt gen >= 27) { ASM_SRCS = "${scalaAsmSrcs}"; }
       // (s.env or { });
       buildPhase = ''
         runHook preBuild

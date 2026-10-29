@@ -65,6 +65,10 @@ for d in src/jline/src/main/java src/forkjoin src/fjbg src/msil src/asm; do
   $J8/bin/javac -nowarn -encoding $enc -cp classes${JANSI_CLS:+:$JANSI_CLS} -d classes @javadeps.files > javadeps.log 2>&1 || { cat javadeps.log; exit 1; }
 done
 # (from 2015-05 ASM is the scala-asm artifact, no longer in the tree: its sources, $ASM_SRC)
+# (ASM_SRCS: a directory of scala-asm sources by version; the one the tree names in versions.properties,
+# 6.2.0-scala-2 from 2018-06 and so on, where there is one: the 5.0.x/5.1.0-scala-1 of 2015-16 were never tagged)
+av=$(sed -n 's/^scala-asm\.version=\([^ ]*\).*/\1/p' $TREE/versions.properties 2>/dev/null || true)
+[ -n "${ASM_SRCS:-}" ] && [ -n "$av" ] && [ -d "$ASM_SRCS/$av" ] && ASM_SRC=$ASM_SRCS/$av
 if [ ! -d src/asm ] && grep -rqs 'scala\.tools\.asm' src/compiler; then
   find $ASM_SRC -name '*.java' > javadeps.files
   $J8/bin/javac -nowarn -encoding utf8 -d classes @javadeps.files > javadeps.log 2>&1 || { cat javadeps.log; exit 1; }
