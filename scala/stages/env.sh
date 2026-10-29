@@ -7,6 +7,7 @@ J=${J:-/nix/store/nkd7mzlsa4d113n0xwh98m4l6dx9bnax-openjdk-headless-21.0.12.1+1}
 J8=${J8:-/nix/store/z2mxh5237w3dd8klbikm94x2wwipgc2y-openjdk-headless-8u504-b01}   # runs the compilers
 FJBG_SRC=${FJBG_SRC:-$S/fjbg/src/fjbg}     # src/fjbg of scala/scala 0f10ffedc8 (2009)
 MSIL_SRC=${MSIL_SRC:-$S/msil/src/msil}     # src/msil of scala/scala 4304b15730 (2009)
+ASM_SRC=${ASM_SRC:-$S/asm/src/asm}         # src/asm of scala/scala 6fc2a6897b~1 (2015-05)
 FJBG_CLS=${FJBG_CLS:-$S/st-n0/fjbg-cls}    # FJBG + MSIL reader classes, as built for the first nsc
 JLINE_CLS=${JLINE_CLS:-$S/deps/jline-cls}  # jline 1.0
 JLINE5_CLS=${JLINE5_CLS:-$S/deps/jline5-cls}  # Scala's generified jline (src/jline of c107643d20, 2009-10)

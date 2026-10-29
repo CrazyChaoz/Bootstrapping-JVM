@@ -211,3 +211,4 @@ s178 9def2ada8261ca14f0059c7d2b01e85830705e9b s177 normal PREDEF_KEEP=1 ARRAY_SR
 gen 22   # verified in Nix with scala/stages/gen/22 (2026-10-29)
 s179 8bed4a8b2211f8c6d84ae66ec95e71d3485162a9 s178 normal PREDEF_KEEP=1 ARRAY_SRC=1 LIB_ONESTEP=1 JAVA_API=1.6
 s180 cac6383e6658dc5956540b76b9b46c3b664774ac s179 normal PREDEF_KEEP=1 ARRAY_SRC=1 LIB_ONESTEP=1 JAVA_API=1.6
+gen 23   # verified in Nix with scala/stages/gen/23 (2026-10-29)

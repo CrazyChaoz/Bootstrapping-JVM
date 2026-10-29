@@ -3,11 +3,13 @@
   fjbg = "0f10ffedc8d0cdf8410cc6fc143a08a9333c9832";
   msil = "4304b157308ef9511f63abc66e8da44291bf7c41";
   jline5 = "c107643d20f3c68051c0dd8dd12b2a3919909d20";
+  asm = "9c1d5cedecd8d367c50533b09c543844f1c0d314";
   # scala/scala trees: rev -> hash of fetchScala
   sources = {
     "0f10ffedc8d0cdf8410cc6fc143a08a9333c9832" = "sha256-efly7uHNJC/OlaAOW8K85VRIKmWXYz8513qPfZLnWNc=";
     "4304b157308ef9511f63abc66e8da44291bf7c41" = "sha256-soSZPyfJP3mkkeH0D7z3wR6p4Ev/5du+Nj6fmJmr8vg=";
     "c107643d20f3c68051c0dd8dd12b2a3919909d20" = "sha256-Ut9MDWjjzXOczTejpG62sEIwVmTTZQsPTnXWb3+1Yw8=";
+    "9c1d5cedecd8d367c50533b09c543844f1c0d314" = "sha256-nAFtpQ8V7ayX4YbeKAZwi3rLsO3uWqKBiVtgoylCo4Q=";
     "3b4e70e1bdf4dcf237d398157b13cbd941e1001e" = "sha256-J4IJhMn03XVlmh/zgTePBbot46oVf4J9OWkd8awr9hc=";
     "8408bce1b7f9b46d3b80be82d75906ea573a5a2b" = "sha256-O3QN313gQb8k4nKkjhlEOyJBrxOYv3XOwhAKGblYFU0=";
     "645f87a5a839685fde5ee9fbeb55d242a32445d4" = "sha256-2cPuqjBmA30/NuwigG65XPN7p+kuA2rYJCghjwiLBss=";
@@ -384,7 +386,7 @@
     { name = "s176"; rev = "b575c1ed131a578a18239e3922c1ea8b7dd188a2"; builder = "stage2.sh"; gen = "22"; prev = "s175"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit,scala/collection/parallel/UnrolledBuffer,scala/reflect/BeanDescription,scala/reflect/BeanDisplayName,scala/reflect/BeanInfo,scala/reflect/BeanInfoSkip,scala/reflect/BeanProperty,scala/reflect/BooleanBeanProperty,scala/reflect/ScalaBeanInfo,scala/annotation/target/beanGetter,scala/annotation/target/beanSetter,scala/annotation/target/field,scala/annotation/target/getter,scala/annotation/target/setter,scala/annotation/target/param"; SCALAC_OPTS = "-Xmacros"; JAVA_API = "1.6"; PREDEF_MOVE = "1"; }; }
     { name = "s177"; rev = "59947119eec1cb49c46f9ddf930741d1fb554f61"; builder = "stage2.sh"; gen = "22"; prev = "s176"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.6"; PREDEF_MOVE = "1"; }; }
     { name = "s178"; rev = "9def2ada8261ca14f0059c7d2b01e85830705e9b"; builder = "stage2.sh"; gen = "22"; prev = "s177"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.6"; }; }
-    { name = "s179"; rev = "8bed4a8b2211f8c6d84ae66ec95e71d3485162a9"; builder = "stage2.sh"; prev = "s178"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.6"; }; }
-    { name = "s180"; rev = "cac6383e6658dc5956540b76b9b46c3b664774ac"; builder = "stage2.sh"; prev = "s179"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.6"; }; }
+    { name = "s179"; rev = "8bed4a8b2211f8c6d84ae66ec95e71d3485162a9"; builder = "stage2.sh"; gen = "23"; prev = "s178"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.6"; }; }
+    { name = "s180"; rev = "cac6383e6658dc5956540b76b9b46c3b664774ac"; builder = "stage2.sh"; gen = "23"; prev = "s179"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.6"; }; }
   ];
 }

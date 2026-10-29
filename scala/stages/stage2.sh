@@ -62,6 +62,11 @@ for d in src/jline/src/main/java src/forkjoin src/fjbg src/msil src/asm; do
   enc=utf8; [ $d = src/msil ] && enc=latin1
   $J8/bin/javac -nowarn -encoding $enc -cp classes${JANSI_CLS:+:$JANSI_CLS} -d classes @javadeps.files > javadeps.log 2>&1 || { cat javadeps.log; exit 1; }
 done
+# (from 2015-05 ASM is the scala-asm artifact, no longer in the tree: the same sources, $ASM_SRC)
+if [ ! -d src/asm ] && grep -rqs 'scala\.tools\.asm' src/compiler; then
+  find $ASM_SRC -name '*.java' > javadeps.files
+  $J8/bin/javac -nowarn -encoding utf8 -d classes @javadeps.files > javadeps.log 2>&1 || { cat javadeps.log; exit 1; }
+fi
 grep -rqs 'org\.fusesource' src/jline && cp -r $JANSI_CLS/. classes/
 [ -d src/jline/src/main/resources ] && cp -r src/jline/src/main/resources/. classes/
 . $HERE/nsc-patches.sh

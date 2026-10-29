@@ -226,6 +226,8 @@ let
       // lib.optionalAttrs (s.unnest or false) { UNNEST = "1"; }
       # (only where used: the other stages keep their hash)
       // lib.optionalAttrs ((s.env or { }) ? JAVA_API) { RT16 = "${views."1.6"}"; }
+      # (scala.tools.asm from source once it left the tree, 2015-05; from generation 24 on)
+      // lib.optionalAttrs (gen == null || lib.toInt gen >= 24) { ASM_SRC = "${sources.${chain.asm}}/src/asm"; }
       // (s.env or { });
       buildPhase = ''
         runHook preBuild
