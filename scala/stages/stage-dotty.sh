@@ -61,13 +61,25 @@ x=$TREE/library/src-$([ $KIND = scala2 ] && echo 2 || echo 3).x
 extra=$TREE/library/src-non-bootstrapped; [ ! -d $x ] || extra="$x $extra"
 find $TREE/library/src $extra -name '*.scala' -o -name '*.java' | sort > lib.files
 echo "== library ($KIND)"
-# (by a dotty: with its released library on the class path, as sbt's scalaInstance has it)
-if [ $KIND = dotty ]; then lcp=$PREV/lib:$S2; else lcp=$S2; fi
+# (by a dotty: with its released library on the class path and, for the new compiler built on
+# lib0, in lib0, less what would clash with or shadow the new sources: tools/dotty-reflib; the
+# non-bootstrapped sources use parts only src-bootstrapped defines, scala.IArray 2019-08)
+lcp=$S2
+if [ $KIND = dotty ]; then
+  python3 -I $T/dotty-reflib $PREV/lib refboot $TREE/library $TREE/library/src $extra
+  # (lib0 gets all of it but what pass 1 compiled: nested classes of what it compiles differently,
+  # TreeUtils$TreeMap 2019-08, are what the new compiler was compiled against)
+  python3 -I $T/dotty-reflib $PREV/lib refall $TREE/library
+  lcp=refboot:$S2
+fi
 lopts=$(sed -n 's/^libopts //p' deps.versions)
-srcpath() { echo $TREE/library/src $extra | tr ' ' :; }
+# (-sourcepath as the build has it: library/src (scalaSource), from 2020-01 all source directories)
+if grep -qE '"-sourcepath", \((Compile / )?sourceDirectories' $bld; then srcpath() { echo $TREE/library/src $extra | tr ' ' :; }
+else srcpath() { echo $TREE/library/src; }; fi
 compile -d lib0 -classpath $lcp $( [ $KIND = dotty ] && echo -sourcepath $(srcpath) $lopts ) @lib.files
 jl=$(grep '\.java$' lib.files || true)
 [ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib0:$lcp -d lib0 $jl
+[ ! -d refall ] || cp -rn refall/. lib0/
 
 # tasty-core (the TASTy format, its own project from 2019-12), by the reference compiler
 mkdir -p tasty
@@ -80,7 +92,7 @@ fi
 # reference compiler compiles, from 2019-08)
 mkdir -p comp
 { find $TREE/compiler/src $([ -d $TREE/compiler/src-non-bootstrapped ] && echo $TREE/compiler/src-non-bootstrapped) -name '*.scala' -o -name '*.java'
-  [ -d $TREE/compiler/src/dotty/tools/backend/sjs ] && find $(ls -d $SCALAJS_SRC/ir/src/main/scala $SCALAJS_SRC/ir/shared/src/main/scala 2>/dev/null) -name '*.scala'
+  [ -d $TREE/compiler/src/dotty/tools/backend/sjs ] && find $(ls -d $SCALAJS_SRC/ir/src/main/scala $SCALAJS_SRC/ir/shared/src/main/scala $SCALAJS_SRC/ir/jvm/src/main/scala 2>/dev/null) -name '*.scala'
 } | sort > comp.files
 v=$(sed -n 's/.*val baseVersion = "\([^"]*\)".*/\1/p' $bld | head -1)
 printf 'version.number=%s-bootstrap\nmaven.version.number=%s-bootstrap\ngit.hash=unknown\ncopyright.string=Copyright 2002-2019, LAMP/EPFL\n' $v $v > comp/compiler.properties
