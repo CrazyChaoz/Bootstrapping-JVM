@@ -192,6 +192,8 @@
     "b575c1ed131a578a18239e3922c1ea8b7dd188a2" = "sha256-JnlaV81XtBFxI0ZoA2FB94iC8kwFvfihyqqdIf0UQiI=";
     "59947119eec1cb49c46f9ddf930741d1fb554f61" = "sha256-EWZwKJi/qb3ejgWZvy0hIMXL0o3f19gztPboiX0P+ik=";
     "9def2ada8261ca14f0059c7d2b01e85830705e9b" = "sha256-w5P+xLMr5m4yzznxYN/hHscvB/HPebNCb4GKGydONzQ=";
+    "8bed4a8b2211f8c6d84ae66ec95e71d3485162a9" = "sha256-xQhq2elHbAuUWhQUW8PIurbT+/n6jwQJMRqeYa2Y1/4=";
+    "cac6383e6658dc5956540b76b9b46c3b664774ac" = "sha256-qmBzSRuTQE0gjhszyvl9KqJjMF5FVPTNLKMfIzjv9BU=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -382,5 +384,7 @@
     { name = "s176"; rev = "b575c1ed131a578a18239e3922c1ea8b7dd188a2"; builder = "stage2.sh"; gen = "22"; prev = "s175"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; FALLBACK_DROP = "*/package,scala/runtime/Boolean,scala/runtime/Byte,scala/runtime/Short,scala/runtime/Char,scala/runtime/Int,scala/runtime/Long,scala/runtime/Float,scala/runtime/Double,scala/runtime/Unit,scala/collection/parallel/UnrolledBuffer,scala/reflect/BeanDescription,scala/reflect/BeanDisplayName,scala/reflect/BeanInfo,scala/reflect/BeanInfoSkip,scala/reflect/BeanProperty,scala/reflect/BooleanBeanProperty,scala/reflect/ScalaBeanInfo,scala/annotation/target/beanGetter,scala/annotation/target/beanSetter,scala/annotation/target/field,scala/annotation/target/getter,scala/annotation/target/setter,scala/annotation/target/param"; SCALAC_OPTS = "-Xmacros"; JAVA_API = "1.6"; PREDEF_MOVE = "1"; }; }
     { name = "s177"; rev = "59947119eec1cb49c46f9ddf930741d1fb554f61"; builder = "stage2.sh"; gen = "22"; prev = "s176"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.6"; PREDEF_MOVE = "1"; }; }
     { name = "s178"; rev = "9def2ada8261ca14f0059c7d2b01e85830705e9b"; builder = "stage2.sh"; gen = "22"; prev = "s177"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.6"; }; }
+    { name = "s179"; rev = "8bed4a8b2211f8c6d84ae66ec95e71d3485162a9"; builder = "stage2.sh"; prev = "s178"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.6"; }; }
+    { name = "s180"; rev = "cac6383e6658dc5956540b76b9b46c3b664774ac"; builder = "stage2.sh"; prev = "s179"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.6"; }; }
   ];
 }
