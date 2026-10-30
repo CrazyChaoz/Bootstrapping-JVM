@@ -220,6 +220,26 @@
     "5d118abb206c4bf0ef9fd71b6ec2c58a232ec404" = "sha256-eCN5oi9FkhmX53Eg/p0brv5dG+Tvrp2WK5qPLJyZAhU=";
     "dc11644dbcaafdc938635622604f26f3f8f2c298" = "sha256-V/ZCbv7rMFMBGW/ZRjFcUG7WXcgtviUsDMGgOTuEv0M=";
     "43e040ff7e4ba92ccf223e77540580b32c1473c0" = "sha256-MOEFMbcikVzDnL7i5b/Wd21qfCc0Mh5AJ1bML3Z8XjY=";
+    "7d6d5a734c46a15f10a7f2e73f2e7857202e25e1" = "sha256-A6m/AoOmdyde5yefVJmEE3bobjqDWzjNzRlRPnTwO4A=";
+    "38cd84d976880eab16af17a44d186bbddcd554f2" = "sha256-rGLyPHPu9B5yAdZSClCVWN4IN/VJaDxIR1ddnufiX30=";
+    "3987e83b7cf0af7c8dcb17a08e8a040ccbe9a5e5" = "sha256-wxLerTkJMWNznCjNRDkgT9ZYzhVdCWL/jTGQiTwyzXE=";
+    "82a63499e79405ac94d1479288fbec243aef1a4a" = "sha256-95wVyQfmsBwmHy+O/yYMboJg0KQMPXeiu47kktHzlHQ=";
+    "46a6fbf9497fcb0adce1b24344cab4a9f61aa1bd" = "sha256-DPqQ1FrcAHgRWOxLbqY/YlHgSCdggXWGZV1wg48o3hg=";
+    "706ef1b291134a5e5bce2275df2c222261f73451" = "sha256-XjZVQU2MZMtM3WUrCBTXDVq7bHb7rmw2VzPhIJ9DcNk=";
+    "d23424cd3aa17f7ad95b81018c70ceed2566962b" = "sha256-YYkp5kn1XOIl9yraHKGDoselvgH+EOl4y3ZK0e/tkzE=";
+    "decbd53f1bde4600c8ff860f30a79f028a8e431d" = "sha256-LJKgEGNAFJh47brXQl59H47zLtdpO5i0pPwud0W3IhE=";
+    "56ac9d6b8b764c8c71f0f1e618b1d3bf4f5dca42" = "sha256-qbhxPJeueL3JPZDmwagPDcHTuBkbTTj3JI8hOi0NfAM=";
+    "710154924085d69edda1de95bc674bbd8a89e7cd" = "sha256-AEQs5HQQPMIX9BQTX+4VUW/EBx9kXE/GlR+MpzbgD3I=";
+    "39148e4ec34a5c53443dd1b25ceec2308cd097fe" = "sha256-7rf3hZi99i2KBDveGfOwDIK65xVFXA9btICebn5Gs4k=";
+    "8cc248dc1305df4c17bb6b5738b700b60c9b5437" = "sha256-z2rxrNNfFoNHfKEhMhe59AUDN0x7lsLWfei5Q0GOBDY=";
+    "9468b9abcda6955688804194c02fe11db8c78a38" = "sha256-+AcN0rLZJC5PZm34Uo3qS4a2GrJ0lyKH0C4KyMZIHkc=";
+    "4b2151cbe4c857d49556b70c3fa0f5e236fd7754" = "sha256-a6hZtohj8TuI5RNzbCdpeEI8Ci8nMHdCCRBFaf5wxTs=";
+    "229b4f7039dcc8b66bb94775333b805c65a24b2b" = "sha256-OYqUXC8o5JDhLyNmalRmk73xMM0ca3nKrcLG46GLFVg=";
+    "a3e918a10d2ed1fad78457377244106e22685277" = "sha256-4KDx7Ysstig+2v3k0IwBRKkuya9Iooj7vW/XKtJpPXk=";
+    "a051c92a16bbd15e9616a3fbddb9fff4eddf74d9" = "sha256-SZcvUYzSzErpmLdv9mMGVs8JrXZ/79EEdqXpdGJ0vuU=";
+    "4905801fc161300ba20bae4f7adf045b1698e831" = "sha256-ud/2nwN+33R+ChtJtfkLK7UGd3/D6pTEThxl4ObKp10=";
+    "9ecf74d42bcea9459a1734d7864544976f772ced" = "sha256-B2+bIefR/KDIaD/Q8SAq8HTbz6sZVHgL+LdxP2pe8/g=";
+    "80514f73a6c7db32df9887d9a5ca9ae921e25118" = "sha256-3P8iVrWygjwX6DUQsIGFtoGeASyvj5xJLUSs0JXltJE=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -438,5 +458,25 @@
     { name = "s204"; rev = "5d118abb206c4bf0ef9fd71b6ec2c58a232ec404"; builder = "stage2.sh"; gen = "28"; prev = "s203"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; FALLBACK_DROP = "scala/reflect/package"; }; }
     { name = "s205"; rev = "dc11644dbcaafdc938635622604f26f3f8f2c298"; builder = "stage2.sh"; gen = "28"; prev = "s204"; compilerFirst = true; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
     { name = "s206"; rev = "43e040ff7e4ba92ccf223e77540580b32c1473c0"; builder = "stage2.sh"; gen = "28"; prev = "s205"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s207"; rev = "7d6d5a734c46a15f10a7f2e73f2e7857202e25e1"; builder = "stage2.sh"; gen = "29"; prev = "s194"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s208"; rev = "38cd84d976880eab16af17a44d186bbddcd554f2"; builder = "stage2.sh"; gen = "29"; prev = "s207"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s209"; rev = "3987e83b7cf0af7c8dcb17a08e8a040ccbe9a5e5"; builder = "stage2.sh"; gen = "29"; prev = "s206"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s210"; rev = "82a63499e79405ac94d1479288fbec243aef1a4a"; builder = "stage2.sh"; gen = "29"; prev = "s209"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s211"; rev = "46a6fbf9497fcb0adce1b24344cab4a9f61aa1bd"; builder = "stage2.sh"; gen = "29"; prev = "s210"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s212"; rev = "706ef1b291134a5e5bce2275df2c222261f73451"; builder = "stage2.sh"; gen = "29"; prev = "s211"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s213"; rev = "d23424cd3aa17f7ad95b81018c70ceed2566962b"; builder = "stage2.sh"; gen = "29"; prev = "s212"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s214"; rev = "decbd53f1bde4600c8ff860f30a79f028a8e431d"; builder = "stage2.sh"; gen = "29"; prev = "s213"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s215"; rev = "56ac9d6b8b764c8c71f0f1e618b1d3bf4f5dca42"; builder = "stage2.sh"; gen = "29"; prev = "s213"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; }; }
+    { name = "s216"; rev = "710154924085d69edda1de95bc674bbd8a89e7cd"; builder = "stage2.sh"; gen = "29"; prev = "s214"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s217"; rev = "39148e4ec34a5c53443dd1b25ceec2308cd097fe"; builder = "stage2.sh"; gen = "29"; prev = "s216"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s218"; rev = "8cc248dc1305df4c17bb6b5738b700b60c9b5437"; builder = "stage2.sh"; gen = "29"; prev = "s217"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s219"; rev = "9468b9abcda6955688804194c02fe11db8c78a38"; builder = "stage2.sh"; gen = "29"; prev = "s218"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s220"; rev = "4b2151cbe4c857d49556b70c3fa0f5e236fd7754"; builder = "stage2.sh"; gen = "29"; prev = "s219"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s221"; rev = "229b4f7039dcc8b66bb94775333b805c65a24b2b"; builder = "stage2.sh"; gen = "29"; prev = "s220"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s222"; rev = "a3e918a10d2ed1fad78457377244106e22685277"; builder = "stage2.sh"; gen = "29"; prev = "s220"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s223"; rev = "a051c92a16bbd15e9616a3fbddb9fff4eddf74d9"; builder = "stage2.sh"; gen = "29"; prev = "s221"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s224"; rev = "4905801fc161300ba20bae4f7adf045b1698e831"; builder = "stage2.sh"; gen = "29"; prev = "s223"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s225"; rev = "9ecf74d42bcea9459a1734d7864544976f772ced"; builder = "stage2.sh"; prev = "s224"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s226"; rev = "80514f73a6c7db32df9887d9a5ca9ae921e25118"; builder = "stage2.sh"; prev = "s225"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
   ];
 }

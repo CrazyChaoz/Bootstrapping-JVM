@@ -148,8 +148,61 @@ let
     "6.2.0-scala-2" = "sha256-vJbPzDHCReqzeClrktocMRIn0Y/DiC0kE3hK0EpHNDc=";
     "7.0.0-scala-1" = "sha256-Q5EFV2W1uernQugwHOiEPqFiEV24tpsAIUXpSSDxLmk=";
   };
-  scalaAsmSrcs = runCommand "scala-asm-srcs" { } (
-    "mkdir $out\n" + lib.concatStrings (lib.mapAttrsToList (v: src: "ln -s ${src}/src/main/java $out/${v}\n") scalaAsms)
+  asmSrcsOf =
+    asms:
+    runCommand "scala-asm-srcs" { } (
+      "mkdir $out\n" + lib.concatStrings (lib.mapAttrsToList (v: src: "ln -s ${src}/src/main/java $out/${v}\n") asms)
+    );
+  scalaAsmSrcs = asmSrcsOf scalaAsms;
+  # and the later ones (2.13.x from 2019-12, the dotty compilers); from generation 29 on
+  scalaAsmSrcs2 = asmSrcsOf (
+    scalaAsms
+    // lib.mapAttrs
+      (
+        v: hash:
+        fetchFromGitHub {
+          owner = "scala";
+          repo = "scala-asm";
+          rev = "v${v}";
+          inherit hash;
+        }
+      )
+      {
+        "7.3.1-scala-1" = "sha256-gCHnwXe9G+fghnLIJY56Y9AYGenjVMbM3fxODxAJaB0=";
+        "9.1.0-scala-1" = "sha256-dAxKr6b7HbkIHTyJYPFL2DNMcH24W4Wb7NyBNc2iWfM=";
+        "9.2.0-scala-1" = "sha256-5Cb+CaMOM84/GNenoLrZrfdlqIrbVUjPm1OIxD1NwFY=";
+        "9.3.0-scala-1" = "sha256-GnR8YbpSnRNvn5f6m+dfnJTHxgPXqir5JunFtkwwjWo=";
+        "9.4.0-scala-1" = "sha256-QmCIXoWsx4AGXXFkaYY3TTve8SGLqvhJCDDs9S5l+xA=";
+        "9.5.0-scala-1" = "sha256-8HQsQ2Kwhfn5f62gOKKOPxpjgmV6jgjROy7QdPmLrNs=";
+        "9.6.0-scala-1" = "sha256-LqXit8/4AK/PZj96rkOSL2brqW08hVCu2ddfV/VFpz0=";
+        "9.7.0-scala-2" = "sha256-kdDh4lPkmMURFBpYXgrY49SOELBmfh2ZhV8XhbRnUd8=";
+        "9.7.1-scala-1" = "sha256-ZWbI5DK26wVMmJouxg0S2dEaGtb0iqvE0Q5vOY8OTZ4=";
+        "9.8.0-scala-1" = "sha256-OqQnxDzJRlFKGN7YS6ANzeZ7IrNiiNLPXGngGGcmRRo=";
+        "9.9.0-scala-1" = "sha256-ckAD1N1C0uAxObw3K33D6B+jwFGQvUenZLTI9GB0qVM=";
+      }
+  );
+
+  # java-diff-utils, by version, for the compiler's -Yprint-trees:diff (2022-05); stage2.sh compiles
+  # the one the tree's build.sbt names (DIFFUTILS_SRCS)
+  diffutilsSrcs = runCommand "java-diff-utils-srcs" { } (
+    "mkdir $out\n"
+    + lib.concatStrings (
+      lib.mapAttrsToList
+        (v: hash: "ln -s ${
+          fetchFromGitHub {
+            owner = "java-diff-utils";
+            repo = "java-diff-utils";
+            rev = "java-diff-utils-parent-${v}";
+            inherit hash;
+          }
+        } $out/${v}\n")
+        {
+          "4.11" = "sha256-jE1dl7GDakUph3r6XmdQAfam2yW2GKKlu3vTpVhCQlY=";
+          "4.12" = "sha256-QhdBPejv9yQBY4Oc4NQw2FultQPdi0eGJyqiIL56jQE=";
+          "4.15" = "sha256-HZN6chKTLiXTwSA+7Ud2sYG8i9qdQnLSqVfpjIJ1yk0=";
+          "4.16" = "sha256-H2F+20URht/Va3EP1Eztq1cjpCfNG77ePRRq1mrYvGY=";
+        }
+    )
   );
 
   # Scala's generified jline (lib/jline.jar from 2009-06), as imported as source 2009-10
@@ -259,6 +312,10 @@ let
       // lib.optionalAttrs (gen == null || lib.toInt gen >= 24) { ASM_SRC = "${scalaAsm}/src/main/java"; }
       # (and the version the tree names; from generation 27 on)
       // lib.optionalAttrs (gen == null || lib.toInt gen >= 27) { ASM_SRCS = "${scalaAsmSrcs}"; }
+      # (the later scala-asm releases; from generation 29 on)
+      // lib.optionalAttrs (gen == null || lib.toInt gen >= 29) { ASM_SRCS = "${scalaAsmSrcs2}"; }
+      # (java-diff-utils; from generation 29 on)
+      // lib.optionalAttrs (gen == null || lib.toInt gen >= 29) { DIFFUTILS_SRCS = "${diffutilsSrcs}"; }
       // (s.env or { });
       buildPhase = ''
         runHook preBuild

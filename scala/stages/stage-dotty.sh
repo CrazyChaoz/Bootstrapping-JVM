@@ -25,10 +25,17 @@ else
   pcp=$PREV/comp:$PREV/lib0:$PREV/tasty:$PREV/interfaces:$PREV/deps:$PREV/scala2lib
   compile() { $JAVA -cp $pcp dotty.tools.dotc.Main -nowarn -encoding UTF8 -language:existentials,higherKinds,implicitConversions "$@"; }
 fi
-ln -s $S2 scala2lib
+# From 3.7 the Scala 2 library's sources are part of library/src (RedBlackTree is one): the stage's own
+# library is the whole standard library and no Scala 2 library may be on the class path it runs
+# with (its specialized Tuple2 subclasses would extend the final scala.Tuple2 of the new library).
+RT2=$S2; INREPO=
+if [ -f $TREE/library/src/scala/collection/immutable/RedBlackTree.scala ]; then
+  INREPO=1; mkdir scala2lib-none; RT2=$PWD/scala2lib-none; ln -s $RT2 scala2lib
+else ln -s $S2 scala2lib; fi
 # SCALA2LIB_BOOT: the Scala 2 stage whose library the released dotty-library builds on, where the
 # build names another one for it (stdlibVersion Bootstrapped: 2.13.0 in 2019-08, against 2.12.8)
 S2B=${SCALA2LIB_BOOT:+$SCALA2LIB_BOOT/out2}; S2B=${S2B:-$S2}
+[ -z "$INREPO" ] || S2=$RT2 S2B=$RT2   # (and none to compile against either)
 [ "$S2B" = "$S2" ] || ln -s $S2B scala2lib-boot
 
 # (Java compiled by JDK 8's javac: javac 21's MethodParameters without names break Scala 2's classfile reader)
@@ -45,7 +52,7 @@ mkdir -p deps
 { find $ASM_SRC/ -name '*.java'
   find $SBTUTIL_SRC/internal/util-interface/src/main/java/ -name '*.java'
   find $ZINC_SRC/internal/compiler-interface/src/main/java/ $ZINC_SRC/internal/compiler-interface/src/main/contraband-java/ -name '*.java'
-  find $JLINE3_SRC/reader/src/main/java/ $JLINE3_SRC/terminal/src/main/java/ -name '*.java'
+  find $JLINE3_SRC/reader/src/main/java/ $JLINE3_SRC/terminal/src/main/java/ $([ -d $JLINE3_SRC/native/src/main/java ] && echo $JLINE3_SRC/native/src/main/java/) -name '*.java'
 } > deps.files
 $J8/bin/javac -nowarn -encoding utf8 -d deps @deps.files > deps.log 2>&1 || { cat deps.log; exit 1; }
 for r in $JLINE3_SRC/reader/src/main/resources $JLINE3_SRC/terminal/src/main/resources; do [ -d $r ] && cp -r $r/. deps/; done
@@ -92,7 +99,13 @@ fi
 # reference compiler compiles, from 2019-08)
 mkdir -p comp
 { find $TREE/compiler/src $([ -d $TREE/compiler/src-non-bootstrapped ] && echo $TREE/compiler/src-non-bootstrapped) -name '*.scala' -o -name '*.java'
-  [ -d $TREE/compiler/src/dotty/tools/backend/sjs ] && find $(ls -d $SCALAJS_SRC/ir/src/main/scala $SCALAJS_SRC/ir/shared/src/main/scala $SCALAJS_SRC/ir/jvm/src/main/scala 2>/dev/null) -name '*.scala'
+  if [ -d $TREE/compiler/src/dotty/tools/backend/sjs ]; then
+    irdirs=$(ls -d $SCALAJS_SRC/ir/src/main/scala $SCALAJS_SRC/ir/shared/src/main/scala $SCALAJS_SRC/ir/jvm/src/main/scala 2>/dev/null || true)
+    # (from 2024-07 the build unpacks them as dotty.tools.sjs.ir)
+    if grep -q '"org.scalajs.ir" => "dotty.tools.sjs.ir"' $bld; then
+      python3 -I $T/dotty-sjsir sjsir $irdirs
+    else find $irdirs -name '*.scala'; fi
+  fi
 } | sort > comp.files
 v=$(sed -n 's/.*val baseVersion = "\([^"]*\)".*/\1/p' $bld | head -1)
 printf 'version.number=%s-bootstrap\nmaven.version.number=%s-bootstrap\ngit.hash=unknown\ncopyright.string=Copyright 2002-2019, LAMP/EPFL\n' $v $v > comp/compiler.properties
@@ -108,7 +121,7 @@ mkdir -p lib
 x=$TREE/library/src-3.x; extra=$TREE/library/src-bootstrapped; [ ! -d $x ] || extra="$x $extra"
 find $TREE/library/src $extra -name '*.scala' -o -name '*.java' | sort > lib2.files
 echo "== library (new compiler)"
-$JAVA -cp comp:lib0:tasty:interfaces:deps:$S2 dotty.tools.dotc.Main -nowarn -encoding UTF8 -language:existentials,higherKinds,implicitConversions \
+$JAVA -cp comp:lib0:tasty:interfaces:deps:$RT2 dotty.tools.dotc.Main -nowarn -encoding UTF8 -language:existentials,higherKinds,implicitConversions \
   -d lib -classpath $S2B -sourcepath $(srcpath) $lopts $(sed -n 's/^libopts-boot //p' deps.versions) @lib2.files
 jl=$(grep '\.java$' lib2.files || true)
 [ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib:$S2B -d lib $jl

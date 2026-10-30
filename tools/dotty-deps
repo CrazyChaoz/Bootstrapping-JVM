@@ -49,5 +49,6 @@ def flags(b):
     return [f for f in re.findall(r'"(-Y[\w-]+|-language:[\w,]+|-source(?::[\w.-]+)?)"', b) if f != "-Ythrough-tasty"]
 
 
-print("libopts", *flags(block("lazy val dottyLibrarySettings")))
-print("libopts-boot", *flags(block("lazy val `dotty-library-bootstrapped`")))
+# (the library projects were renamed in 2025-04: scala-library-nonbootstrapped / scala-library-bootstrapped)
+print("libopts", *flags(block("lazy val dottyLibrarySettings") or block("lazy val `scala-library-nonbootstrapped`")))
+print("libopts-boot", *flags(block("lazy val `dotty-library-bootstrapped`") or block("lazy val `scala-library-bootstrapped`")))
