@@ -338,9 +338,22 @@ let
     };
 
   stages = lib.listToAttrs (map (s: lib.nameValuePair s.name (mkStage s)) chain.stages);
+  dotty = import ./dotty.nix {
+    inherit
+      lib
+      stdenv
+      fetchzip
+      runCommand
+      python3
+      jdks
+      ;
+    scala2Stages = stages;
+    scalaAsmSrcs = scalaAsmSrcs2;
+  };
 in
 {
   inherit
+    dotty
     stages
     sources
     apiViews

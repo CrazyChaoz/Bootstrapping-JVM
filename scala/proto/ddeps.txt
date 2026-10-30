@@ -72,4 +72,4 @@ d70 scalajs 1.20.2 zinc 1.10.7 jline 3.29.0 asm 9.9.0-scala-1
 d71 scalajs 1.20.2 zinc 1.10.7 jline 3.29.0 asm 9.9.0-scala-1 
 d72 scalajs 1.20.2 zinc 1.10.7 jline 3.29.0 asm 9.9.0-scala-1 
 d73 scalajs 1.22.0 zinc 1.12.0 jline 4.0.14 asm 9.9.0-scala-1 
-d74 scalajs 1.22.0 zinc 1.12.0 jline 4.3.1 
+d74 scalajs 1.22.0 zinc 1.12.0 jline 4.3.1 ow2asm 9.10.1
