@@ -50,32 +50,46 @@ let
       )
     );
 
-  stageFiles = lib.fileset.toSource {
-    root = ../../scala/stages;
-    fileset = lib.fileset.unions (
-      map (n: ../../scala/stages + "/${n}") [
-        "env.sh"
-        "stage-dotty.sh"
-        "hello-dotty.sh"
-        "Hello2.scala"
-      ]
-    );
-  };
-  toolFiles = lib.fileset.toSource {
-    root = ../../tools;
-    fileset = lib.fileset.unions (
-      map (n: ../../tools + "/${n}") [
-        "dotty-deps"
-        "dotty-reflib"
-        "dotty-toplevel"
-        "dotty-sjsir"
-      ]
-    );
-  };
+  # Builder generations, as for the Scala 2 stages: the stages verified in Nix with a set of scripts and
+  # tools keep building with a frozen copy of them (scala/stages/dgen/N, scala/proto/dgens.txt); the
+  # stages after the last generation use the current scripts (scala/stages, tools).
+  stageFiles =
+    gen:
+    let
+      root = if gen == null then ../../scala/stages else ../../scala/stages/dgen + "/${toString gen}";
+    in
+    lib.fileset.toSource {
+      inherit root;
+      fileset = lib.fileset.unions (
+        map (n: root + "/${n}") [
+          "env.sh"
+          "stage-dotty.sh"
+          "hello-dotty.sh"
+          "Hello2.scala"
+        ]
+      );
+    };
+  toolFiles =
+    gen:
+    let
+      root = if gen == null then ../../tools else ../../scala/stages/dgen + "/${toString gen}/tools";
+    in
+    lib.fileset.toSource {
+      inherit root;
+      fileset = lib.fileset.unions (
+        map (n: root + "/${n}") [
+          "dotty-deps"
+          "dotty-reflib"
+          "dotty-toplevel"
+          "dotty-sjsir"
+        ]
+      );
+    };
 
   mkStage =
     s:
     let
+      gen = s.gen or null;
       prev = if s.prev == null then scala2Stages.${chain.scala2.${s.lib}} else stages.${s.prev};
     in
     stdenv.mkDerivation {
@@ -87,7 +101,7 @@ let
       dontFixup = true;
       nativeBuildInputs = [ python3 ];
       env = {
-        TOOLS = "${toolFiles}";
+        TOOLS = "${toolFiles gen}";
         J = "${jdk21}";
         J8 = "${jdk8}";
         S = "/nonexistent"; # the prototype layout must not be used
@@ -99,10 +113,12 @@ let
         SBTUTIL_SRCS = "${byVersion "sbtutil"}";
         JLINE3_SRCS = "${byVersion "jline"}";
         SCALAJS_SRCS = "${byVersion "scalajs"}";
-      };
+      }
+      # (from generation 2 on)
+      // lib.optionalAttrs (gen == null || lib.toInt gen >= 2) { DOTTY_VERSION = s.version; };
       buildPhase = ''
         runHook preBuild
-        bash ${stageFiles}/stage-dotty.sh $src $out ${prev}
+        bash ${stageFiles gen}/stage-dotty.sh $src $out ${prev}
         runHook postBuild
       '';
       installPhase = ''
@@ -113,7 +129,7 @@ let
       # the stage's compiler compiles and runs a small program
       doInstallCheck = true;
       installCheckPhase = ''
-        bash ${stageFiles}/hello-dotty.sh $out 2>&1 | tee hello.txt
+        bash ${stageFiles gen}/hello-dotty.sh $out 2>&1 | tee hello.txt
         grep -q '^Hello from' hello.txt
       '';
       passthru = { inherit (s) rev version; };

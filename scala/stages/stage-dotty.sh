@@ -119,7 +119,8 @@ mkdir -p comp
     else find $irdirs -name '*.scala'; fi
   fi
 } | sort > comp.files
-v=$(sed -n 's/.*val baseVersion = "\([^"]*\)".*/\1/p' $bld | head -1)
+# (DOTTY_VERSION: the release; the version moved to project/Versions.scala and is computed there from 3.6)
+v=${DOTTY_VERSION:-$(sed -n 's/.*val baseVersion = "\([^"]*\)".*/\1/p' $bld | head -1)}
 printf 'version.number=%s-bootstrap\nmaven.version.number=%s-bootstrap\ngit.hash=unknown\ncopyright.string=Copyright 2002-2019, LAMP/EPFL\n' $v $v > comp/compiler.properties
 echo "== compiler ($KIND)"
 [ ! -d $TREE/compiler/resources ] || cp -r $TREE/compiler/resources/. comp/
