@@ -24,7 +24,9 @@
 }:
 
 let
-  src = gh "apache" "groovy" "GROOVY_${lib.replaceStrings [ "." ] [ "_" ] version}" "sha256-5H1APiPSI5yoAqivAKvLjNE1g/sjoEUkZaDEyL39Wgk=";
+  src = gh "apache" "groovy" "GROOVY_${
+    lib.replaceStrings [ "." ] [ "_" ] version
+  }" "sha256-5H1APiPSI5yoAqivAKvLjNE1g/sjoEUkZaDEyL39Wgk=";
 
   self = lib.fix (s: {
     picocli = mk {
@@ -155,7 +157,9 @@ let
     javaparser-core = mk {
       pname = "javaparser-core";
       version = "3.28.0";
-      src = gh "javaparser" "javaparser" "javaparser-parent-3.28.0" "sha256-fzkYSAxN1ziFmDwSX77B/BLQv3xNOclWBsqJKzkFtDc=";
+      src =
+        gh "javaparser" "javaparser" "javaparser-parent-3.28.0"
+          "sha256-fzkYSAxN1ziFmDwSX77B/BLQv3xNOclWBsqJKzkFtDc=";
       nativeBuildInputs = [ javacc ];
       preBuild = ''
         cd javaparser-core/src/main
@@ -192,7 +196,8 @@ let
           gradleLibs.asm-commons
           gradleLibs.antlr413-runtime
           s.picocli
-        ] ++ deps;
+        ]
+        ++ deps;
         inherit preBuild;
         repackage = true;
         sourceDirs = [

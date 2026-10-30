@@ -1,21 +1,14 @@
 #!/usr/bin/env python3
-"""Generate nix/scala/chain.nix from the chain record scala/proto/chain.txt.
+"""Generate nix/scala/chain.nix from the chain record scala/chain/scala2.txt.
 
 usage: tools/scala-chain [GITDIR]    (GITDIR: a clone of scala/scala, default /tmp/sc/full)
 
-chain.txt lines are "NAME COMMIT PREV MODE [VAR=VALUE...]" (VARs: builder environment); PREV "1" is stage 1 (stage1.sh),
-MODE is normal, cf (compiler-first), fresh (no fallback library, Array from
-source), unnest (locker from single-package-clause sources), nsc0 (the first Scala 2 compiler) or
-bridge:FROMCOMMIT:FILE,... (COMMIT with FILEs taken from FROMCOMMIT),
-bridge-script:FROMCOMMIT:SCRIPT (COMMIT's tree changed by scala/bridges/SCRIPT TREE FROMTREE).
-"gen N" lines: the stages above them (since the previous such line) build with
-the frozen scripts of scala/stages/gen/N (nix/scala/default.nix).  The
-builder follows from the position in the chain: stage.sh (Scala 1.x) up to
-the nsc0 stage, stage2.sh after it.
-
-The source hashes are those of fetchzip on GitHub's archive of the commit with
-the binaries removed (nix/scala/default.nix: fetchScala); they are computed
-here from `git archive` the same way, and reused from an existing chain.nix.
+scala2.txt has "generation NAME" lines and, under each, stage lines
+"NAME COMMIT PREV MODE  # comment" (see its header).  For each stage chain.nix gets its
+commit, generation, previous stage, mode and version (the release tag at the commit, else
+0-unstable-DATE), and for each source tree the hash of fetchScala in nix/scala/default.nix:
+GitHub's archive of the commit with the binaries removed, computed here from `git archive`
+the same way (and reused from the existing chain.nix).
 """
 import os
 import re
@@ -25,25 +18,35 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CHAIN = os.path.join(ROOT, "scala/proto/chain.txt")
+CHAIN = os.path.join(ROOT, "scala/chain/scala2.txt")
 OUT = os.path.join(ROOT, "nix/scala/chain.nix")
 GIT = sys.argv[1] if len(sys.argv) > 1 else "/tmp/sc/full"
 
-STAGE1 = "d19cd4e679~1"   # the last commit with a complete Java "scalacboot" (2004-02-19)
-FJBG = "0f10ffedc8"       # src/fjbg (2009)
-MSIL = "4304b15730"       # src/msil (2009)
-JLINE5 = "c107643d20"     # src/jline (2009-10), the generified jline of lib/jline.jar from 2009-06
+# inputs taken from later trees (nix/scala/default.nix)
+FJBG = "0f10ffedc8"  # src/fjbg (2009), the JVM backend's class file library
+MSIL = "4304b15730"  # src/msil (2009), the .NET class reader
+JLINE5 = "c107643d20"  # src/jline (2009-10), the generified jline of lib/jline.jar from 2009-06
 # keep in sync with fetchScala in nix/scala/default.nix
 BINARIES = (".jar", ".class", ".so", ".dll", ".dylib", ".exe", ".zip", ".a", ".jnilib")
 
 
+def nixfmt(path):
+    """format path as nixpkgs does (nixfmt, or else nixpkgs' nixfmt-rfc-style)"""
+    cmd = ["nixfmt"] if shutil.which("nixfmt") else ["nix", "run", "nixpkgs#nixfmt-rfc-style", "--"]
+    subprocess.run(cmd + [path], check=True)
+
+
 def git(*args):
-    return subprocess.run(["git", "-C", GIT, *args], check=True, capture_output=True,
-                          text=True).stdout.strip()
+    return subprocess.run(["git", "-C", GIT, *args], check=True, capture_output=True, text=True).stdout.strip()
 
 
 def rev_parse(c):
     return git("rev-parse", c + "^{commit}")
+
+
+def version(rev):
+    tags = [t[1:] for t in git("tag", "--points-at", rev).split() if re.fullmatch(r"v\d+(\.\d+)+(-[A-Z0-9.]+)?", t)]
+    return tags[0] if tags else "0-unstable-" + git("log", "-1", "--format=%cd", "--date=short", rev)
 
 
 def tree_hash(rev):
@@ -51,13 +54,12 @@ def tree_hash(rev):
     try:
         d = os.path.join(tmp, "src")
         os.mkdir(d)
-        tar = subprocess.run(["git", "-C", GIT, "archive", "--format=tar", rev],
-                             check=True, capture_output=True).stdout
+        tar = subprocess.run(["git", "-C", GIT, "archive", "--format=tar", rev], check=True, capture_output=True).stdout
         subprocess.run(["tar", "-x", "-C", d], input=tar, check=True)
         for dp, _, fs in os.walk(d):
             for f in fs:
                 p = os.path.join(dp, f)
-                if f.endswith(BINARIES) and not os.path.islink(p):   # find -type f
+                if f.endswith(BINARIES) and not os.path.islink(p):  # (find -type f)
                     os.remove(p)
         return subprocess.run(["nix", "hash", "path", "--type", "sha256", "--sri", d],
                               check=True, capture_output=True, text=True).stdout.strip()
@@ -70,40 +72,30 @@ def main():
     if os.path.exists(OUT):
         known = dict(re.findall(r'"([0-9a-f]{40})" = "(sha256-[^"]+)";', open(OUT).read()))
 
-    stages = [dict(name="st1", rev=rev_parse(STAGE1), builder="stage1.sh", prev=None)]
-    names = {"1": "st1"}
-    builder = "stage.sh"
+    stages, names, generation = [], set(), None
     for line in open(CHAIN):
         line = line.split("#")[0].strip()
         if not line:
             continue
-        if line.startswith("gen "):
-            # the stages above (since the previous gen line) build with scala/stages/gen/N
-            for st in stages:
-                st.setdefault("gen", line.split()[1])
+        if line.startswith("generation "):
+            generation = line.split()[1]
             continue
-        name, commit, prev, mode, *env = line.split()
-        s = dict(name=name, rev=rev_parse(commit), prev=names[prev])
-        if env:
-            s["env"] = dict(e.split("=", 1) for e in env)
-        if mode == "nsc0":
-            s["builder"] = "stage-nsc0.sh"
-            builder = "stage2.sh"
-        else:
-            s["builder"] = builder
-        if mode == "cf":
-            s["compilerFirst"] = True
-        if mode == "fresh":
-            s["fresh"] = True
-        if mode == "unnest":
-            s["unnest"] = True
-        if mode.startswith("bridge:"):
-            _, frm, files = mode.split(":", 2)
-            s["overlay"] = dict(rev=rev_parse(frm), files=files.split(","))
-        if mode.startswith("bridge-script:"):
-            _, frm, script = mode.split(":", 2)
-            s["overlay"] = dict(rev=rev_parse(frm), script=script)
-        names[name] = name
+        name, commit, prev, mode = line.split()
+        if prev != "-" and prev not in names:
+            sys.exit(f"{name}: unknown previous stage {prev}")
+        rev = rev_parse(commit)
+        s = dict(name=name, rev=rev, version=version(rev), generation=generation, mode=mode)
+        if prev != "-":
+            s["prev"] = prev
+        m = re.fullmatch(r"(bridge|bridge-script):([0-9a-f]+):(.*)", mode)
+        if m:
+            s["mode"] = "normal"
+            frm = rev_parse(m.group(2))
+            s["overlay"] = dict(rev=frm, script=m.group(3)) if m.group(1) == "bridge-script" \
+                else dict(rev=frm, files=m.group(3).split(","))
+        elif mode not in ("normal", "cf", "fresh"):
+            sys.exit(f"{name}: unknown mode {mode}")
+        names.add(name)
         stages.append(s)
 
     revs = [rev_parse(FJBG), rev_parse(MSIL), rev_parse(JLINE5)]
@@ -118,7 +110,7 @@ def main():
             if r not in known:
                 print(f"hashed {r[:10]}: {hashes[r]}", file=sys.stderr)
 
-    o = ["# Generated by tools/scala-chain from scala/proto/chain.txt -- do not edit.",
+    o = ["# Generated by tools/scala-chain from scala/chain/scala2.txt -- do not edit.",
          "{",
          f'  fjbg = "{revs[0]}";',
          f'  msil = "{revs[1]}";',
@@ -128,19 +120,10 @@ def main():
     o += [f'    "{r}" = "{h}";' for r, h in hashes.items()]
     o += ["  };", "  stages = ["]
     for s in stages:
-        a = [f'name = "{s["name"]}";', f'rev = "{s["rev"]}";', f'builder = "{s["builder"]}";']
-        if "gen" in s:
-            a.append(f'gen = "{s["gen"]}";')
-        if s["prev"]:
+        a = [f'name = "{s["name"]}";', f'rev = "{s["rev"]}";', f'version = "{s["version"]}";',
+             f'generation = "{s["generation"]}";', f'mode = "{s["mode"]}";']
+        if "prev" in s:
             a.append(f'prev = "{s["prev"]}";')
-        if s.get("compilerFirst"):
-            a.append("compilerFirst = true;")
-        if s.get("fresh"):
-            a.append("fresh = true;")
-        if s.get("unnest"):
-            a.append("unnest = true;")
-        if "env" in s:
-            a.append("env = { %s };" % " ".join('%s = "%s";' % kv for kv in s["env"].items()))
         if "overlay" in s:
             ov = s["overlay"]
             if "script" in ov:
@@ -151,6 +134,7 @@ def main():
         o.append("    { " + " ".join(a) + " }")
     o += ["  ];", "}", ""]
     open(OUT, "w").write("\n".join(o))
+    nixfmt(OUT)
     print(f"{OUT}: {len(stages)} stages, {len(hashes)} source trees", file=sys.stderr)
 
 

@@ -1,0 +1,3 @@
+# The build scripts pass file lists to compilers as $(cat FILES) or $(find ...): word splitting
+# is intended there (the paths have no blanks).
+disable=SC2046

@@ -16,8 +16,7 @@
 }:
 
 let
-  closureOf =
-    deps: lib.unique (lib.concatMap (d: [ d ] ++ (d.passthru.javaDeps or [ ])) deps);
+  closureOf = deps: lib.unique (lib.concatMap (d: [ d ] ++ (d.passthru.javaDeps or [ ])) deps);
 
   # A shell snippet expanding to the colon separated classpath of `deps`.
   classpathOf =
@@ -112,9 +111,9 @@ let
             mkdir -p $out/share/java
             ${
               if mainClass != null then
-                ''jar cfe $out/share/java/${jarName} ${mainClass} -C build/classes .''
+                "jar cfe $out/share/java/${jarName} ${mainClass} -C build/classes ."
               else
-                ''jar cf $out/share/java/${jarName} -C build/classes .''
+                "jar cf $out/share/java/${jarName} -C build/classes ."
             }
             runHook postInstall
           '';

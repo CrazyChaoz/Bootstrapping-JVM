@@ -28,7 +28,15 @@
   lcms2,
   libjpeg_turbo,
   libpng,
-  xorg,
+  libx11,
+  libxcomposite,
+  libxi,
+  libxinerama,
+  libxrender,
+  libxt,
+  libxtst,
+  libxext,
+  xorgproto,
   krb5,
   nss,
   pcsclite,
@@ -60,17 +68,22 @@ let
   };
   openjdk-src = drop "openjdk" "sha256-FKn5Di/lwLtz3I/8yepdx20856dKDJAc/QsK4/yMZFA=";
 
-  inherit (jdkBootstrap) jamvm-with-ecj4 ecj4-javac-wrapper classpath-devel ant-bootstrap;
+  inherit (jdkBootstrap)
+    jamvm-with-ecj4
+    ecj4-javac-wrapper
+    classpath-devel
+    ant-bootstrap
+    ;
   jamvm = jamvm-with-ecj4;
-  xlibs = with xorg; [
-    libX11
-    libXcomposite
-    libXi
-    libXinerama
-    libXrender
-    libXt
-    libXtst
-    libXext
+  xlibs = [
+    libx11
+    libxcomposite
+    libxi
+    libxinerama
+    libxrender
+    libxt
+    libxtst
+    libxext
     xorgproto
   ];
 in
@@ -130,7 +143,9 @@ gcc13Stdenv.mkDerivation {
       lib.mapAttrsToList (name: tarball: ''
         rm -rf openjdk.src/${name}; mkdir openjdk.src/${name}
         tar xf ${tarball} -C openjdk.src/${name} --strip-components=1
-        ${lib.concatMapStrings (p: "patch -d openjdk.src/${name} -p1 < ${p}\n") (dropPatches.${name} or [ ])}
+        ${lib.concatMapStrings (p: "patch -d openjdk.src/${name} -p1 < ${p}\n") (
+          dropPatches.${name} or [ ]
+        )}
       '') drops
     )}
     cd ..
@@ -161,7 +176,7 @@ gcc13Stdenv.mkDerivation {
     sed -i 's|^\(OPT_CFLAGS/NOOPT.*\)$|\1\nOPT_CFLAGS/dump.o += -O0|' hotspot/make/linux/makefiles/gcc.make
 
     # fix-x11-extension-include-path
-    perl -0pi -e 's|\$\(firstword \$\(wildcard \$\(OPENWIN_HOME\)/include/X11/extensions\) \\\n\s*\$\(wildcard /usr/include/X11/extensions\)\)|${lib.getDev xorg.libXrender}/include/X11/extensions -I${lib.getDev xorg.libXtst}/include/X11/extensions -I${lib.getDev xorg.libXinerama}/include/X11/extensions|' \
+    perl -0pi -e 's|\$\(firstword \$\(wildcard \$\(OPENWIN_HOME\)/include/X11/extensions\) \\\n\s*\$\(wildcard /usr/include/X11/extensions\)\)|${lib.getDev libxrender}/include/X11/extensions -I${lib.getDev libxtst}/include/X11/extensions -I${lib.getDev libxinerama}/include/X11/extensions|' \
       jdk/make/sun/awt/mawt.gmk
     grep -n 'include/X11/extensions' jdk/make/sun/awt/mawt.gmk
 
@@ -213,10 +228,10 @@ gcc13Stdenv.mkDerivation {
     export CC=gcc
     export CPATH=${
       lib.concatMapStringsSep ":" (l: "${lib.getDev l}/include/X11/extensions") [
-        xorg.libXcomposite
-        xorg.libXrender
-        xorg.libXtst
-        xorg.libXinerama
+        libxcomposite
+        libxrender
+        libxtst
+        libxinerama
       ]
     }''${CPATH:+:$CPATH}
     export ALT_OBJCOPY=$(type -p objcopy)

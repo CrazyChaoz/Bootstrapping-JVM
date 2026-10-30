@@ -24,7 +24,9 @@
 }:
 
 let
-  src = gh "apache" "groovy" "GROOVY_${lib.replaceStrings [ "." ] [ "_" ] version}" "sha256-YrorzpTNQSgMVpLpB3L+JwIten7Dbay7ussbNtEqHvs=";
+  src = gh "apache" "groovy" "GROOVY_${
+    lib.replaceStrings [ "." ] [ "_" ] version
+  }" "sha256-YrorzpTNQSgMVpLpB3L+JwIten7Dbay7ussbNtEqHvs=";
 
   self = lib.fix (s: {
     picocli = mk {
@@ -60,7 +62,9 @@ let
         -o gen/org/codehaus/groovy/antlr/java src/main/antlr2/org/codehaus/groovy/antlr/java/java.g
       # antlr 4: the Parrot parser
       mkdir -p gen/org/apache/groovy/parser/antlr4
-      (cd src/antlr && java -cp ${classpathOf [ antlr.tvl-antlr4 ]} org.antlr.v4.Tool -package org.apache.groovy.parser.antlr4 -visitor -no-listener \
+      (cd src/antlr && java -cp ${
+        classpathOf [ antlr.tvl-antlr4 ]
+      } org.antlr.v4.Tool -package org.apache.groovy.parser.antlr4 -visitor -no-listener \
         -o ../../gen/org/apache/groovy/parser/antlr4 GroovyLexer.g4 GroovyParser.g4)
       rm -f gen/org/apache/groovy/parser/antlr4/*.tokens gen/org/apache/groovy/parser/antlr4/*.interp
     '';
@@ -165,7 +169,9 @@ let
     javaparser-core = mk {
       pname = "javaparser-core";
       version = "3.28.0";
-      src = gh "javaparser" "javaparser" "javaparser-parent-3.28.0" "sha256-fzkYSAxN1ziFmDwSX77B/BLQv3xNOclWBsqJKzkFtDc=";
+      src =
+        gh "javaparser" "javaparser" "javaparser-parent-3.28.0"
+          "sha256-fzkYSAxN1ziFmDwSX77B/BLQv3xNOclWBsqJKzkFtDc=";
       nativeBuildInputs = [ javacc ];
       preBuild = ''
         cd javaparser-core/src/main
@@ -202,9 +208,10 @@ let
           gradleLibs.asm-commons
           gradleLibs.antlr2
           antlr.tvl-antlr4-runtime
-      antlr.tvl-antlr4-runtime-annotations
+          antlr.tvl-antlr4-runtime-annotations
           s.picocli
-        ] ++ deps;
+        ]
+        ++ deps;
         inherit preBuild;
         repackage = true;
         sourceDirs = [

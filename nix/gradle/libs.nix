@@ -32,7 +32,9 @@ let
   mvn =
     group: artifact: version: hash:
     fetchzip {
-      url = "https://repo1.maven.org/maven2/${lib.replaceStrings [ "." ] [ "/" ] group}/${artifact}/${version}/${artifact}-${version}-sources.jar";
+      url = "https://repo1.maven.org/maven2/${
+        lib.replaceStrings [ "." ] [ "/" ] group
+      }/${artifact}/${version}/${artifact}-${version}-sources.jar";
       inherit hash;
       stripRoot = false;
       extension = "zip";
@@ -47,10 +49,15 @@ let
       sourceDirs = args.sourceDirs or [ "src" ];
       cp = classpathOf ((args.deps or [ ]) ++ (args.buildDeps or [ ]));
       target =
-        if args.useRelease or false then "--release ${release}" else "-source ${release} -target ${release}";
+        if args.useRelease or false then
+          "--release ${release}"
+        else
+          "-source ${release} -target ${release}";
     in
     mkJar (
-      { javaRelease = release; }
+      {
+        javaRelease = release;
+      }
       // removeAttrs args [
         "resourceDirs"
         "useRelease"
@@ -60,33 +67,34 @@ let
           find . -name module-info.java -delete
         ''
         + (args.postPatch or "");
-        buildPhase = args.buildPhase or ''
-          runHook preBuild
-          export CLASSPATH="${cp}"
-          mkdir -p build/classes
-          : > build/sources.txt
-          for d in ${lib.escapeShellArgs sourceDirs}; do
-            find "$d" -path ./build -prune -o -name '*.java' -print >> build/sources.txt
-          done
-          sort -o build/sources.txt build/sources.txt
-          echo "compiling $(wc -l < build/sources.txt) java files"
-          if [ -s build/sources.txt ]; then
-            javac -d build/classes -encoding ${args.encoding or "UTF-8"} ${target} -nowarn -g -Xmaxerrs 1000 \
-              -cp "$CLASSPATH" ${lib.escapeShellArgs (args.javacFlags or [ ])} @build/sources.txt
-          fi
-          ${lib.optionalString (args.copySourceResources or false) ''
+        buildPhase =
+          args.buildPhase or ''
+            runHook preBuild
+            export CLASSPATH="${cp}"
+            mkdir -p build/classes
+            : > build/sources.txt
             for d in ${lib.escapeShellArgs sourceDirs}; do
-              (cd "$d" && find . -path ./build -prune -o -type f ! -name '*.java' -print0 | xargs -0 -r cp --parents -t "$OLDPWD/build/classes")
+              find "$d" -path ./build -prune -o -name '*.java' -print >> build/sources.txt
             done
-          ''}
-          ${lib.concatMapStrings (d: ''
-            if [ -d "${d}" ]; then cp -r "${d}"/. build/classes/; fi
-          '') (args.resourceDirs or [ ])}
-          for j in ${lib.escapeShellArgs (args.mergeJars or [ ])}; do
-            (cd build/classes && unzip -qo "$j" -x 'META-INF/MANIFEST.MF' 'META-INF/INDEX.LIST')
-          done
-          runHook postBuild
-        '';
+            sort -o build/sources.txt build/sources.txt
+            echo "compiling $(wc -l < build/sources.txt) java files"
+            if [ -s build/sources.txt ]; then
+              javac -d build/classes -encoding ${args.encoding or "UTF-8"} ${target} -nowarn -g -Xmaxerrs 1000 \
+                -cp "$CLASSPATH" ${lib.escapeShellArgs (args.javacFlags or [ ])} @build/sources.txt
+            fi
+            ${lib.optionalString (args.copySourceResources or false) ''
+              for d in ${lib.escapeShellArgs sourceDirs}; do
+                (cd "$d" && find . -path ./build -prune -o -type f ! -name '*.java' -print0 | xargs -0 -r cp --parents -t "$OLDPWD/build/classes")
+              done
+            ''}
+            ${lib.concatMapStrings (d: ''
+              if [ -d "${d}" ]; then cp -r "${d}"/. build/classes/; fi
+            '') (args.resourceDirs or [ ])}
+            for j in ${lib.escapeShellArgs (args.mergeJars or [ ])}; do
+              (cd build/classes && unzip -qo "$j" -x 'META-INF/MANIFEST.MF' 'META-INF/INDEX.LIST')
+            done
+            runHook postBuild
+          '';
       }
     );
   # Maven resource filtering of ${project.version}-style placeholders.
@@ -105,10 +113,18 @@ let
       gh "qos-ch" "slf4j" "v_1.7.36" "sha256-A891wuusRHJJJHDTLqKgT6sRUFZQioAk1u1tpnbWbRY="
     else
       gh "qos-ch" "slf4j" "v_2.0.17" "sha256-MOAIvzVPxFv9Nfov4Ych774urZ0v9emscKqwIGI/3Ik=";
-  jackson8Src = gh "FasterXML" "jackson-modules-java8" "jackson-modules-java8-2.22.0" "sha256-zZYt5ehdX69xo1VQ6ZVQhw/3u4HMTbrOOuyvpXFkRnI=";
+  jackson8Src =
+    gh "FasterXML" "jackson-modules-java8" "jackson-modules-java8-2.22.0"
+      "sha256-zZYt5ehdX69xo1VQ6ZVQhw/3u4HMTbrOOuyvpXFkRnI=";
   # jackson's PackageVersion.java.in
   jacksonVersion =
-    { template, package, group, artifact, version }:
+    {
+      template,
+      package,
+      group,
+      artifact,
+      version,
+    }:
     ''
       pv=src/main/java/${lib.replaceStrings [ "." ] [ "/" ] package}/PackageVersion.java
       sed -e 's/@package@/${package}/g; s/@projectversion@/${version}/g' \
@@ -130,7 +146,9 @@ lib.fix (self: {
   jsr305 = mk {
     pname = "jsr305";
     version = "3.0.2";
-    src = mvn "com.google.code.findbugs" "jsr305" "3.0.2" "sha256-JDujjNoIfofxXRpsVIoOcGtqzVR1WQSjoEM7ZydKYnc=";
+    src =
+      mvn "com.google.code.findbugs" "jsr305" "3.0.2"
+        "sha256-JDujjNoIfofxXRpsVIoOcGtqzVR1WQSjoEM7ZydKYnc=";
     sourceDirs = [ "." ];
   };
 
@@ -144,21 +162,27 @@ lib.fix (self: {
   j2objc-annotations = mk {
     pname = "j2objc-annotations";
     version = "3.0.0";
-    src = mvn "com.google.j2objc" "j2objc-annotations" "3.0.0" "sha256-y/3+hlFvZK4gT3SPGQmxxwIVtxQmEx+Kt6ODZ5uEbrM=";
+    src =
+      mvn "com.google.j2objc" "j2objc-annotations" "3.0.0"
+        "sha256-y/3+hlFvZK4gT3SPGQmxxwIVtxQmEx+Kt6ODZ5uEbrM=";
     sourceDirs = [ "." ];
   };
 
   checker-qual = mk {
     pname = "checker-qual";
     version = "3.43.0";
-    src = mvn "org.checkerframework" "checker-qual" "3.43.0" "sha256-jA0rTiJoi59+GnkM6+QKdMgTSpNEM7bLSQkjPn4M2LQ=";
+    src =
+      mvn "org.checkerframework" "checker-qual" "3.43.0"
+        "sha256-jA0rTiJoi59+GnkM6+QKdMgTSpNEM7bLSQkjPn4M2LQ=";
     sourceDirs = [ "." ];
   };
 
   jetbrains-annotations = mk {
     pname = "annotations";
     version = "24.0.1";
-    src = gh "JetBrains" "java-annotations" "24.0.1" "sha256-VupUlE0gYl+sHPmIswR/1hJzkOKEOGhJyD2LDhjg0/c=";
+    src =
+      gh "JetBrains" "java-annotations" "24.0.1"
+        "sha256-VupUlE0gYl+sHPmIswR/1hJzkOKEOGhJyD2LDhjg0/c=";
     sourceDirs = [
       "common/src/main/java"
       "java8/src/main/java"
@@ -251,14 +275,18 @@ lib.fix (self: {
   commons-io = mk {
     pname = "commons-io";
     version = "2.20.0";
-    src = gh "apache" "commons-io" "rel/commons-io-2.20.0" "sha256-fzfrmR0LhFihXe0TdEO3M4EIR0MxJw0AwhiSWRC6PVs=";
+    src =
+      gh "apache" "commons-io" "rel/commons-io-2.20.0"
+        "sha256-fzfrmR0LhFihXe0TdEO3M4EIR0MxJw0AwhiSWRC6PVs=";
     sourceDirs = [ "src/main/java" ];
   };
 
   commons-lang3 = mk {
     pname = "commons-lang3";
     version = "3.20.0";
-    src = gh "apache" "commons-lang" "rel/commons-lang-3.20.0" "sha256-6FivHu4P6fJ1cDABHLt6TXM3PJ08W/73KwPiPa5RONA=";
+    src =
+      gh "apache" "commons-lang" "rel/commons-lang-3.20.0"
+        "sha256-6FivHu4P6fJ1cDABHLt6TXM3PJ08W/73KwPiPa5RONA=";
     sourceDirs = [ "src/main/java" ];
   };
 
@@ -275,7 +303,9 @@ lib.fix (self: {
   commons-codec = mk {
     pname = "commons-codec";
     version = "1.18.0";
-    src = gh "apache" "commons-codec" "rel/commons-codec-1.18.0" "sha256-bJCwxDn4fnEFJRZFcCPrZXJS7/UcNj10yNV/kd1Pq4w=";
+    src =
+      gh "apache" "commons-codec" "rel/commons-codec-1.18.0"
+        "sha256-bJCwxDn4fnEFJRZFcCPrZXJS7/UcNj10yNV/kd1Pq4w=";
     sourceDirs = [ "src/main/java" ];
     resourceDirs = [ "src/main/resources" ];
   };
@@ -291,7 +321,9 @@ lib.fix (self: {
   commons-compress = mk {
     pname = "commons-compress";
     version = "1.28.0";
-    src = gh "apache" "commons-compress" "rel/commons-compress-1.28.0" "sha256-7nv1Vp/WMn5H2/P0FaoyQgzu+wWdOogztEJlORD8wDA=";
+    src =
+      gh "apache" "commons-compress" "rel/commons-compress-1.28.0"
+        "sha256-7nv1Vp/WMn5H2/P0FaoyQgzu+wWdOogztEJlORD8wDA=";
     sourceDirs = [ "src/main/java" ];
     resourceDirs = [ "src/main/resources" ];
     deps = [
@@ -318,25 +350,33 @@ lib.fix (self: {
   httpcore = mk {
     pname = "httpcore";
     version = "4.4.16";
-    src = gh "apache" "httpcomponents-core" "rel/v4.4.16" "sha256-2Fk8UnvEJDI95AV/92N3Jzg6MMHZdyRHQXsbpRq+Td4=";
+    src =
+      gh "apache" "httpcomponents-core" "rel/v4.4.16"
+        "sha256-2Fk8UnvEJDI95AV/92N3Jzg6MMHZdyRHQXsbpRq+Td4=";
     sourceDirs = [
       "httpcore/src/main/java"
       "httpcore/src/main/java-deprecated"
     ];
     resourceDirs = [ "httpcore/src/main/resources" ];
-    preBuild = filterVersion "4.4.16" [ "httpcore/src/main/resources/org/apache/http/version.properties" ];
+    preBuild = filterVersion "4.4.16" [
+      "httpcore/src/main/resources/org/apache/http/version.properties"
+    ];
   };
 
   httpclient = mk {
     pname = "httpclient";
     version = "4.5.14";
-    src = gh "apache" "httpcomponents-client" "rel/v4.5.14" "sha256-WrOA/EQ+Y3HWkYXQgiEdTcfYyZ+16aIJ0HCwiYISxEY=";
+    src =
+      gh "apache" "httpcomponents-client" "rel/v4.5.14"
+        "sha256-WrOA/EQ+Y3HWkYXQgiEdTcfYyZ+16aIJ0HCwiYISxEY=";
     sourceDirs = [
       "httpclient/src/main/java"
       "httpclient/src/main/java-deprecated"
     ];
     resourceDirs = [ "httpclient/src/main/resources" ];
-    preBuild = filterVersion "4.5.14" [ "httpclient/src/main/resources/org/apache/http/client/version.properties" ];
+    preBuild = filterVersion "4.5.14" [
+      "httpclient/src/main/resources/org/apache/http/client/version.properties"
+    ];
     deps = [
       self.httpcore
       self.commons-codec
@@ -345,13 +385,16 @@ lib.fix (self: {
   };
 
   # --- logging -----------------------------------------------------------
-  slf4j-api = mk ({
-    pname = "slf4j-api";
-    version = slf4jVersion;
-    src = slf4jSrc;
-    sourceDirs = [ "slf4j-api/src/main/java" ];
-    resourceDirs = [ "slf4j-api/src/main/resources" ];
-  } // lib.optionalAttrs slf4jLegacy { postBuild = "rm -rf build/classes/org/slf4j/impl"; });
+  slf4j-api = mk (
+    {
+      pname = "slf4j-api";
+      version = slf4jVersion;
+      src = slf4jSrc;
+      sourceDirs = [ "slf4j-api/src/main/java" ];
+      resourceDirs = [ "slf4j-api/src/main/resources" ];
+    }
+    // lib.optionalAttrs slf4jLegacy { postBuild = "rm -rf build/classes/org/slf4j/impl"; }
+  );
   jcl-over-slf4j = mk {
     pname = "jcl-over-slf4j";
     version = slf4jVersion;
@@ -427,14 +470,18 @@ lib.fix (self: {
   plexus-classworlds = mk {
     pname = "plexus-classworlds";
     version = "2.7.0";
-    src = mvn "org.codehaus.plexus" "plexus-classworlds" "2.7.0" "sha256-sGoU/WKD8Q49Hp97ys1WybTThZ4v0+tTzMM8DLrdG0c=";
+    src =
+      mvn "org.codehaus.plexus" "plexus-classworlds" "2.7.0"
+        "sha256-sGoU/WKD8Q49Hp97ys1WybTThZ4v0+tTzMM8DLrdG0c=";
     sourceDirs = [ "." ];
     copySourceResources = true;
   };
   maven-artifact = mk {
     pname = "maven-artifact";
     version = "3.9.5";
-    src = mvn "org.apache.maven" "maven-artifact" "3.9.5" "sha256-9AGscnM6IuVDCsWiZje75/zwQectE+QztcKSCJ2OmfY=";
+    src =
+      mvn "org.apache.maven" "maven-artifact" "3.9.5"
+        "sha256-9AGscnM6IuVDCsWiZje75/zwQectE+QztcKSCJ2OmfY=";
     sourceDirs = [ "." ];
     copySourceResources = true;
     deps = [
@@ -445,13 +492,17 @@ lib.fix (self: {
   maven-resolver-api = mk {
     pname = "maven-resolver-api";
     version = "1.9.16";
-    src = mvn "org.apache.maven.resolver" "maven-resolver-api" "1.9.16" "sha256-YTNkIZcaYnOPXIGf17vXKylFUwz+xI1yvFra7zmnK5E=";
+    src =
+      mvn "org.apache.maven.resolver" "maven-resolver-api" "1.9.16"
+        "sha256-YTNkIZcaYnOPXIGf17vXKylFUwz+xI1yvFra7zmnK5E=";
     sourceDirs = [ "." ];
   };
   maven-plugin-api = mk {
     pname = "maven-plugin-api";
     version = "3.9.5";
-    src = mvn "org.apache.maven" "maven-plugin-api" "3.9.5" "sha256-Zd97QLplbZgYZAodKzjdUqVmSx+SPYAHLkCdrMvQXLc=";
+    src =
+      mvn "org.apache.maven" "maven-plugin-api" "3.9.5"
+        "sha256-Zd97QLplbZgYZAodKzjdUqVmSx+SPYAHLkCdrMvQXLc=";
     sourceDirs = [ "." ];
     copySourceResources = true;
     deps = [
@@ -466,13 +517,17 @@ lib.fix (self: {
   javaewah = mk {
     pname = "JavaEWAH";
     version = "1.2.3";
-    src = mvn "com.googlecode.javaewah" "JavaEWAH" "1.2.3" "sha256-kTNsFoaEFFQo3jAfPS5dWaXwP+JfniEzhI4P8Yr6h00=";
+    src =
+      mvn "com.googlecode.javaewah" "JavaEWAH" "1.2.3"
+        "sha256-kTNsFoaEFFQo3jAfPS5dWaXwP+JfniEzhI4P8Yr6h00=";
     sourceDirs = [ "." ];
   };
   jgit = mk {
     pname = "org.eclipse.jgit";
     version = "7.2.1.202505142326-r";
-    src = mvn "org.eclipse.jgit" "org.eclipse.jgit" "7.2.1.202505142326-r" "sha256-3oiAwcD2B2zoPBewtnEbpcL8G9UkPgjKpfJ0+rcL2Pg=";
+    src =
+      mvn "org.eclipse.jgit" "org.eclipse.jgit" "7.2.1.202505142326-r"
+        "sha256-3oiAwcD2B2zoPBewtnEbpcL8G9UkPgjKpfJ0+rcL2Pg=";
     sourceDirs = [ "." ];
     copySourceResources = true;
     javaRelease = "17";
@@ -486,7 +541,9 @@ lib.fix (self: {
     pname = "sshd-osgi";
     version = "2.15.0";
     postPatch = "rm -rf org/apache/sshd/agent/unix org/apache/sshd/agent/local/ProxyAgentFactory.java";
-    src = mvn "org.apache.sshd" "sshd-osgi" "2.15.0" "sha256-xb0F6cqM5GsZiGS39cVoUo5d4DkMxktyHXwecsrwO9A=";
+    src =
+      mvn "org.apache.sshd" "sshd-osgi" "2.15.0"
+        "sha256-xb0F6cqM5GsZiGS39cVoUo5d4DkMxktyHXwecsrwO9A=";
     sourceDirs = [ "." ];
     copySourceResources = true;
     deps = [
@@ -508,7 +565,9 @@ lib.fix (self: {
     pname = "bcpkix-jdk18on";
     version = "1.85";
     postPatch = "rm -rf META-INF/versions";
-    src = mvn "org.bouncycastle" "bcpkix-jdk18on" "1.85" "sha256-F1Cm5fRK3Tu0qpOmZ8Mra54f27/77Os8I4fsqv0CeDw=";
+    src =
+      mvn "org.bouncycastle" "bcpkix-jdk18on" "1.85"
+        "sha256-F1Cm5fRK3Tu0qpOmZ8Mra54f27/77Os8I4fsqv0CeDw=";
     sourceDirs = [ "." ];
     deps = [
       self.bcprov
@@ -518,7 +577,9 @@ lib.fix (self: {
   sshd-sftp = mk {
     pname = "sshd-sftp";
     version = "2.15.0";
-    src = mvn "org.apache.sshd" "sshd-sftp" "2.15.0" "sha256-Tc0GeiOeqng5zgys8u5FDHK0S2icO9Z28OsQCYHRcs8=";
+    src =
+      mvn "org.apache.sshd" "sshd-sftp" "2.15.0"
+        "sha256-Tc0GeiOeqng5zgys8u5FDHK0S2icO9Z28OsQCYHRcs8=";
     sourceDirs = [ "." ];
     copySourceResources = true;
     deps = [
@@ -529,7 +590,9 @@ lib.fix (self: {
   jgit-ssh-apache = mk {
     pname = "org.eclipse.jgit.ssh.apache";
     version = "7.2.1.202505142326-r";
-    src = mvn "org.eclipse.jgit" "org.eclipse.jgit.ssh.apache" "7.2.1.202505142326-r" "sha256-dZNJiujVQ2bnFuTuDYvlVftRYkqwoX0Cvw5kYJdu4Xs=";
+    src =
+      mvn "org.eclipse.jgit" "org.eclipse.jgit.ssh.apache" "7.2.1.202505142326-r"
+        "sha256-dZNJiujVQ2bnFuTuDYvlVftRYkqwoX0Cvw5kYJdu4Xs=";
     sourceDirs = [ "." ];
     copySourceResources = true;
     javaRelease = "17";
@@ -587,7 +650,9 @@ lib.fix (self: {
   reflectasm = mk {
     pname = "reflectasm";
     version = "1.09";
-    src = mvn "com.esotericsoftware.reflectasm" "reflectasm" "1.09" "sha256-i1RT+swQaiHAptorotQH41v1HVcP1VDbm792gtq8mVQ=";
+    src =
+      mvn "com.esotericsoftware.reflectasm" "reflectasm" "1.09"
+        "sha256-i1RT+swQaiHAptorotQH41v1HVcP1VDbm792gtq8mVQ=";
     sourceDirs = [ "." ];
     buildDeps = [ self.asm ];
   };
@@ -595,7 +660,9 @@ lib.fix (self: {
   kryo = mk {
     pname = "kryo";
     version = "2.24.0";
-    src = gh "EsotericSoftware" "kryo" "kryo-2.24.0" "sha256-fW2eZNF6iL+lnkRXGJhHQMJa9aPyM8doGoFQcNgX23M=";
+    src =
+      gh "EsotericSoftware" "kryo" "kryo-2.24.0"
+        "sha256-fW2eZNF6iL+lnkRXGJhHQMJa9aPyM8doGoFQcNgX23M=";
     sourceDirs = [ "src" ];
     deps = [
       self.minlog
@@ -625,7 +692,9 @@ lib.fix (self: {
   jnr-constants = mk {
     pname = "jnr-constants";
     version = "0.10.4";
-    src = gh "jnr" "jnr-constants" "jnr-constants-0.10.4" "sha256-leMxtrWU30/y+9WIhkQlImjYmzdAF4ptoMKLZMxVDJM=";
+    src =
+      gh "jnr" "jnr-constants" "jnr-constants-0.10.4"
+        "sha256-leMxtrWU30/y+9WIhkQlImjYmzdAF4ptoMKLZMxVDJM=";
     sourceDirs = [ "src/main/java" ];
   };
 
@@ -647,14 +716,18 @@ lib.fix (self: {
   jatl = mk {
     pname = "jatl";
     version = "0.2.3";
-    src = mvn "com.googlecode.jatl" "jatl" "0.2.3" "sha256-WOUU6BlcycSM5mbLmDD5vDR21L7W0LHchcXLpyzisLg=";
+    src =
+      mvn "com.googlecode.jatl" "jatl" "0.2.3"
+        "sha256-WOUU6BlcycSM5mbLmDD5vDR21L7W0LHchcXLpyzisLg=";
     sourceDirs = [ "." ];
   };
 
   javapoet = mk {
     pname = "javapoet";
     version = "1.13.0";
-    src = gh "square" "javapoet" "javapoet-1.13.0" "sha256-Pj28ZTJFi9WB5Qnl8XIrSkRkzdA4De0o4vL9Ww9XjuA=";
+    src =
+      gh "square" "javapoet" "javapoet-1.13.0"
+        "sha256-Pj28ZTJFi9WB5Qnl8XIrSkRkzdA4De0o4vL9Ww9XjuA=";
     sourceDirs = [ "src/main/java" ];
   };
 
@@ -662,14 +735,18 @@ lib.fix (self: {
   jackson-annotations = mk {
     pname = "jackson-annotations";
     version = "2.22";
-    src = gh "FasterXML" "jackson-annotations" "jackson-annotations-2.22" "sha256-nos0/g7RKc5RZtl36nLjPY7o2zssdJxVqP/NOeha2Hg=";
+    src =
+      gh "FasterXML" "jackson-annotations" "jackson-annotations-2.22"
+        "sha256-nos0/g7RKc5RZtl36nLjPY7o2zssdJxVqP/NOeha2Hg=";
     sourceDirs = [ "src/main/java" ];
   };
 
   fastdoubleparser = mk {
     pname = "fastdoubleparser";
     version = "2.0.1";
-    src = gh "wrandelshofer" "FastDoubleParser" "v2.0.1" "sha256-o80akZwUit5QdqF7SG64ENJhTFcKeHQBJY6SifjeLiY=";
+    src =
+      gh "wrandelshofer" "FastDoubleParser" "v2.0.1"
+        "sha256-o80akZwUit5QdqF7SG64ENJhTFcKeHQBJY6SifjeLiY=";
     # the Java 8 flavour: the dev sources with a few classes replaced
     preBuild = ''
       mkdir java8
@@ -683,7 +760,9 @@ lib.fix (self: {
   jackson-core = mk {
     pname = "jackson-core";
     version = "2.22.0";
-    src = gh "FasterXML" "jackson-core" "jackson-core-2.22.0" "sha256-52pW647+IDXZdW0uPq1YMiA8cHfVXvaoy+6cRMWTXAA=";
+    src =
+      gh "FasterXML" "jackson-core" "jackson-core-2.22.0"
+        "sha256-52pW647+IDXZdW0uPq1YMiA8cHfVXvaoy+6cRMWTXAA=";
     preBuild = jacksonVersion {
       template = "src/main/java/com/fasterxml/jackson/core/json/PackageVersion.java.in";
       package = "com.fasterxml.jackson.core.json";
@@ -701,7 +780,9 @@ lib.fix (self: {
   jackson-databind = mk {
     pname = "jackson-databind";
     version = "2.22.0";
-    src = gh "FasterXML" "jackson-databind" "jackson-databind-2.22.0" "sha256-tPE+Ye/GZdXocQqkye8qjjAUE0kG8fThAWyCQOBdGTM=";
+    src =
+      gh "FasterXML" "jackson-databind" "jackson-databind-2.22.0"
+        "sha256-tPE+Ye/GZdXocQqkye8qjjAUE0kG8fThAWyCQOBdGTM=";
     preBuild = jacksonVersion {
       template = "src/main/java/com/fasterxml/jackson/databind/cfg/PackageVersion.java.in";
       package = "com.fasterxml.jackson.databind.cfg";
@@ -721,13 +802,15 @@ lib.fix (self: {
     pname = "jackson-datatype-jdk8";
     version = "2.22.0";
     src = jackson8Src;
-    preBuild = "cd datatypes\n" + jacksonVersion {
-      template = "src/main/java/com/fasterxml/jackson/datatype/jdk8/PackageVersion.java.in";
-      package = "com.fasterxml.jackson.datatype.jdk8";
-      group = "com.fasterxml.jackson.datatype";
-      artifact = "jackson-datatype-jdk8";
-      version = "2.22.0";
-    };
+    preBuild =
+      "cd datatypes\n"
+      + jacksonVersion {
+        template = "src/main/java/com/fasterxml/jackson/datatype/jdk8/PackageVersion.java.in";
+        package = "com.fasterxml.jackson.datatype.jdk8";
+        group = "com.fasterxml.jackson.datatype";
+        artifact = "jackson-datatype-jdk8";
+        version = "2.22.0";
+      };
     sourceDirs = [ "src/main/java" ];
     resourceDirs = [ "src/main/resources" ];
     deps = [ self.jackson-databind ];
@@ -737,13 +820,15 @@ lib.fix (self: {
     pname = "jackson-datatype-jsr310";
     version = "2.22.0";
     src = jackson8Src;
-    preBuild = "cd datetime\n" + jacksonVersion {
-      template = "src/main/java/com/fasterxml/jackson/datatype/jsr310/PackageVersion.java.in";
-      package = "com.fasterxml.jackson.datatype.jsr310";
-      group = "com.fasterxml.jackson.datatype";
-      artifact = "jackson-datatype-jsr310";
-      version = "2.22.0";
-    };
+    preBuild =
+      "cd datetime\n"
+      + jacksonVersion {
+        template = "src/main/java/com/fasterxml/jackson/datatype/jsr310/PackageVersion.java.in";
+        package = "com.fasterxml.jackson.datatype.jsr310";
+        group = "com.fasterxml.jackson.datatype";
+        artifact = "jackson-datatype-jsr310";
+        version = "2.22.0";
+      };
     sourceDirs = [ "src/main/java" ];
     resourceDirs = [ "src/main/resources" ];
     deps = [ self.jackson-databind ];
@@ -754,7 +839,9 @@ lib.fix (self: {
   native-platform = stdenv.mkDerivation {
     pname = "native-platform";
     version = "0.22-milestone-29";
-    src = gh "gradle" "native-platform" "0.22-milestone-29" "sha256-HNVA6QDiPPKh0BQpCBjwiv4LNYxDySlqXcZjYC+FdFo=";
+    src =
+      gh "gradle" "native-platform" "0.22-milestone-29"
+        "sha256-HNVA6QDiPPKh0BQpCBjwiv4LNYxDySlqXcZjYC+FdFo=";
     nativeBuildInputs = [ jdk ];
     buildInputs = [ ncurses ];
     buildPhase = ''
@@ -805,7 +892,10 @@ lib.fix (self: {
       mkdir -p $out/share/java
       jar cf $out/share/java/gradle-fileevents.jar -C classes .
     '';
-    passthru.javaDeps = [ self.native-platform self.slf4j-api ];
+    passthru.javaDeps = [
+      self.native-platform
+      self.slf4j-api
+    ];
   };
 
   jansi = stdenv.mkDerivation {
@@ -838,12 +928,24 @@ lib.fix (self: {
     version = "1.18";
     src = runCommand "jansi-1.18-src" { } ''
       mkdir $out
-      cp -r ${gh "fusesource" "jansi" "jansi-project-1.18" "sha256-WmsC2Dczc+hSzKRTcyRgDi9XPZ00c5YJCnz+WMQtJbE="}/jansi/src/main/java $out/jansi
+      cp -r ${
+        gh "fusesource" "jansi" "jansi-project-1.18" "sha256-WmsC2Dczc+hSzKRTcyRgDi9XPZ00c5YJCnz+WMQtJbE="
+      }/jansi/src/main/java $out/jansi
       chmod -R u+w $out
-      cp -r ${gh "fusesource" "jansi-native" "jansi-native-1.8" "sha256-s2H9HCvWoC+p7kbQkLV+47DKcE+8OU20E0eH7sHxPsI="}/src/main/java $out/native
-      cp -r ${gh "fusesource" "hawtjni" "hawtjni-project-1.17" "sha256-2w/wamZfHEjEDFp/AYj3qMyFLupC9Z8yogNnNiFk5jI="}/hawtjni-runtime/src/main/java $out/hawtjni
+      cp -r ${
+        gh "fusesource" "jansi-native" "jansi-native-1.8"
+          "sha256-s2H9HCvWoC+p7kbQkLV+47DKcE+8OU20E0eH7sHxPsI="
+      }/src/main/java $out/native
+      cp -r ${
+        gh "fusesource" "hawtjni" "hawtjni-project-1.17"
+          "sha256-2w/wamZfHEjEDFp/AYj3qMyFLupC9Z8yogNnNiFk5jI="
+      }/hawtjni-runtime/src/main/java $out/hawtjni
     '';
-    sourceDirs = [ "jansi" "native" "hawtjni" ];
+    sourceDirs = [
+      "jansi"
+      "native"
+      "hawtjni"
+    ];
   };
   jsoup = mk {
     pname = "jsoup";
@@ -899,7 +1001,9 @@ lib.fix (self: {
     version = "1.85";
     # multi-release extras (Java 9+ variants of some classes)
     postPatch = "rm -rf META-INF/versions";
-    src = mvn "org.bouncycastle" "bcprov-jdk18on" "1.85" "sha256-HiI4dcHwCHdPGrzREHXOiNXulv3QD2MvFneHGQlhQd4=";
+    src =
+      mvn "org.bouncycastle" "bcprov-jdk18on" "1.85"
+        "sha256-HiI4dcHwCHdPGrzREHXOiNXulv3QD2MvFneHGQlhQd4=";
     sourceDirs = [ "." ];
     copySourceResources = true;
   };
@@ -907,7 +1011,9 @@ lib.fix (self: {
     pname = "bcutil-jdk18on";
     version = "1.85";
     postPatch = "rm -rf META-INF/versions";
-    src = mvn "org.bouncycastle" "bcutil-jdk18on" "1.85" "sha256-+BobUZ3LeTENY4DSPpEikqJRVYMmjTmI0houVrzOzaw=";
+    src =
+      mvn "org.bouncycastle" "bcutil-jdk18on" "1.85"
+        "sha256-+BobUZ3LeTENY4DSPpEikqJRVYMmjTmI0houVrzOzaw=";
     sourceDirs = [ "." ];
     deps = [ self.bcprov ];
   };
@@ -915,23 +1021,32 @@ lib.fix (self: {
     pname = "bcpg-jdk18on";
     version = "1.85";
     postPatch = "rm -rf META-INF/versions";
-    src = mvn "org.bouncycastle" "bcpg-jdk18on" "1.85" "sha256-pspoKvNrHz9bWAGpbZdrtgI5h8xaFM0cjp8x+fqu6+8=";
+    src =
+      mvn "org.bouncycastle" "bcpg-jdk18on" "1.85"
+        "sha256-pspoKvNrHz9bWAGpbZdrtgI5h8xaFM0cjp8x+fqu6+8=";
     sourceDirs = [ "." ];
-    deps = [ self.bcprov self.bcutil ];
+    deps = [
+      self.bcprov
+      self.bcutil
+    ];
   };
 
   # --- Maven / Plexus ----------------------------------------------------
   plexus-utils = mk {
     pname = "plexus-utils";
     version = "3.6.1";
-    src = gh "codehaus-plexus" "plexus-utils" "plexus-utils-3.6.1" "sha256-xOIdnUzG2qNsuiHmLOY3eZMdNIvgyoZjy3dokg6Jh1s=";
+    src =
+      gh "codehaus-plexus" "plexus-utils" "plexus-utils-3.6.1"
+        "sha256-xOIdnUzG2qNsuiHmLOY3eZMdNIvgyoZjy3dokg6Jh1s=";
     sourceDirs = [ "src/main/java" ];
     resourceDirs = [ "src/main/resources" ];
   };
   plexus-interpolation = mk {
     pname = "plexus-interpolation";
     version = "1.26";
-    src = gh "codehaus-plexus" "plexus-interpolation" "plexus-interpolation-1.26" "sha256-kP7uahc6j+AGmKm6pcJpbHuufkyMfixGLc047mGVUOU=";
+    src =
+      gh "codehaus-plexus" "plexus-interpolation" "plexus-interpolation-1.26"
+        "sha256-kP7uahc6j+AGmKm6pcJpbHuufkyMfixGLc047mGVUOU=";
     sourceDirs = [ "src/main/java" ];
   };
   plexus-cipher = mk {
@@ -939,41 +1054,57 @@ lib.fix (self: {
     version = "2.0";
     # sisu's @Typed is only a hint for the DI container
     postPatch = "sed -i -e '/^import org.eclipse.sisu.Typed;/d' -e 's/^@Typed.*//' org/sonatype/plexus/components/cipher/DefaultPlexusCipher.java";
-    src = mvn "org.codehaus.plexus" "plexus-cipher" "2.0" "sha256-ZcdbhITWv4AcvPS0lfLMMNHxqusHikBLmze/imMMYhU=";
+    src =
+      mvn "org.codehaus.plexus" "plexus-cipher" "2.0"
+        "sha256-ZcdbhITWv4AcvPS0lfLMMNHxqusHikBLmze/imMMYhU=";
     sourceDirs = [ "." ];
     deps = [ self.javax-inject ];
   };
   plexus-sec-dispatcher = mk {
     pname = "plexus-sec-dispatcher";
     version = "2.0";
-    src = mvn "org.codehaus.plexus" "plexus-sec-dispatcher" "2.0" "sha256-Xb+PNTL+ou4fRBZPIyzHpdfISIZGcJnoKwyFO71hI7Y=";
+    src =
+      mvn "org.codehaus.plexus" "plexus-sec-dispatcher" "2.0"
+        "sha256-Xb+PNTL+ou4fRBZPIyzHpdfISIZGcJnoKwyFO71hI7Y=";
     sourceDirs = [ "." ];
-    deps = [ self.plexus-cipher self.plexus-utils self.javax-inject ];
+    deps = [
+      self.plexus-cipher
+      self.plexus-utils
+      self.javax-inject
+    ];
   };
   maven-model = mk {
     pname = "maven-model";
     version = "3.9.5";
-    src = mvn "org.apache.maven" "maven-model" "3.9.5" "sha256-PGlrUqhc0oackZg5TsrGpRxJwFCMj5D8jnNH8oA3m/Y=";
+    src =
+      mvn "org.apache.maven" "maven-model" "3.9.5"
+        "sha256-PGlrUqhc0oackZg5TsrGpRxJwFCMj5D8jnNH8oA3m/Y=";
     sourceDirs = [ "." ];
     deps = [ self.plexus-utils ];
   };
   maven-settings = mk {
     pname = "maven-settings";
     version = "3.9.5";
-    src = mvn "org.apache.maven" "maven-settings" "3.9.5" "sha256-7aSMu02mIVw2aDp+kmDOWbIGolhtZuw2X2KTP1q4+RI=";
+    src =
+      mvn "org.apache.maven" "maven-settings" "3.9.5"
+        "sha256-7aSMu02mIVw2aDp+kmDOWbIGolhtZuw2X2KTP1q4+RI=";
     sourceDirs = [ "." ];
     deps = [ self.plexus-utils ];
   };
   maven-builder-support = mk {
     pname = "maven-builder-support";
     version = "3.9.5";
-    src = mvn "org.apache.maven" "maven-builder-support" "3.9.5" "sha256-+DjTFKPeMQPcsXVPoGj1HqScjyXYyEqMU7QLxWW+TKc=";
+    src =
+      mvn "org.apache.maven" "maven-builder-support" "3.9.5"
+        "sha256-+DjTFKPeMQPcsXVPoGj1HqScjyXYyEqMU7QLxWW+TKc=";
     sourceDirs = [ "." ];
   };
   maven-settings-builder = mk {
     pname = "maven-settings-builder";
     version = "3.9.5";
-    src = mvn "org.apache.maven" "maven-settings-builder" "3.9.5" "sha256-EsILTANmXX5/BLB0Q71cqxkPvewsUaRdPH+SBzrbAaU=";
+    src =
+      mvn "org.apache.maven" "maven-settings-builder" "3.9.5"
+        "sha256-EsILTANmXX5/BLB0Q71cqxkPvewsUaRdPH+SBzrbAaU=";
     sourceDirs = [ "." ];
     copySourceResources = true;
     deps = [
@@ -987,7 +1118,9 @@ lib.fix (self: {
   maven-repository-metadata = mk {
     pname = "maven-repository-metadata";
     version = "3.9.5";
-    src = mvn "org.apache.maven" "maven-repository-metadata" "3.9.5" "sha256-0Sn1thJUWUWgegz8Z5cV6SAWfYRS9FAZKnkSAOosyuU=";
+    src =
+      mvn "org.apache.maven" "maven-repository-metadata" "3.9.5"
+        "sha256-0Sn1thJUWUWgegz8Z5cV6SAWfYRS9FAZKnkSAOosyuU=";
     sourceDirs = [ "." ];
     deps = [ self.plexus-utils ];
   };
@@ -1003,7 +1136,9 @@ lib.fix (self: {
     pname = "dd-plist";
     version = "1.27";
     postPatch = "rm -rf src/test";
-    src = mvn "com.googlecode.plist" "dd-plist" "1.27" "sha256-uxCRwetEXJ06tPPm4z7hikqwNHe21eL6jFQZ8nIsdkM=";
+    src =
+      mvn "com.googlecode.plist" "dd-plist" "1.27"
+        "sha256-uxCRwetEXJ06tPPm4z7hikqwNHe21eL6jFQZ8nIsdkM=";
     sourceDirs = [ "." ];
   };
 
@@ -1027,10 +1162,14 @@ lib.fix (self: {
   apiguardian = mk {
     pname = "apiguardian-api";
     version = "1.1.2";
-    src = gh "apiguardian-team" "apiguardian" "r1.1.2" "sha256-3KOLE2XcbSpGr3iXFY6vVt4PFbkCpLT1SK0oPrbjfWU=";
+    src =
+      gh "apiguardian-team" "apiguardian" "r1.1.2"
+        "sha256-3KOLE2XcbSpGr3iXFY6vVt4PFbkCpLT1SK0oPrbjfWU=";
     sourceDirs = [ "src/main/java" ];
   };
-  junit5Src = gh "junit-team" "junit5" "r5.12.2" "sha256-8kLvtoStNToLtGJthbuPomlcMX35tgQZ6Fy9nDPq6TM=";
+  junit5Src =
+    gh "junit-team" "junit5" "r5.12.2"
+      "sha256-8kLvtoStNToLtGJthbuPomlcMX35tgQZ6Fy9nDPq6TM=";
   junit-platform-commons = mk {
     pname = "junit-platform-commons";
     version = "1.12.2";
@@ -1043,7 +1182,10 @@ lib.fix (self: {
     version = "1.12.2";
     src = self.junit5Src;
     sourceDirs = [ "junit-platform-engine/src/main/java" ];
-    deps = [ self.junit-platform-commons self.opentest4j ];
+    deps = [
+      self.junit-platform-commons
+      self.opentest4j
+    ];
   };
   junit-platform-launcher = mk {
     pname = "junit-platform-launcher";
@@ -1080,7 +1222,9 @@ lib.fix (self: {
     version = "2.0b6";
     # scripted classes (bundled ASM 1.x, loaded reflectively), servlet and AWT bits dropped
     postPatch = "rm -rf bsh/ClassGeneratorImpl.java bsh/ClassGeneratorUtil.java bsh/servlet bsh/util/AWT*.java";
-    src = mvn "org.apache-extras.beanshell" "bsh" "2.0b6" "sha256-rfnFw2T0p7Q0LzJpfl/Z+o313CFdQfLHeIrCopN5m4o=";
+    src =
+      mvn "org.apache-extras.beanshell" "bsh" "2.0b6"
+        "sha256-rfnFw2T0p7Q0LzJpfl/Z+o313CFdQfLHeIrCopN5m4o=";
     sourceDirs = [ "." ];
     copySourceResources = true;
   };
@@ -1104,12 +1248,16 @@ lib.fix (self: {
   # Groovy needs me.sunlan's fork of ANTLR 4.13.2 (alt labels may be reused
   # across rules); built from its Maven sources jars.
   # official 4.13.2: only for its Unicode data template, the fork's generates too large a method
-  antlr413-git-src = gh "antlr" "antlr4" "4.13.2" "sha256-DxxRL+FQFA+x0RudIXtLhewseU50aScHKSCDX7DE9bY=";
+  antlr413-git-src =
+    gh "antlr" "antlr4" "4.13.2"
+      "sha256-DxxRL+FQFA+x0RudIXtLhewseU50aScHKSCDX7DE9bY=";
   antlr413-annotations = mk {
     pname = "antlr4-annotations";
     version = "4.13.2.7";
     javacFlags = [ "-proc:none" ];
-    src = mvn "me.sunlan" "antlr4-annotations" "4.13.2.7" "sha256-HSFVeXnRSGOfmbZV3CXVv/kHXYN/+wqZ0DsRqoNkjSw=";
+    src =
+      mvn "me.sunlan" "antlr4-annotations" "4.13.2.7"
+        "sha256-HSFVeXnRSGOfmbZV3CXVv/kHXYN/+wqZ0DsRqoNkjSw=";
     sourceDirs = [ "." ];
   };
   # (annotations merged in, like upstream's shading)
@@ -1119,7 +1267,9 @@ lib.fix (self: {
     buildDeps = [ self.antlr413-annotations ];
     mergeJars = [ "${self.antlr413-annotations}/share/java/antlr4-annotations.jar" ];
     javacFlags = [ "-proc:none" ];
-    src = mvn "me.sunlan" "antlr4-runtime" "4.13.2.7" "sha256-fEd8goMfXXvrXJq7mrJWlVt0a5hAVlJ+e4CZJE7Dj9Q=";
+    src =
+      mvn "me.sunlan" "antlr4-runtime" "4.13.2.7"
+        "sha256-fEd8goMfXXvrXJq7mrJWlVt0a5hAVlJ+e4CZJE7Dj9Q=";
     sourceDirs = [ "." ];
     copySourceResources = true;
   };

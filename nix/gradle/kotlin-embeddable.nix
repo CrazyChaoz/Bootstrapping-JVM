@@ -61,7 +61,13 @@ in
         stripJavaArchivesHook
       ];
       buildPhase = ''
-        export CLASSPATH="${classpathOf [ gradleLibs.asm gradleLibs.asm-commons gradleLibs.asm-tree ]}"
+        export CLASSPATH="${
+          classpathOf [
+            gradleLibs.asm
+            gradleLibs.asm-commons
+            gradleLibs.asm-tree
+          ]
+        }"
         mkdir cls
         cp ${./Relocate.java} Relocate.java
         javac -nowarn -d cls Relocate.java

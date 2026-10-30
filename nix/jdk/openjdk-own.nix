@@ -27,7 +27,18 @@
   elfutils,
   libjpeg_turbo,
   libpng,
-  xorg,
+  libice,
+  libx11,
+  libxcomposite,
+  libxcursor,
+  libxi,
+  libxinerama,
+  libxrender,
+  libxt,
+  libxtst,
+  libxext,
+  libxrandr,
+  xorgproto,
   zlib,
 }:
 
@@ -91,20 +102,20 @@ let
         libpng
         zlib
       ]
-      ++ (with xorg; [
-        libICE
-        libX11
-        libXcomposite
-        libXcursor
-        libXi
-        libXinerama
-        libXrender
-        libXt
-        libXtst
-        libXext
-        libXrandr
+      ++ [
+        libice
+        libx11
+        libxcomposite
+        libxcursor
+        libxi
+        libxinerama
+        libxrender
+        libxt
+        libxtst
+        libxext
+        libxrandr
         xorgproto
-      ]);
+      ];
 
       hardeningDisable = [ "all" ];
       configurePlatforms = [ ];
@@ -148,21 +159,29 @@ let
       + ''
         bash ./configure \
           ${lib.optionalString (feature >= 12) ''--with-extra-cxxflags="-I$TMPDIR/stubinc"''} \
-          --with-extra-cflags="${lib.optionalString (feature >= 12) "-I$TMPDIR/stubinc "}-fcommon -fno-delete-null-pointer-checks -fno-lifetime-dse -Wno-error=int-conversion" \
+          --with-extra-cflags="${
+            lib.optionalString (feature >= 12) "-I$TMPDIR/stubinc "
+          }-fcommon -fno-delete-null-pointer-checks -fno-lifetime-dse -Wno-error=int-conversion" \
           --with-boot-jdk=${bootJdk.home or bootJdk} \
           --with-freetype-include=${lib.getDev freetype}/include/freetype2 \
           --with-freetype-lib=${lib.getLib freetype}/lib \
-          ${lib.optionalString (feature < 11) "--with-freetype=${lib.getDev freetype} --disable-freetype-bundling"} \
+          ${
+            lib.optionalString (
+              feature < 11
+            ) "--with-freetype=${lib.getDev freetype} --disable-freetype-bundling"
+          } \
           --disable-warnings-as-errors \
           ${if feature >= 15 then "--without-gtest" else "--disable-hotspot-gtest"} \
           --with-giflib=system \
           --with-libjpeg=system \
-          ${lib.optionalString (feature >= 11) "--with-libpng=system --with-lcms=system --with-version-pre="} \
+          ${
+            lib.optionalString (feature >= 11) "--with-libpng=system --with-lcms=system --with-version-pre="
+          } \
           --with-zlib=system \
           --with-native-debug-symbols=none \
-          --with-x=${lib.getDev xorg.libX11} \
-          --x-includes=${lib.getDev xorg.libX11}/include \
-          --x-libraries=${lib.getLib xorg.libX11}/lib \
+          --with-x=${lib.getDev libx11} \
+          --x-includes=${lib.getDev libx11}/include \
+          --x-libraries=${lib.getLib libx11}/lib \
           --with-cups=${lib.getDev cups} \
           --with-alsa=${lib.getDev alsa-lib} \
           ${lib.optionalString (feature >= 10) "--with-fontconfig=${lib.getDev fontconfig}"} \

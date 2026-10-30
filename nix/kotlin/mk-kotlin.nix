@@ -28,11 +28,22 @@ let
       name: script: steps:
       assert has name steps || throw "no step ${name}";
       map (s: if s.name == name then s // { inherit script; } else s) steps;
-    append = name: script: steps: steps ++ [ { inherit name script; } ];
+    append =
+      name: script: steps:
+      steps ++ [ { inherit name script; } ];
     addAfter =
       after: name: script: steps:
       assert has after steps || throw "no step ${after}";
-      lib.concatMap (s: if s.name == after then [ s { inherit name script; } ] else [ s ]) steps;
+      lib.concatMap (
+        s:
+        if s.name == after then
+          [
+            s
+            { inherit name script; }
+          ]
+        else
+          [ s ]
+      ) steps;
   };
 
   mkKotlin =
@@ -66,7 +77,10 @@ let
           for j in $(find -L $d -name '*.jar' | sort); do CLASSPATH="$CLASSPATH$j:"; done
         done
         export CLASSPATH="$CLASSPATH$JAVA_HOME/lib/tools.jar"
-        export ANT_OPTS="${cfg.antOpts or "-Xmx2g"}"${lib.optionalString (cfg.utf8 or false) "\nexport LC_ALL=C.UTF-8 ANT_OPTS=\"$ANT_OPTS -Dfile.encoding=UTF-8\" JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8"}
+        export ANT_OPTS="${cfg.antOpts or "-Xmx2g"}"${
+          lib.optionalString (cfg.utf8 or false)
+            "\nexport LC_ALL=C.UTF-8 ANT_OPTS=\"$ANT_OPTS -Dfile.encoding=UTF-8\" JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8"
+        }
         runHook postConfigure
       '';
 
@@ -76,16 +90,18 @@ let
           antFlagsExtra=
         ''
         + lib.concatMapStringsSep "\n" (s: ''
-        echo "## step: ${s.name}"
-        ${s.script}
-      '') cfg.steps;
+          echo "## step: ${s.name}"
+          ${s.script}
+        '') cfg.steps;
 
       buildPhase = ''
         runHook preBuild
         ant ${cfg.target or "dist"} \
           -Dkotlin-home=$out \
           ${lib.escapeShellArgs cfg.antFlags} \
-          ${lib.optionalString (cfg.bootstrap != null) "-Dbootstrap.compiler.home=${cfg.bootstrap}"}${lib.optionalString (cfg.dynamicFlags or false) " $antFlagsExtra"}
+          ${lib.optionalString (cfg.bootstrap != null) "-Dbootstrap.compiler.home=${cfg.bootstrap}"}${
+            lib.optionalString (cfg.dynamicFlags or false) " $antFlagsExtra"
+          }
         runHook postBuild
       '';
 

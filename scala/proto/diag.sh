@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
-# diag.sh [TARGET] : build the commit after the last chain stage (normal + CF), show first errors
-cd /tmp/sc/full; P=$(tail -1 /tmp/sc/work/chain.txt); s=${P%% *}; c=$(echo $P | cut -d' ' -f2)
-n=$(git rev-list --first-parent --reverse $c..${1:-v2.7.7} | head -1)
-echo "after $s: $(git log -1 --format='%h %ad %s' --date=short $n)"; git show --stat --format= $n | tail -8
-cd /tmp/sc/work
-for m in "" 1; do
-  COMPILER_FIRST=$m BUILDER=stage2.sh TAILN=0 ./try.sh bis $n /tmp/sc/st-$s/out2:/tmp/sc/st-$s/classes >/dev/null 2>&1
-  echo "--- CF=$m"; grep -v '^Note\|not applicable\|warning\|^ *\^\|signature = \|I assume\|Therefore I wrap\|If that.s not what' /tmp/sc/log-bis.txt | grep -v '^      \|^  [a-z]' | head -${N:-15}
-  grep -q 'stage done' /tmp/sc/log-bis.txt && { ./hello2.sh /tmp/sc/st-bis 2>&1 | head -2; break; }
+# diag.sh [TARGET] : build the commit after the last stage of chain.txt on the way to TARGET
+# (default: the branch checked out in full/), normally and compiler first, and show the first
+# errors (N lines, default 15)
+set -uo pipefail
+. "$(dirname "$0")/env.sh"
+read -r s c _ < <(grep '^s' "$WORK/chain.txt" | tail -1)
+n=$(git -C "$SCALA_GIT" rev-list --first-parent --reverse "$c..${1:-HEAD}" | head -1)
+echo "after $s: $(git -C "$SCALA_GIT" log -1 --format='%h %ad %s' --date=short "$n")"
+git -C "$SCALA_GIT" show --stat --format= "$n" | tail -8
+use_generation "$GENERATION" || exit 1
+for cf in "" 1; do
+  unpack diag "$n" || exit 1
+  COMPILER_FIRST=$cf build diag "$s"
+  echo "--- COMPILER_FIRST=$cf"
+  shortlog < "$WORK/log-diag.txt" | grep -v 'I assume\|Therefore I wrap\|If that.s not what\|^  [a-z]' | head -n "${N:-15}"
+  grep -q 'stage done' "$WORK/log-diag.txt" && { stage_test diag; break; }
 done

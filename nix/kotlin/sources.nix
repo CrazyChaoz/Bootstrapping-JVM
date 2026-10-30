@@ -2,130 +2,508 @@
 # filled in by tools/fix-hashes.
 { fetchKotlin }:
 {
-  "0.6.786" = fetchKotlin { rev = "build-0.6.786"; hash = "sha256-JKWv+j3hWU/F6aaohpg2UvoWfHrUeFAWhdwOiL9MGMY="; };
-  "0.6.1364" = fetchKotlin { rev = "build-0.6.1364"; hash = "sha256-83HjM9Pic+OP28QgLQ7Y+j2bDrmJO9dT1YHARXSBoCk="; };
-  "0.6.1932" = fetchKotlin { rev = "build-0.6.1932"; hash = "sha256-0BnzBWi/HP2/NFXT9YFW6oJoxheak941i7+lykrVb80="; };
-  "0.6.2107" = fetchKotlin { rev = "build-0.6.2107"; hash = "sha256-6ks1JY+432nKcY7uN45IV7kUEZ0nnwa20ajfLUIlOtI="; };
-  "0.6.2338" = fetchKotlin { rev = "build-0.6.2338"; hash = "sha256-NoeIUak79awXCT6QqWWPy9hAMrueRW9U0WwsnnF7olU="; };
-  "0.6.2451" = fetchKotlin { rev = "build-0.6.2451"; hash = "sha256-545WT2h8/kfiCv9lrPvTWtvcPHzb8TRwO8RESaLAJoQ="; };
-  "0.6.2516" = fetchKotlin { rev = "build-0.6.2516"; hash = "sha256-fU94VR+qZ07C7Sywo4bAry5mLLzf281f+SkKqNDIvpc="; };
-  "0.7.333" = fetchKotlin { rev = "build-0.7.333"; hash = "sha256-oWWKKimkZtSCo6FV8zz/Y7bNY80hD+vnYcJhLsEwseU="; };
-  "0.7.638" = fetchKotlin { rev = "build-0.7.638"; hash = "sha256-J4TWG1ZXq4hUcGWGg81PMgpoFkwMAJudSrlnB+Ttg08="; };
-  "0.7.1214" = fetchKotlin { rev = "build-0.7.1214"; hash = "sha256-JQ+DcQyCAodv7VQaPObDmo3SzpFnk9m7kTgr+7Aa4SI="; };
-  "0.8.84" = fetchKotlin { rev = "build-0.8.84"; hash = "sha256-9Mv8K/U7M+YSkuBFSpjaFJWEBXgDrj2FR1EPNbXqzws="; };
-  "0.8.409" = fetchKotlin { rev = "build-0.8.409"; hash = "sha256-gJRejXJPxbs5/5D2Zs+EHPeVhvgi2nogEw4TwSy3wZA="; };
-  "0.8.418" = fetchKotlin { rev = "build-0.8.418"; hash = "sha256-kLcSlmg88NKIRfkjbU+D/4VoZzMUoXKG1Lgp+UeiIvY="; };
-  "0.8.422" = fetchKotlin { rev = "build-0.8.422"; hash = "sha256-W4PWAK5ADEkRtsCzSD8FI+VIk9qYUrtQ89k/KmvcQlU="; };
-  "0.8.1444" = fetchKotlin { rev = "build-0.8.1444"; hash = "sha256-7Ju3pHE+cK6uDXoRQHJCf4ZzdOK/nZ76PW4/qkzrGno="; };
-  "0.9.21" = fetchKotlin { rev = "build-0.9.21"; hash = "sha256-JYutfA7LHm1sYg/bfhirqT5nFIEj305OvTiu2fWnBdI="; };
-  "0.9.738" = fetchKotlin { rev = "build-0.9.738"; hash = "sha256-GAaobKN0yFFU5p5gSurlM1bkfbdaIC6yy9KgYcvg3hk="; };
-  "0.9.1204" = fetchKotlin { rev = "build-0.9.1204"; hash = "sha256-3JHaCsP7ukqodxLFkWF4f/kRYEKM4aGuRr1EYKfCCB8="; };
-  "0.10.300" = fetchKotlin { rev = "build-0.10.300"; hash = "sha256-/61FpvDXM3QczqE33+xFKSJheEH5WXCpx7iIvKt1VhY="; };
-  "0.10.823" = fetchKotlin { rev = "build-0.10.823"; hash = "sha256-URNlK1cDkEYx4hkoF3fwYz3yh9MkWv9mO6EMBfCuyPA="; };
-  "0.10.1023" = fetchKotlin { rev = "build-0.10.1023"; hash = "sha256-8cJzvTYi/3XGGt7yc2nroPeIv1Sh/QMq4gk3lqbSc5c="; };
-  "0.10.1336" = fetchKotlin { rev = "build-0.10.1336"; hash = "sha256-qPj93acE5+hD2SjxBdeSn4j/nnjzfXfmrnSmg6aCUNo="; };
-  "0.10.1426" = fetchKotlin { rev = "build-0.10.1426"; hash = "sha256-G/ifKlc9qNR0fsoXnmWHLvv73aobESi73Xiyw5+QysI="; };
-  "0.10.1464" = fetchKotlin { rev = "build-0.10.1464"; hash = "sha256-YXm8Golg9oS6XZODgoSpxnwk3ArnvosY+H86GzYZ43Q="; };
-  "0.11.153" = fetchKotlin { rev = "build-0.11.153"; hash = "sha256-Ox08eEN2pkUX/0hA+chUdWUsnabe8OQSj7SJlixcyU0="; };
-  "0.11.873" = fetchKotlin { rev = "build-0.11.873"; hash = "sha256-zD3QK2cWMY/LYIcW1VnHUP1Z/ZwAeP683T+2keqPYiU="; };
-  "0.11.992" = fetchKotlin { rev = "build-0.11.992"; hash = "sha256-+aNJA8RTvwJ71GVFl87TTsPnHllIF6jnIlXKIoHdKCg="; };
-  "0.11.1014" = fetchKotlin { rev = "build-0.11.1014"; hash = "sha256-W8UF9uNzjDbf/7+/CMrh1Po+4k3mAfxUAWfXXcoASdI="; };
-  "0.11.1201" = fetchKotlin { rev = "build-0.11.1201"; hash = "sha256-X2AI3Q4YknUtIjNU0QrI2iHO2aiyjViTAvJepgl+2yQ="; };
-  "0.11.1393" = fetchKotlin { rev = "build-0.11.1393"; hash = "sha256-eW5Mu3N+WdIzBshjajkFe+kJ5px8vsvrG4tKm0bdcCo="; };
-  "0.12.108" = fetchKotlin { rev = "build-0.12.108"; hash = "sha256-DEQMbLTW5Gm3/J+Mh/r+rprX6JdNLg4lH6h4YiRytGo="; };
-  "0.12.115" = fetchKotlin { rev = "build-0.12.115"; hash = "sha256-DGIvOIRtk5qmLcbWueqUSHb/Ioj3F6mQBRmj3jaa7Bc="; };
-  "0.12.176" = fetchKotlin { rev = "build-0.12.176"; hash = "sha256-yGvxSZOYl09KhyOg8p8PSL/q0VNTDv1NMzazOF8hYzc="; };
-  "0.12.470" = fetchKotlin { rev = "build-0.12.470"; hash = "sha256-E2zEphpBokOZ2XC2cTgg51IF2kflkTaRR8Kh3vanKM0="; };
-  "0.12.1077" = fetchKotlin { rev = "build-0.12.1077"; hash = "sha256-v3/kCMpbG10GRNvg7cbGeTBEeKZ6WxtboGBti541jSU="; };
-  "0.12.1250" = fetchKotlin { rev = "build-0.12.1250"; hash = "sha256-eLzcI/JqifEWRCvwiToxZY0PEcZdRUqOsnQARbNzR3Q="; };
-  "0.12.1306" = fetchKotlin { rev = "build-0.12.1306"; hash = "sha256-tWhPClHcO7mCDQttT65/rvWHIDTCCQXfpeYdDLgtzFU="; };
-  "0.13.177" = fetchKotlin { rev = "build-0.13.177"; hash = "sha256-eMQ2B7Vf2tNmGTdWGJpGGRpCnqzlH5WVtrhK4zQGT/g="; };
-  "0.13.791" = fetchKotlin { rev = "build-0.13.791"; hash = "sha256-ic2U3A5Z0dkgSmpkE1B9Hosim3ecMj602O8vl5JQQVE="; };
-  "0.13.899" = fetchKotlin { rev = "build-0.13.899"; hash = "sha256-aNAaOhG6nZZScHrvX9MdNBx1WQN2NdU9sus66zN6xJU="; };
-  "0.13.1118" = fetchKotlin { rev = "build-0.13.1118"; hash = "sha256-ayR6gBOliSW50uAYhMvtO8fwhoDGvjOwRbLzSdnPrgM="; };
-  "0.13.1304" = fetchKotlin { rev = "build-0.13.1304"; hash = "sha256-xXMu7zbjTgmWZXFq7dTluctul4/8GLnZ2ySFIQGLhUs="; };
-  "0.14.209" = fetchKotlin { rev = "build-0.14.209"; hash = "sha256-AgJ7GTC4oG5XGTG4aTylTXojX4GbXRGxrNbeD2RQyHs="; };
-  "0.14.398" = fetchKotlin { rev = "build-0.14.398"; hash = "sha256-/IejnTpGCxG4spwbpRBBenigfUFdQDI2572T6QJ5o28="; };
-  "0.15.8" = fetchKotlin { rev = "build-0.15.8"; hash = "sha256-831t8WYOw/qBqYp5Z4pGHS35QXAkw/Y8ZeTG8T6gyEk="; };
-  "0.15.394" = fetchKotlin { rev = "build-0.15.394"; hash = "sha256-4e1S981wKwQbY+tsKuHfL/wGsTo/kj6LjscQj1Ad02U="; };
-  "0.15.541" = fetchKotlin { rev = "build-0.15.541"; hash = "sha256-0MUcYPsKWMsHx8f72FUwgVXaiywljLXGQlQDLvC+mNI="; };
-  "0.15.604" = fetchKotlin { rev = "build-0.15.604"; hash = "sha256-vZGwKqsBXWM70DHxVRDRxIW2MAEwHDEg0OVFfqpitDo="; };
-  "0.15.723" = fetchKotlin { rev = "build-0.15.723"; hash = "sha256-915ahZRdrdNI1TCsBznRBMqsLlnFuo1v5BzBhY+oN6w="; };
-  "1.0.0-beta-2055" = fetchKotlin { rev = "build-1.0.0-beta-2055"; hash = "sha256-tREMBPR11T78v6Gv/OGnyfnYJ5ISkytCho+UYism1Wg="; };
-  "1.0.0-beta-3070" = fetchKotlin { rev = "build-1.0.0-beta-3070"; hash = "sha256-B8d8Xw+MKSqvdJovbNX9zhuqLS011UU6mv597KpK7P8="; };
-  "1.0.0-beta-4091" = fetchKotlin { rev = "build-1.0.0-beta-4091"; hash = "sha256-S6A+LABvYO5hf0j2SYUYf3410TKl8szOE/6ylYh7Wl8="; };
-  "1.0.0-beta-5010" = fetchKotlin { rev = "build-1.0.0-beta-5010"; hash = "sha256-mWNu6JI8RGc0YpevMbUNDCpbqrQ7E3VcEAJVB5YRFqI="; };
-  "1.0.0-beta-5604" = fetchKotlin { rev = "build-1.0.0-beta-5604"; hash = "sha256-EaylPh3yP4jXimNZA68sBBdSrwT5viBcamjecjNvn4g="; };
-  "1.0.0-dev-162" = fetchKotlin { rev = "build-1.0.0-dev-162"; hash = "sha256-MaJ9zIeIae28Djmv+VoITcDRvmZEd4WHNJo9VhqR2rA="; };
-  "1.0.0" = fetchKotlin { rev = "build-1.0.0"; hash = "sha256-WFmjiOL5rbOZlt0ptJF6Au59L6nU5mHO6ZsmF2r+pz8="; };
-  "1.0.3-dev-184" = fetchKotlin { rev = "build-1.0.3-dev-184"; hash = "sha256-t7MDaAF5hNahYTGM4adQpYFoqlEDfJleszCkTp78BYA="; };
-  "1.0.3-dev-371" = fetchKotlin { rev = "build-1.0.3-dev-371"; hash = "sha256-O9ZTSsK+hNAa8owup5XzI0cXxoDrq79SK394Em71b6c="; };
-  "1.1.0-dev-1023" = fetchKotlin { rev = "build-1.1.0-dev-1023"; hash = "sha256-oG1gpj+GGnuWs90VR3TI9C7uBBoxY/bNFlziZqMPirc="; };
-  "1.1.0-dev-2022" = fetchKotlin { rev = "build-1.1.0-dev-2022"; hash = "sha256-spnkfucGOWqeVaZvbsqsUQqJ+YfastYHXMTab4aZl70="; };
-  "1.1.0-dev-2830" = fetchKotlin { rev = "build-1.1.0-dev-2830"; hash = "sha256-Ud5ucS3l6kB8off23y62HU2QxDr1yPK03Z4FXR4tiuA="; };
-  "1.1.0-dev-3204" = fetchKotlin { rev = "build-1.1.0-dev-3204"; hash = "sha256-OjsC4s7OylsMP4/L87cZbSdoR7xX++hP621Hk7nHtqM="; };
-  "1.1.0-dev-3868" = fetchKotlin { rev = "build-1.1.0-dev-3868"; hash = "sha256-rMJsp2WgB14WlgkE4Iv0pIbDsmEMNMwln5BGwZUIPD8="; };
-  "1.1.0-dev-4287" = fetchKotlin { rev = "build-1.1.0-dev-4287"; hash = "sha256-nQuYyk6iKapKaE+OBR0/DkuR5Gh7Xz4P5Z6dbOEfki0="; };
-  "1.1.0-dev-5008" = fetchKotlin { rev = "build-1.1.0-dev-5008"; hash = "sha256-KveEyvKtAmQIFxbbHkYPQDSNRpqXjvUyqfhDpilOlIg="; };
-  "1.1.0-dev-5623" = fetchKotlin { rev = "build-1.1.0-dev-5623"; hash = "sha256-mRBlOhSWMUg3GL+OPJchJyC2H1pQfQKigELj8sAsbW4="; };
-  "1.1.0-dev-5815" = fetchKotlin { rev = "build-1.1.0-dev-5815"; hash = "sha256-aAjktMDN6vKtyR8/d4G/gTwLkGt7ZkkcRb1L3lC4QB8="; };
-  "1.1.0-dev-6445" = fetchKotlin { rev = "build-1.1.0-dev-6445"; hash = "sha256-hEUXxSUPUFAk+8LrM65aIKkBVd6943ZUqzpsDhjGmJ4="; };
-  "1.1.2-dev-141" = fetchKotlin { rev = "build-1.1.2-dev-141"; hash = "sha256-6hOnlA540oFKVM58LL/0cRjQLYq+7+ex0qnrr6p/lQY="; };
-  "1.1.2-eap-44" = fetchKotlin { rev = "v1.1.2-eap-44"; hash = "sha256-StQfPVoaSm7LI8cqHy/OSB9XiLVOWHGgqsRaER88ZXE="; };
-  "1.1.2-5" = fetchKotlin { rev = "v1.1.2-5"; hash = "sha256-3bB1sr7c2DlWHbO6SCWX2MTZIimdb6ypgBdcsUMeZcw="; };
-  "1.1.3-dev-1317" = fetchKotlin { rev = "build-1.1.3-dev-1317"; hash = "sha256-SjwQyy5n+b5jHy+9YRIHiwb0LYej8YXQGUadko6o8H4="; };
-  "1.1.3-dev-1323" = fetchKotlin { rev = "build-1.1.3-dev-1323"; hash = "sha256-mA+655XQjVz/V/O2K2ajRGecUfdSKo7ARR9ayAqrKnA="; };
-  "1.1.3-dev-1357" = fetchKotlin { rev = "build-1.1.3-dev-1357"; hash = "sha256-IuCiYITyiqWFeLS0y4QyVjYytrh+t4jZ66zTDPEXryk="; };
-  "1.1.3-dev-1542" = fetchKotlin { rev = "build-1.1.3-dev-1542"; hash = "sha256-ZdyCsxCiT18T6ifXcYnu3cSMLd3DNNpVNOt9SKkz254="; };
-  "1.1.4-dev-500" = fetchKotlin { rev = "build-1.1.4-dev-500"; hash = "sha256-5lsY0f9VJY0o+38L52yHql0DunKKAMl0XQhQ03h8Tlo="; };
-  "1.1.3" = fetchKotlin { rev = "v1.1.3"; hash = "sha256-VcMrhkzLMflun2gpYgZzUMO7ZaSXmVVhkrLaoG2NFqw="; };
-  "1.1.4" = fetchKotlin { rev = "v1.1.4"; hash = "sha256-UcazlZNgDc5ooIbUY/W5zcHCEb+ZhdtbrGGfH1KRCn0="; };
-  "1.1.51" = fetchKotlin { rev = "v1.1.51"; hash = "sha256-z8iDz763AxK0oLkJ2atv2LLfHOtpLpNydW6w8Pp3NQ0="; };
-  "1.1.60" = fetchKotlin { rev = "v1.1.60"; hash = "sha256-94902UzUHsLZvcn4LOuy9I4Q/8t7TGj7JMTfjMilS4Y="; };
-  "1.2.0" = fetchKotlin { rev = "v1.2.0"; hash = "sha256-uHAtO7mHiZDw16zkP/eRqPdfbn3ma+RFyFueUOJXEYU="; };
-  "1.2.10" = fetchKotlin { rev = "v1.2.10"; hash = "sha256-zwfunMoP18tL2lXdXW7DAvr3QO69aDQbN9QR2Zv7IK0="; };
-  "1.2.21" = fetchKotlin { rev = "v1.2.21"; hash = "sha256-Vt+i2+4k42hhOuD8h1gIni5OD0L0746O60Oi4lKKDtQ="; };
-  "1.2.31" = fetchKotlin { rev = "v1.2.31"; hash = "sha256-4psgNK9mSYbYN+Zu/PzaixeTDrPn/DEepehfK8/75hk="; };
-  "1.2.40" = fetchKotlin { rev = "v1.2.40"; hash = "sha256-DoAe+K4kEGaAMENXB6GrAQxmVc6ClC9tUXYx/4u7iTA="; };
-  "1.2.41" = fetchKotlin { rev = "v1.2.41"; hash = "sha256-ZcUzHr5KEACPk2t08q79ZDY5qtTrl6hU6mTUrblx/Pg="; };
-  "1.2.50" = fetchKotlin { rev = "v1.2.50"; hash = "sha256-9vMf6kKfACQ6rFf6KLcHpYPValhUoc3RdWsvxSRXGXo="; };
-  "1.2.51" = fetchKotlin { rev = "v1.2.51"; hash = "sha256-CkOc2XRwuLnQkltomp1GA1pdFo+T8yXj98zPcL6HjTY="; };
-  "1.2.60" = fetchKotlin { rev = "v1.2.60"; hash = "sha256-Aa/DcEwASN0HBS7LnqnNwVS7FMQnwwBJTNIfna+c5d8="; };
-  "1.2.61" = fetchKotlin { rev = "v1.2.61"; hash = "sha256-tVBraQrwhq+9mVPkp/MQVk+KNoCEBNltsQIZ//dGt2A="; };
-  "1.2.70" = fetchKotlin { rev = "v1.2.70"; hash = "sha256-NpdZGHvsI6gMrBiNbtDy9x5m9FD0VDGdcor8LKKW+5Y="; };
-  "1.2.71" = fetchKotlin { rev = "v1.2.71"; hash = "sha256-X/fZqa2M4O6dyZrI0TGfRfKH8BCWgvI+rC+Imi+eVYk="; };
-  "1.3.0" = fetchKotlin { rev = "v1.3.0"; hash = "sha256-jayuH3xDRZwmO0blLAJqed+IzBHxdC2Pp20+iM9H3LM="; };
-  "1.2.50-eap-17" = fetchKotlin { rev = "v1.2.50-eap-17"; hash = "sha256-9pH0Vjs0VnraoL3q4sKqILlzH7/c5CqRyBpWiKzLp6c="; };
-  "1.2.50-eap-62" = fetchKotlin { rev = "v1.2.50-eap-62"; hash = "sha256-Odu2YfQMSpbMn0u+5ONBUx6Nep1r3vWCJumciq6m0xA="; };
-  "1.3.11" = fetchKotlin { rev = "v1.3.11"; hash = "sha256-m13s2j2RI1nWOyb0fp//E96caQo4iMXCJjUADO7IbF4="; };
-  "1.3.21" = fetchKotlin { rev = "v1.3.21"; hash = "sha256-dGavU0CJfBNBw0AKFJeMhz21LBHuOEZk0rPKqZCiIRQ="; };
-  "1.3.31" = fetchKotlin { rev = "v1.3.31"; hash = "sha256-0mzO7aQE3DD5pRYNFG7K8pAefnWFrr4qJF8q99EDffQ="; };
-  "1.3.41" = fetchKotlin { rev = "v1.3.41"; hash = "sha256-YOzG54fcyymjVzaA2jfMMGR4ejZbo8ahmuMf6Vsyvag="; };
-  "1.3.50" = fetchKotlin { rev = "v1.3.50"; hash = "sha256-1oI2ZVRG3ppfYy1U38ZcfdTNIYivNADp4yMIAzNX/zY="; };
-  "1.3.61" = fetchKotlin { rev = "v1.3.61"; hash = "sha256-1k4ei2Io/iLTeKt39k9ozESayaxpg4hiFTSn3gtkVNM="; };
-  "1.3.72" = fetchKotlin { rev = "v1.3.72"; hash = "sha256-4FzX4q7l3aSKZUlsH7aek30nfY1G+FpGdJLKV90uGTM="; };
-  "1.4.0-M1" = fetchKotlin { rev = "v1.4-M1"; hash = "sha256-J4wzRA8kLgzEKxCLfn0u39hrePxrHi5et0SKv+J41fk="; };
-  "1.4.0-M2" = fetchKotlin { rev = "v1.4-M2"; hash = "sha256-aamgqE9cj/AqEl+1kl4dHmKzLF4HnyRZgudU50Z0FTg="; };
-  "1.4.0-M3" = fetchKotlin { rev = "v1.4-M3"; hash = "sha256-u72GvxnuqBE7ECbrTSD1/Z0yXM9ZkiY6wVT6Kgv5uiY="; };
-  "1.4.0-rc" = fetchKotlin { rev = "v1.4.0-rc"; hash = "sha256-HV6zvFyck1qRDJXfATWyyVw0b+1xMnPsuE5DHEvn6cA="; };
-  "1.4.0" = fetchKotlin { rev = "v1.4.0"; hash = "sha256-CNoutQkICOHnT3MzEdjd1pmcUd35aP2gsAsehmqCpjY="; };
-  "1.4.10" = fetchKotlin { rev = "v1.4.10"; hash = "sha256-0UKSbB0kgtwNax/yX7E4IO2FPmtK+tv2V7/yPTapTkQ="; };
-  "1.4.21" = fetchKotlin { rev = "v1.4.21"; hash = "sha256-wof3p2mcHbSgbCh/7IzZ8kthqB0wK49Lr/Ef2F5j0xA="; };
-  "1.4.32" = fetchKotlin { rev = "v1.4.32"; hash = "sha256-94hgXEHE8tj3XZMh2uv6BvPQgjCt/f0fv9RSVEc6ddQ="; };
-  "1.5.0-M1" = fetchKotlin { rev = "v1.5.0-M1"; hash = "sha256-ZFP8z9kp2oQ+QbFWYDC4nXw2WdsrJO+tyvypA+8Kv3U="; };
-  "1.5.0-M2" = fetchKotlin { rev = "v1.5.0-M2"; hash = "sha256-N1bqsXbUciCzsE/ZM0KvMJtN70QrgZOFh0nnrqRtIv8="; };
-  "1.5.0-RC" = fetchKotlin { rev = "v1.5.0-RC"; hash = "sha256-qBFQIMIT9mprEgAVwgofxercFGtWPH/KJlo0kVYu2SM="; };
-  "1.5.0" = fetchKotlin { rev = "v1.5.0"; hash = "sha256-SEQEYJEJIJ8Egte86bhmnpSS7OiAhzZWWIgCh/wYBxw="; };
-  "1.5.31" = fetchKotlin { rev = "v1.5.31"; hash = "sha256-Q+p1RJsYtg65LTH0Kn75BGiMXwsycVc+S6q/veyjhJQ="; };
-  "1.6.0" = fetchKotlin { rev = "v1.6.0"; hash = "sha256-celuolimMdrOncjK+ayVVXrq2SYpBPRIqfOIcpiBo4s="; };
-  "1.6.21" = fetchKotlin { rev = "v1.6.21"; hash = "sha256-skUnKfw+r/m9y27J1n2CZgEtn2IiJ3BjC1So4hJF0Ms="; };
-  "1.7.0" = fetchKotlin { rev = "v1.7.0"; hash = "sha256-nwBufbJD329LTPSU9SCdmiT2cjeI+5EUW+HItqwe6Ro="; };
-  "1.8.0" = fetchKotlin { rev = "v1.8.0"; hash = "sha256-l8h+45kloaoYsbR8YZkLkyDC7UifRZ3kH8XH1+kTzA4="; };
-  "1.9.0" = fetchKotlin { rev = "v1.9.0"; hash = "sha256-DHohEu7eXu+CS0QGw0Lvps/T3JiIy7BnwSGuFXXbRDs="; };
-  "2.0.0" = fetchKotlin { rev = "v2.0.0"; hash = "sha256-fuYzsTNchSsQBarjv/JeAYCL+SmHRcD3OcW8ql5+X+0="; };
-  "2.1.0" = fetchKotlin { rev = "v2.1.0"; hash = "sha256-3mKisWdC9I7Raa/ZfxonqGB0no+ILfSc2dcMWP3IZB4="; };
-  "2.1.20" = fetchKotlin { rev = "v2.1.20"; hash = "sha256-/9ixCbSuRJP3yOEf7H6fc7yxmx+pESsrXINFXj90/fk="; };
-  "2.2.0" = fetchKotlin { rev = "v2.2.0"; hash = "sha256-NbBDGuItXkNmuBUz6d3ljX5NLZgHmWErYnBdw7O4jJs="; };
-  "2.3.0" = fetchKotlin { rev = "v2.3.0"; hash = "sha256-pgHksiJA6iXYwkpOEiz8+4nWKcw4O0kGHznij/2BglE="; };
-  "2.4.0" = fetchKotlin { rev = "v2.4.0"; hash = "sha256-Rj/4LLzOjuMsWCC4P1Y4p611cWFGmGdgqpOYksKnqVs="; };
+  "0.6.786" = fetchKotlin {
+    rev = "build-0.6.786";
+    hash = "sha256-JKWv+j3hWU/F6aaohpg2UvoWfHrUeFAWhdwOiL9MGMY=";
+  };
+  "0.6.1364" = fetchKotlin {
+    rev = "build-0.6.1364";
+    hash = "sha256-83HjM9Pic+OP28QgLQ7Y+j2bDrmJO9dT1YHARXSBoCk=";
+  };
+  "0.6.1932" = fetchKotlin {
+    rev = "build-0.6.1932";
+    hash = "sha256-0BnzBWi/HP2/NFXT9YFW6oJoxheak941i7+lykrVb80=";
+  };
+  "0.6.2107" = fetchKotlin {
+    rev = "build-0.6.2107";
+    hash = "sha256-6ks1JY+432nKcY7uN45IV7kUEZ0nnwa20ajfLUIlOtI=";
+  };
+  "0.6.2338" = fetchKotlin {
+    rev = "build-0.6.2338";
+    hash = "sha256-NoeIUak79awXCT6QqWWPy9hAMrueRW9U0WwsnnF7olU=";
+  };
+  "0.6.2451" = fetchKotlin {
+    rev = "build-0.6.2451";
+    hash = "sha256-545WT2h8/kfiCv9lrPvTWtvcPHzb8TRwO8RESaLAJoQ=";
+  };
+  "0.6.2516" = fetchKotlin {
+    rev = "build-0.6.2516";
+    hash = "sha256-fU94VR+qZ07C7Sywo4bAry5mLLzf281f+SkKqNDIvpc=";
+  };
+  "0.7.333" = fetchKotlin {
+    rev = "build-0.7.333";
+    hash = "sha256-oWWKKimkZtSCo6FV8zz/Y7bNY80hD+vnYcJhLsEwseU=";
+  };
+  "0.7.638" = fetchKotlin {
+    rev = "build-0.7.638";
+    hash = "sha256-J4TWG1ZXq4hUcGWGg81PMgpoFkwMAJudSrlnB+Ttg08=";
+  };
+  "0.7.1214" = fetchKotlin {
+    rev = "build-0.7.1214";
+    hash = "sha256-JQ+DcQyCAodv7VQaPObDmo3SzpFnk9m7kTgr+7Aa4SI=";
+  };
+  "0.8.84" = fetchKotlin {
+    rev = "build-0.8.84";
+    hash = "sha256-9Mv8K/U7M+YSkuBFSpjaFJWEBXgDrj2FR1EPNbXqzws=";
+  };
+  "0.8.409" = fetchKotlin {
+    rev = "build-0.8.409";
+    hash = "sha256-gJRejXJPxbs5/5D2Zs+EHPeVhvgi2nogEw4TwSy3wZA=";
+  };
+  "0.8.418" = fetchKotlin {
+    rev = "build-0.8.418";
+    hash = "sha256-kLcSlmg88NKIRfkjbU+D/4VoZzMUoXKG1Lgp+UeiIvY=";
+  };
+  "0.8.422" = fetchKotlin {
+    rev = "build-0.8.422";
+    hash = "sha256-W4PWAK5ADEkRtsCzSD8FI+VIk9qYUrtQ89k/KmvcQlU=";
+  };
+  "0.8.1444" = fetchKotlin {
+    rev = "build-0.8.1444";
+    hash = "sha256-7Ju3pHE+cK6uDXoRQHJCf4ZzdOK/nZ76PW4/qkzrGno=";
+  };
+  "0.9.21" = fetchKotlin {
+    rev = "build-0.9.21";
+    hash = "sha256-JYutfA7LHm1sYg/bfhirqT5nFIEj305OvTiu2fWnBdI=";
+  };
+  "0.9.738" = fetchKotlin {
+    rev = "build-0.9.738";
+    hash = "sha256-GAaobKN0yFFU5p5gSurlM1bkfbdaIC6yy9KgYcvg3hk=";
+  };
+  "0.9.1204" = fetchKotlin {
+    rev = "build-0.9.1204";
+    hash = "sha256-3JHaCsP7ukqodxLFkWF4f/kRYEKM4aGuRr1EYKfCCB8=";
+  };
+  "0.10.300" = fetchKotlin {
+    rev = "build-0.10.300";
+    hash = "sha256-/61FpvDXM3QczqE33+xFKSJheEH5WXCpx7iIvKt1VhY=";
+  };
+  "0.10.823" = fetchKotlin {
+    rev = "build-0.10.823";
+    hash = "sha256-URNlK1cDkEYx4hkoF3fwYz3yh9MkWv9mO6EMBfCuyPA=";
+  };
+  "0.10.1023" = fetchKotlin {
+    rev = "build-0.10.1023";
+    hash = "sha256-8cJzvTYi/3XGGt7yc2nroPeIv1Sh/QMq4gk3lqbSc5c=";
+  };
+  "0.10.1336" = fetchKotlin {
+    rev = "build-0.10.1336";
+    hash = "sha256-qPj93acE5+hD2SjxBdeSn4j/nnjzfXfmrnSmg6aCUNo=";
+  };
+  "0.10.1426" = fetchKotlin {
+    rev = "build-0.10.1426";
+    hash = "sha256-G/ifKlc9qNR0fsoXnmWHLvv73aobESi73Xiyw5+QysI=";
+  };
+  "0.10.1464" = fetchKotlin {
+    rev = "build-0.10.1464";
+    hash = "sha256-YXm8Golg9oS6XZODgoSpxnwk3ArnvosY+H86GzYZ43Q=";
+  };
+  "0.11.153" = fetchKotlin {
+    rev = "build-0.11.153";
+    hash = "sha256-Ox08eEN2pkUX/0hA+chUdWUsnabe8OQSj7SJlixcyU0=";
+  };
+  "0.11.873" = fetchKotlin {
+    rev = "build-0.11.873";
+    hash = "sha256-zD3QK2cWMY/LYIcW1VnHUP1Z/ZwAeP683T+2keqPYiU=";
+  };
+  "0.11.992" = fetchKotlin {
+    rev = "build-0.11.992";
+    hash = "sha256-+aNJA8RTvwJ71GVFl87TTsPnHllIF6jnIlXKIoHdKCg=";
+  };
+  "0.11.1014" = fetchKotlin {
+    rev = "build-0.11.1014";
+    hash = "sha256-W8UF9uNzjDbf/7+/CMrh1Po+4k3mAfxUAWfXXcoASdI=";
+  };
+  "0.11.1201" = fetchKotlin {
+    rev = "build-0.11.1201";
+    hash = "sha256-X2AI3Q4YknUtIjNU0QrI2iHO2aiyjViTAvJepgl+2yQ=";
+  };
+  "0.11.1393" = fetchKotlin {
+    rev = "build-0.11.1393";
+    hash = "sha256-eW5Mu3N+WdIzBshjajkFe+kJ5px8vsvrG4tKm0bdcCo=";
+  };
+  "0.12.108" = fetchKotlin {
+    rev = "build-0.12.108";
+    hash = "sha256-DEQMbLTW5Gm3/J+Mh/r+rprX6JdNLg4lH6h4YiRytGo=";
+  };
+  "0.12.115" = fetchKotlin {
+    rev = "build-0.12.115";
+    hash = "sha256-DGIvOIRtk5qmLcbWueqUSHb/Ioj3F6mQBRmj3jaa7Bc=";
+  };
+  "0.12.176" = fetchKotlin {
+    rev = "build-0.12.176";
+    hash = "sha256-yGvxSZOYl09KhyOg8p8PSL/q0VNTDv1NMzazOF8hYzc=";
+  };
+  "0.12.470" = fetchKotlin {
+    rev = "build-0.12.470";
+    hash = "sha256-E2zEphpBokOZ2XC2cTgg51IF2kflkTaRR8Kh3vanKM0=";
+  };
+  "0.12.1077" = fetchKotlin {
+    rev = "build-0.12.1077";
+    hash = "sha256-v3/kCMpbG10GRNvg7cbGeTBEeKZ6WxtboGBti541jSU=";
+  };
+  "0.12.1250" = fetchKotlin {
+    rev = "build-0.12.1250";
+    hash = "sha256-eLzcI/JqifEWRCvwiToxZY0PEcZdRUqOsnQARbNzR3Q=";
+  };
+  "0.12.1306" = fetchKotlin {
+    rev = "build-0.12.1306";
+    hash = "sha256-tWhPClHcO7mCDQttT65/rvWHIDTCCQXfpeYdDLgtzFU=";
+  };
+  "0.13.177" = fetchKotlin {
+    rev = "build-0.13.177";
+    hash = "sha256-eMQ2B7Vf2tNmGTdWGJpGGRpCnqzlH5WVtrhK4zQGT/g=";
+  };
+  "0.13.791" = fetchKotlin {
+    rev = "build-0.13.791";
+    hash = "sha256-ic2U3A5Z0dkgSmpkE1B9Hosim3ecMj602O8vl5JQQVE=";
+  };
+  "0.13.899" = fetchKotlin {
+    rev = "build-0.13.899";
+    hash = "sha256-aNAaOhG6nZZScHrvX9MdNBx1WQN2NdU9sus66zN6xJU=";
+  };
+  "0.13.1118" = fetchKotlin {
+    rev = "build-0.13.1118";
+    hash = "sha256-ayR6gBOliSW50uAYhMvtO8fwhoDGvjOwRbLzSdnPrgM=";
+  };
+  "0.13.1304" = fetchKotlin {
+    rev = "build-0.13.1304";
+    hash = "sha256-xXMu7zbjTgmWZXFq7dTluctul4/8GLnZ2ySFIQGLhUs=";
+  };
+  "0.14.209" = fetchKotlin {
+    rev = "build-0.14.209";
+    hash = "sha256-AgJ7GTC4oG5XGTG4aTylTXojX4GbXRGxrNbeD2RQyHs=";
+  };
+  "0.14.398" = fetchKotlin {
+    rev = "build-0.14.398";
+    hash = "sha256-/IejnTpGCxG4spwbpRBBenigfUFdQDI2572T6QJ5o28=";
+  };
+  "0.15.8" = fetchKotlin {
+    rev = "build-0.15.8";
+    hash = "sha256-831t8WYOw/qBqYp5Z4pGHS35QXAkw/Y8ZeTG8T6gyEk=";
+  };
+  "0.15.394" = fetchKotlin {
+    rev = "build-0.15.394";
+    hash = "sha256-4e1S981wKwQbY+tsKuHfL/wGsTo/kj6LjscQj1Ad02U=";
+  };
+  "0.15.541" = fetchKotlin {
+    rev = "build-0.15.541";
+    hash = "sha256-0MUcYPsKWMsHx8f72FUwgVXaiywljLXGQlQDLvC+mNI=";
+  };
+  "0.15.604" = fetchKotlin {
+    rev = "build-0.15.604";
+    hash = "sha256-vZGwKqsBXWM70DHxVRDRxIW2MAEwHDEg0OVFfqpitDo=";
+  };
+  "0.15.723" = fetchKotlin {
+    rev = "build-0.15.723";
+    hash = "sha256-915ahZRdrdNI1TCsBznRBMqsLlnFuo1v5BzBhY+oN6w=";
+  };
+  "1.0.0-beta-2055" = fetchKotlin {
+    rev = "build-1.0.0-beta-2055";
+    hash = "sha256-tREMBPR11T78v6Gv/OGnyfnYJ5ISkytCho+UYism1Wg=";
+  };
+  "1.0.0-beta-3070" = fetchKotlin {
+    rev = "build-1.0.0-beta-3070";
+    hash = "sha256-B8d8Xw+MKSqvdJovbNX9zhuqLS011UU6mv597KpK7P8=";
+  };
+  "1.0.0-beta-4091" = fetchKotlin {
+    rev = "build-1.0.0-beta-4091";
+    hash = "sha256-S6A+LABvYO5hf0j2SYUYf3410TKl8szOE/6ylYh7Wl8=";
+  };
+  "1.0.0-beta-5010" = fetchKotlin {
+    rev = "build-1.0.0-beta-5010";
+    hash = "sha256-mWNu6JI8RGc0YpevMbUNDCpbqrQ7E3VcEAJVB5YRFqI=";
+  };
+  "1.0.0-beta-5604" = fetchKotlin {
+    rev = "build-1.0.0-beta-5604";
+    hash = "sha256-EaylPh3yP4jXimNZA68sBBdSrwT5viBcamjecjNvn4g=";
+  };
+  "1.0.0-dev-162" = fetchKotlin {
+    rev = "build-1.0.0-dev-162";
+    hash = "sha256-MaJ9zIeIae28Djmv+VoITcDRvmZEd4WHNJo9VhqR2rA=";
+  };
+  "1.0.0" = fetchKotlin {
+    rev = "build-1.0.0";
+    hash = "sha256-WFmjiOL5rbOZlt0ptJF6Au59L6nU5mHO6ZsmF2r+pz8=";
+  };
+  "1.0.3-dev-184" = fetchKotlin {
+    rev = "build-1.0.3-dev-184";
+    hash = "sha256-t7MDaAF5hNahYTGM4adQpYFoqlEDfJleszCkTp78BYA=";
+  };
+  "1.0.3-dev-371" = fetchKotlin {
+    rev = "build-1.0.3-dev-371";
+    hash = "sha256-O9ZTSsK+hNAa8owup5XzI0cXxoDrq79SK394Em71b6c=";
+  };
+  "1.1.0-dev-1023" = fetchKotlin {
+    rev = "build-1.1.0-dev-1023";
+    hash = "sha256-oG1gpj+GGnuWs90VR3TI9C7uBBoxY/bNFlziZqMPirc=";
+  };
+  "1.1.0-dev-2022" = fetchKotlin {
+    rev = "build-1.1.0-dev-2022";
+    hash = "sha256-spnkfucGOWqeVaZvbsqsUQqJ+YfastYHXMTab4aZl70=";
+  };
+  "1.1.0-dev-2830" = fetchKotlin {
+    rev = "build-1.1.0-dev-2830";
+    hash = "sha256-Ud5ucS3l6kB8off23y62HU2QxDr1yPK03Z4FXR4tiuA=";
+  };
+  "1.1.0-dev-3204" = fetchKotlin {
+    rev = "build-1.1.0-dev-3204";
+    hash = "sha256-OjsC4s7OylsMP4/L87cZbSdoR7xX++hP621Hk7nHtqM=";
+  };
+  "1.1.0-dev-3868" = fetchKotlin {
+    rev = "build-1.1.0-dev-3868";
+    hash = "sha256-rMJsp2WgB14WlgkE4Iv0pIbDsmEMNMwln5BGwZUIPD8=";
+  };
+  "1.1.0-dev-4287" = fetchKotlin {
+    rev = "build-1.1.0-dev-4287";
+    hash = "sha256-nQuYyk6iKapKaE+OBR0/DkuR5Gh7Xz4P5Z6dbOEfki0=";
+  };
+  "1.1.0-dev-5008" = fetchKotlin {
+    rev = "build-1.1.0-dev-5008";
+    hash = "sha256-KveEyvKtAmQIFxbbHkYPQDSNRpqXjvUyqfhDpilOlIg=";
+  };
+  "1.1.0-dev-5623" = fetchKotlin {
+    rev = "build-1.1.0-dev-5623";
+    hash = "sha256-mRBlOhSWMUg3GL+OPJchJyC2H1pQfQKigELj8sAsbW4=";
+  };
+  "1.1.0-dev-5815" = fetchKotlin {
+    rev = "build-1.1.0-dev-5815";
+    hash = "sha256-aAjktMDN6vKtyR8/d4G/gTwLkGt7ZkkcRb1L3lC4QB8=";
+  };
+  "1.1.0-dev-6445" = fetchKotlin {
+    rev = "build-1.1.0-dev-6445";
+    hash = "sha256-hEUXxSUPUFAk+8LrM65aIKkBVd6943ZUqzpsDhjGmJ4=";
+  };
+  "1.1.2-dev-141" = fetchKotlin {
+    rev = "build-1.1.2-dev-141";
+    hash = "sha256-6hOnlA540oFKVM58LL/0cRjQLYq+7+ex0qnrr6p/lQY=";
+  };
+  "1.1.2-eap-44" = fetchKotlin {
+    rev = "v1.1.2-eap-44";
+    hash = "sha256-StQfPVoaSm7LI8cqHy/OSB9XiLVOWHGgqsRaER88ZXE=";
+  };
+  "1.1.2-5" = fetchKotlin {
+    rev = "v1.1.2-5";
+    hash = "sha256-3bB1sr7c2DlWHbO6SCWX2MTZIimdb6ypgBdcsUMeZcw=";
+  };
+  "1.1.3-dev-1317" = fetchKotlin {
+    rev = "build-1.1.3-dev-1317";
+    hash = "sha256-SjwQyy5n+b5jHy+9YRIHiwb0LYej8YXQGUadko6o8H4=";
+  };
+  "1.1.3-dev-1323" = fetchKotlin {
+    rev = "build-1.1.3-dev-1323";
+    hash = "sha256-mA+655XQjVz/V/O2K2ajRGecUfdSKo7ARR9ayAqrKnA=";
+  };
+  "1.1.3-dev-1357" = fetchKotlin {
+    rev = "build-1.1.3-dev-1357";
+    hash = "sha256-IuCiYITyiqWFeLS0y4QyVjYytrh+t4jZ66zTDPEXryk=";
+  };
+  "1.1.3-dev-1542" = fetchKotlin {
+    rev = "build-1.1.3-dev-1542";
+    hash = "sha256-ZdyCsxCiT18T6ifXcYnu3cSMLd3DNNpVNOt9SKkz254=";
+  };
+  "1.1.4-dev-500" = fetchKotlin {
+    rev = "build-1.1.4-dev-500";
+    hash = "sha256-5lsY0f9VJY0o+38L52yHql0DunKKAMl0XQhQ03h8Tlo=";
+  };
+  "1.1.3" = fetchKotlin {
+    rev = "v1.1.3";
+    hash = "sha256-VcMrhkzLMflun2gpYgZzUMO7ZaSXmVVhkrLaoG2NFqw=";
+  };
+  "1.1.4" = fetchKotlin {
+    rev = "v1.1.4";
+    hash = "sha256-UcazlZNgDc5ooIbUY/W5zcHCEb+ZhdtbrGGfH1KRCn0=";
+  };
+  "1.1.51" = fetchKotlin {
+    rev = "v1.1.51";
+    hash = "sha256-z8iDz763AxK0oLkJ2atv2LLfHOtpLpNydW6w8Pp3NQ0=";
+  };
+  "1.1.60" = fetchKotlin {
+    rev = "v1.1.60";
+    hash = "sha256-94902UzUHsLZvcn4LOuy9I4Q/8t7TGj7JMTfjMilS4Y=";
+  };
+  "1.2.0" = fetchKotlin {
+    rev = "v1.2.0";
+    hash = "sha256-uHAtO7mHiZDw16zkP/eRqPdfbn3ma+RFyFueUOJXEYU=";
+  };
+  "1.2.10" = fetchKotlin {
+    rev = "v1.2.10";
+    hash = "sha256-zwfunMoP18tL2lXdXW7DAvr3QO69aDQbN9QR2Zv7IK0=";
+  };
+  "1.2.21" = fetchKotlin {
+    rev = "v1.2.21";
+    hash = "sha256-Vt+i2+4k42hhOuD8h1gIni5OD0L0746O60Oi4lKKDtQ=";
+  };
+  "1.2.31" = fetchKotlin {
+    rev = "v1.2.31";
+    hash = "sha256-4psgNK9mSYbYN+Zu/PzaixeTDrPn/DEepehfK8/75hk=";
+  };
+  "1.2.40" = fetchKotlin {
+    rev = "v1.2.40";
+    hash = "sha256-DoAe+K4kEGaAMENXB6GrAQxmVc6ClC9tUXYx/4u7iTA=";
+  };
+  "1.2.41" = fetchKotlin {
+    rev = "v1.2.41";
+    hash = "sha256-ZcUzHr5KEACPk2t08q79ZDY5qtTrl6hU6mTUrblx/Pg=";
+  };
+  "1.2.50" = fetchKotlin {
+    rev = "v1.2.50";
+    hash = "sha256-9vMf6kKfACQ6rFf6KLcHpYPValhUoc3RdWsvxSRXGXo=";
+  };
+  "1.2.51" = fetchKotlin {
+    rev = "v1.2.51";
+    hash = "sha256-CkOc2XRwuLnQkltomp1GA1pdFo+T8yXj98zPcL6HjTY=";
+  };
+  "1.2.60" = fetchKotlin {
+    rev = "v1.2.60";
+    hash = "sha256-Aa/DcEwASN0HBS7LnqnNwVS7FMQnwwBJTNIfna+c5d8=";
+  };
+  "1.2.61" = fetchKotlin {
+    rev = "v1.2.61";
+    hash = "sha256-tVBraQrwhq+9mVPkp/MQVk+KNoCEBNltsQIZ//dGt2A=";
+  };
+  "1.2.70" = fetchKotlin {
+    rev = "v1.2.70";
+    hash = "sha256-NpdZGHvsI6gMrBiNbtDy9x5m9FD0VDGdcor8LKKW+5Y=";
+  };
+  "1.2.71" = fetchKotlin {
+    rev = "v1.2.71";
+    hash = "sha256-X/fZqa2M4O6dyZrI0TGfRfKH8BCWgvI+rC+Imi+eVYk=";
+  };
+  "1.3.0" = fetchKotlin {
+    rev = "v1.3.0";
+    hash = "sha256-jayuH3xDRZwmO0blLAJqed+IzBHxdC2Pp20+iM9H3LM=";
+  };
+  "1.2.50-eap-17" = fetchKotlin {
+    rev = "v1.2.50-eap-17";
+    hash = "sha256-9pH0Vjs0VnraoL3q4sKqILlzH7/c5CqRyBpWiKzLp6c=";
+  };
+  "1.2.50-eap-62" = fetchKotlin {
+    rev = "v1.2.50-eap-62";
+    hash = "sha256-Odu2YfQMSpbMn0u+5ONBUx6Nep1r3vWCJumciq6m0xA=";
+  };
+  "1.3.11" = fetchKotlin {
+    rev = "v1.3.11";
+    hash = "sha256-m13s2j2RI1nWOyb0fp//E96caQo4iMXCJjUADO7IbF4=";
+  };
+  "1.3.21" = fetchKotlin {
+    rev = "v1.3.21";
+    hash = "sha256-dGavU0CJfBNBw0AKFJeMhz21LBHuOEZk0rPKqZCiIRQ=";
+  };
+  "1.3.31" = fetchKotlin {
+    rev = "v1.3.31";
+    hash = "sha256-0mzO7aQE3DD5pRYNFG7K8pAefnWFrr4qJF8q99EDffQ=";
+  };
+  "1.3.41" = fetchKotlin {
+    rev = "v1.3.41";
+    hash = "sha256-YOzG54fcyymjVzaA2jfMMGR4ejZbo8ahmuMf6Vsyvag=";
+  };
+  "1.3.50" = fetchKotlin {
+    rev = "v1.3.50";
+    hash = "sha256-1oI2ZVRG3ppfYy1U38ZcfdTNIYivNADp4yMIAzNX/zY=";
+  };
+  "1.3.61" = fetchKotlin {
+    rev = "v1.3.61";
+    hash = "sha256-1k4ei2Io/iLTeKt39k9ozESayaxpg4hiFTSn3gtkVNM=";
+  };
+  "1.3.72" = fetchKotlin {
+    rev = "v1.3.72";
+    hash = "sha256-4FzX4q7l3aSKZUlsH7aek30nfY1G+FpGdJLKV90uGTM=";
+  };
+  "1.4.0-M1" = fetchKotlin {
+    rev = "v1.4-M1";
+    hash = "sha256-J4wzRA8kLgzEKxCLfn0u39hrePxrHi5et0SKv+J41fk=";
+  };
+  "1.4.0-M2" = fetchKotlin {
+    rev = "v1.4-M2";
+    hash = "sha256-aamgqE9cj/AqEl+1kl4dHmKzLF4HnyRZgudU50Z0FTg=";
+  };
+  "1.4.0-M3" = fetchKotlin {
+    rev = "v1.4-M3";
+    hash = "sha256-u72GvxnuqBE7ECbrTSD1/Z0yXM9ZkiY6wVT6Kgv5uiY=";
+  };
+  "1.4.0-rc" = fetchKotlin {
+    rev = "v1.4.0-rc";
+    hash = "sha256-HV6zvFyck1qRDJXfATWyyVw0b+1xMnPsuE5DHEvn6cA=";
+  };
+  "1.4.0" = fetchKotlin {
+    rev = "v1.4.0";
+    hash = "sha256-CNoutQkICOHnT3MzEdjd1pmcUd35aP2gsAsehmqCpjY=";
+  };
+  "1.4.10" = fetchKotlin {
+    rev = "v1.4.10";
+    hash = "sha256-0UKSbB0kgtwNax/yX7E4IO2FPmtK+tv2V7/yPTapTkQ=";
+  };
+  "1.4.21" = fetchKotlin {
+    rev = "v1.4.21";
+    hash = "sha256-wof3p2mcHbSgbCh/7IzZ8kthqB0wK49Lr/Ef2F5j0xA=";
+  };
+  "1.4.32" = fetchKotlin {
+    rev = "v1.4.32";
+    hash = "sha256-94hgXEHE8tj3XZMh2uv6BvPQgjCt/f0fv9RSVEc6ddQ=";
+  };
+  "1.5.0-M1" = fetchKotlin {
+    rev = "v1.5.0-M1";
+    hash = "sha256-ZFP8z9kp2oQ+QbFWYDC4nXw2WdsrJO+tyvypA+8Kv3U=";
+  };
+  "1.5.0-M2" = fetchKotlin {
+    rev = "v1.5.0-M2";
+    hash = "sha256-N1bqsXbUciCzsE/ZM0KvMJtN70QrgZOFh0nnrqRtIv8=";
+  };
+  "1.5.0-RC" = fetchKotlin {
+    rev = "v1.5.0-RC";
+    hash = "sha256-qBFQIMIT9mprEgAVwgofxercFGtWPH/KJlo0kVYu2SM=";
+  };
+  "1.5.0" = fetchKotlin {
+    rev = "v1.5.0";
+    hash = "sha256-SEQEYJEJIJ8Egte86bhmnpSS7OiAhzZWWIgCh/wYBxw=";
+  };
+  "1.5.31" = fetchKotlin {
+    rev = "v1.5.31";
+    hash = "sha256-Q+p1RJsYtg65LTH0Kn75BGiMXwsycVc+S6q/veyjhJQ=";
+  };
+  "1.6.0" = fetchKotlin {
+    rev = "v1.6.0";
+    hash = "sha256-celuolimMdrOncjK+ayVVXrq2SYpBPRIqfOIcpiBo4s=";
+  };
+  "1.6.21" = fetchKotlin {
+    rev = "v1.6.21";
+    hash = "sha256-skUnKfw+r/m9y27J1n2CZgEtn2IiJ3BjC1So4hJF0Ms=";
+  };
+  "1.7.0" = fetchKotlin {
+    rev = "v1.7.0";
+    hash = "sha256-nwBufbJD329LTPSU9SCdmiT2cjeI+5EUW+HItqwe6Ro=";
+  };
+  "1.8.0" = fetchKotlin {
+    rev = "v1.8.0";
+    hash = "sha256-l8h+45kloaoYsbR8YZkLkyDC7UifRZ3kH8XH1+kTzA4=";
+  };
+  "1.9.0" = fetchKotlin {
+    rev = "v1.9.0";
+    hash = "sha256-DHohEu7eXu+CS0QGw0Lvps/T3JiIy7BnwSGuFXXbRDs=";
+  };
+  "2.0.0" = fetchKotlin {
+    rev = "v2.0.0";
+    hash = "sha256-fuYzsTNchSsQBarjv/JeAYCL+SmHRcD3OcW8ql5+X+0=";
+  };
+  "2.1.0" = fetchKotlin {
+    rev = "v2.1.0";
+    hash = "sha256-3mKisWdC9I7Raa/ZfxonqGB0no+ILfSc2dcMWP3IZB4=";
+  };
+  "2.1.20" = fetchKotlin {
+    rev = "v2.1.20";
+    hash = "sha256-/9ixCbSuRJP3yOEf7H6fc7yxmx+pESsrXINFXj90/fk=";
+  };
+  "2.2.0" = fetchKotlin {
+    rev = "v2.2.0";
+    hash = "sha256-NbBDGuItXkNmuBUz6d3ljX5NLZgHmWErYnBdw7O4jJs=";
+  };
+  "2.3.0" = fetchKotlin {
+    rev = "v2.3.0";
+    hash = "sha256-pgHksiJA6iXYwkpOEiz8+4nWKcw4O0kGHznij/2BglE=";
+  };
+  "2.4.0" = fetchKotlin {
+    rev = "v2.4.0";
+    hash = "sha256-Rj/4LLzOjuMsWCC4P1Y4p611cWFGmGdgqpOYksKnqVs=";
+  };
 }

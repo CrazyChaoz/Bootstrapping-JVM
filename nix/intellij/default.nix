@@ -114,51 +114,54 @@ let
         # that the upstream intellij-core.jar bundles.
         core = (if newJdk then javaLib11.mkJar else mkJar) (
           {
-          pname = "intellij-core";
-          inherit version src;
-          patches = basePatches ++ corePatches;
-          sourceDirs = [
-            "java/java-psi-api/src"
-            "java/java-psi-impl/gen"
-            "java/java-psi-impl/src"
-            "platform/boot/src"
-            "platform/core-api/src"
-            "platform/core-impl/src"
-            "platform/extensions/src"
-          ]
-          ++ coreExtraSrc;
-          buildDeps = [ annotations ];
-          deps = [
-            java.automaton
-            java.javax-inject
-            java.jetbrains-asm-4
-            asm
-            java.iq80-snappy
-            java.xstream
-            self.jps-model-impl
-            self.util
-          ]
-          ++ coreDeps;
-          mergeJars = map (d: "${d}/share/java/${d.pname}.jar") [
-            jdom
-            java.javax-inject
-            self.jps-model-api
-            self.jps-model-impl
-            self.util
-            self.util-rt
-          ];
-          javaRelease = newTarget;
-          passthru = { inherit asm; };
-          preBuild = ''
-            mkdir -p build/classes/messages build/classes/META-INF
-            for m in java/java-psi-api/src/messages java/java-psi-impl/src/messages; do
-              [ -d $m ] && cp -r $m/. build/classes/messages/
-            done
-            cp -r platform/boot/src/META-INF/. build/classes/META-INF/
-            for d in platform/core-api/src/META-INF platform/core-impl/src/META-INF; do
-              [ -d $d ] && cp -r $d/. build/classes/META-INF/ || true
-            done
-          '' + lib.concatMapStrings (d: "if [ -d ${d} ]; then cp -r ${d}/. build/classes/; fi\n") coreResourceDirs;
+            pname = "intellij-core";
+            inherit version src;
+            patches = basePatches ++ corePatches;
+            sourceDirs = [
+              "java/java-psi-api/src"
+              "java/java-psi-impl/gen"
+              "java/java-psi-impl/src"
+              "platform/boot/src"
+              "platform/core-api/src"
+              "platform/core-impl/src"
+              "platform/extensions/src"
+            ]
+            ++ coreExtraSrc;
+            buildDeps = [ annotations ];
+            deps = [
+              java.automaton
+              java.javax-inject
+              java.jetbrains-asm-4
+              asm
+              java.iq80-snappy
+              java.xstream
+              self.jps-model-impl
+              self.util
+            ]
+            ++ coreDeps;
+            mergeJars = map (d: "${d}/share/java/${d.pname}.jar") [
+              jdom
+              java.javax-inject
+              self.jps-model-api
+              self.jps-model-impl
+              self.util
+              self.util-rt
+            ];
+            javaRelease = newTarget;
+            passthru = { inherit asm; };
+            preBuild = ''
+              mkdir -p build/classes/messages build/classes/META-INF
+              for m in java/java-psi-api/src/messages java/java-psi-impl/src/messages; do
+                [ -d $m ] && cp -r $m/. build/classes/messages/
+              done
+              cp -r platform/boot/src/META-INF/. build/classes/META-INF/
+              for d in platform/core-api/src/META-INF platform/core-impl/src/META-INF; do
+                [ -d $d ] && cp -r $d/. build/classes/META-INF/ || true
+              done
+            ''
+            + lib.concatMapStrings (
+              d: "if [ -d ${d} ]; then cp -r ${d}/. build/classes/; fi\n"
+            ) coreResourceDirs;
           }
           // lib.optionalAttrs (corePostPatch != "") { postPatch = corePostPatch; }
         );

@@ -107,7 +107,16 @@ pkgs.lib.makeScope pkgs.newScope (self: {
     prefix = "org.jetbrains";
     packages = [ "org.objectweb" ];
     keep = [ ];
-    jars = map (a: "${a}/share/java/${a.pname}.jar") (with self.gradleLibs; [ asm-lenient asm-tree asm-commons asm-util asm-analysis ]);
+    jars = map (a: "${a}/share/java/${a.pname}.jar") (
+      with self.gradleLibs;
+      [
+        asm-lenient
+        asm-tree
+        asm-commons
+        asm-util
+        asm-analysis
+      ]
+    );
   };
 
   kotlinPlugins = self.callPackage ./gradle/kotlin-plugins.nix {
@@ -172,7 +181,8 @@ pkgs.lib.makeScope pkgs.newScope (self: {
           "kotlinx.serialization=org.jetbrains.kotlin.buildtools.internal.serialization"
           "difflib=org.jetbrains.kotlin.buildtools.internal.difflib"
           "com.github.difflib=org.jetbrains.kotlin.buildtools.internal.difflib"
-        ] ++ [
+        ]
+        ++ [
           "com.google"
           "com.sampullara"
           "org.apache"
@@ -244,10 +254,18 @@ pkgs.lib.makeScope pkgs.newScope (self: {
     in
     {
       kotlinScriptingJvmHost = relocate "kotlin-scripting-jvm-host" [ p.scriptingJvmHost ];
-      kotlinScriptingCompilerEmbeddable = relocate "kotlin-scripting-compiler-embeddable" [ p.scriptingCompiler ];
-      kotlinScriptingCompilerImplEmbeddable = relocate "kotlin-scripting-compiler-impl-embeddable" [ p.scriptingCompilerImpl ];
-      kotlinSamWithReceiverCompilerPlugin = relocate "kotlin-sam-with-receiver-compiler-plugin" [ p.samWithReceiver ];
-      kotlinAssignmentCompilerEmbeddable = relocate "kotlin-assignment-compiler-plugin-embeddable" [ p.assignment ];
+      kotlinScriptingCompilerEmbeddable = relocate "kotlin-scripting-compiler-embeddable" [
+        p.scriptingCompiler
+      ];
+      kotlinScriptingCompilerImplEmbeddable = relocate "kotlin-scripting-compiler-impl-embeddable" [
+        p.scriptingCompilerImpl
+      ];
+      kotlinSamWithReceiverCompilerPlugin = relocate "kotlin-sam-with-receiver-compiler-plugin" [
+        p.samWithReceiver
+      ];
+      kotlinAssignmentCompilerEmbeddable = relocate "kotlin-assignment-compiler-plugin-embeddable" [
+        p.assignment
+      ];
       inherit (self.kotlinRelocated) kotlinxMetadataJvm;
       kotlinScriptingCommon = p.scriptingCommon;
       kotlinScriptingJvm = p.scriptingJvm;
@@ -279,7 +297,8 @@ pkgs.lib.makeScope pkgs.newScope (self: {
           mkdir -p $out/share/java
           ln -s ${kdist}/lib/${name}.jar $out/share/java/${name}.jar
         '';
-      kemb = if kotlinVersion == "2.4.0" then self.kotlinCompilerEmbeddable else self.kotlinCompilerEmbeddable21;
+      kemb =
+        if kotlinVersion == "2.4.0" then self.kotlinCompilerEmbeddable else self.kotlinCompilerEmbeddable21;
       krel = if kotlinVersion == "2.4.0" then self.kotlinRelocated else self.kotlinRelocated21;
       kplug = if kotlinVersion == "2.4.0" then self.kotlinPlugins else self.kotlinPlugins21;
       modules = self.callPackage ./gradle/modules.nix {
@@ -297,9 +316,19 @@ pkgs.lib.makeScope pkgs.newScope (self: {
           kotlinReflect = kjar "kotlin-reflect";
           kotlinScriptRuntime = kjar "kotlin-script-runtime";
           kotlinCompilerEmbeddable = kemb;
-        } // krel;
+        }
+        // krel;
         gradleVersion = version;
-        inherit modulesJson embeddedKotlin kotlinDslPlugins extraNotBuilt libOverrides patches jdkInternalsModules extraKotlinArgs;
+        inherit
+          modulesJson
+          embeddedKotlin
+          kotlinDslPlugins
+          extraNotBuilt
+          libOverrides
+          patches
+          jdkInternalsModules
+          extraKotlinArgs
+          ;
       };
       distBase = self.callPackage ./gradle/dist.nix {
         jdk = self.jdk21;
@@ -307,7 +336,12 @@ pkgs.lib.makeScope pkgs.newScope (self: {
         gradleSrc = src;
         gradleLibs = libs;
         gradleModules = modules;
-        inherit version modulesJson registryStyle embeddedKotlin;
+        inherit
+          version
+          modulesJson
+          registryStyle
+          embeddedKotlin
+          ;
       };
       extensions = self.callPackage ./gradle/kotlin-extensions.nix {
         jdk = self.jdk21;

@@ -102,7 +102,9 @@ let
   keys = nodes: map (n: n.key) nodes;
   coreKeys = keys coreNodes;
   onlyPlugins = lib.filter (n: !(lib.elem n.key coreKeys)) pluginNodes;
-  onlyAgents = lib.filter (n: !(lib.elem n.key coreKeys) && !(lib.elem n.key (keys pluginNodes))) agentNodes;
+  onlyAgents = lib.filter (
+    n: !(lib.elem n.key coreKeys) && !(lib.elem n.key (keys pluginNodes))
+  ) agentNodes;
 
   # (module names are Maven artifact ids)
   artifactIds = {
@@ -116,7 +118,12 @@ let
     artifactIds.${p} or p;
   libVersion = n: n.drv.version or (builtins.parseDrvName n.drv.name).version;
   moduleName = n: if n.kind == "project" then "gradle-${n.name}" else libName n;
-  jarFile = n: if n.kind == "project" then "gradle-${n.name}-${version}.jar" else "${libName n}-${libVersion n}.jar";
+  jarFile =
+    n:
+    if n.kind == "project" then
+      "gradle-${n.name}-${version}.jar"
+    else
+      "${libName n}-${libVersion n}.jar";
   jarPath =
     n:
     if n.kind == "project" then
@@ -128,7 +135,9 @@ let
   depNames =
     n:
     lib.sort (a: b: a < b) (
-      lib.unique (map moduleName (lib.filter (c: c.kind == "lib" || hasJar c.name) (children runtimeConfs n)))
+      lib.unique (
+        map moduleName (lib.filter (c: c.kind == "lib" || hasJar c.name) (children runtimeConfs n))
+      )
     );
 
   # all project and library jars on the runtime classpath of a node (its dependencies, transitively)
@@ -146,17 +155,31 @@ let
   install =
     dir: n:
     let
-      props = lib.concatStringsSep "\n" (
-        [
-          "dependencies=${lib.concatStringsSep "," (depNames n)}"
-          "jarFile=${jarFile n}"
-        ]
-      );
+      props = lib.concatStringsSep "\n" ([
+        "dependencies=${lib.concatStringsSep "," (depNames n)}"
+        "jarFile=${jarFile n}"
+      ]);
       deps = runtimeClosure n;
-      embeddedProps = lib.concatStringsSep "\n" ([
-        "projects=${lib.concatStringsSep "," (lib.sort (a: b: a < b) (map moduleName (lib.filter (c: c.kind == "project") deps) ++ lib.optional (n.name == "core" || n.name == "launcher") "gradle-runtime-api-info"))}"
-        "runtime=${lib.concatStringsSep "," (lib.sort (a: b: a < b) (map jarFile (lib.filter (c: c.kind == "lib") deps)))}"
-      ] ++ lib.optional (n.kind == "project" && (modules.${n.name}.optional or [ ]) != [ ]) "optional=${lib.concatStringsSep "," (modules.${n.name}.optional)}");
+      embeddedProps = lib.concatStringsSep "\n" (
+        [
+          "projects=${
+            lib.concatStringsSep "," (
+              lib.sort (a: b: a < b) (
+                map moduleName (lib.filter (c: c.kind == "project") deps)
+                ++ lib.optional (n.name == "core" || n.name == "launcher") "gradle-runtime-api-info"
+              )
+            )
+          }"
+          "runtime=${
+            lib.concatStringsSep "," (
+              lib.sort (a: b: a < b) (map jarFile (lib.filter (c: c.kind == "lib") deps))
+            )
+          }"
+        ]
+        ++
+          lib.optional (n.kind == "project" && (modules.${n.name}.optional or [ ]) != [ ])
+            "optional=${lib.concatStringsSep "," (modules.${n.name}.optional)}"
+      );
     in
     if registryStyle == "embedded" then
       ''
@@ -177,7 +200,8 @@ let
         EOF2
       '';
 
-  projectJarNames = nodes: lib.sort (a: b: a < b) (map moduleName (lib.filter (n: n.kind == "project") nodes));
+  projectJarNames =
+    nodes: lib.sort (a: b: a < b) (map moduleName (lib.filter (n: n.kind == "project") nodes));
 
   cliMainClasspath = lib.concatStringsSep " " (
     map jarFile (
@@ -196,17 +220,21 @@ let
     map jarFile (
       real (
         builtins.genericClosure {
-          startSet = map (d: projectNode (lib.removePrefix "project:" d)) modules.daemon-main.deps.manifestClasspath;
+          startSet = map (
+            d: projectNode (lib.removePrefix "project:" d)
+          ) modules.daemon-main.deps.manifestClasspath;
           operator = children runtimeConfs;
         }
       )
     )
   );
 
-  sourceDirs = lib.concatMapStringsSep " " (n: "${gradleSrc}/${modules.${n.name}.dir}/src/main/java") (
+  sourceDirs = lib.concatMapStringsSep " " (
+    n: "${gradleSrc}/${modules.${n.name}.dir}/src/main/java"
+  ) (lib.filter (n: n.kind == "project") (coreNodes ++ onlyPlugins));
+  projectJars = lib.concatMapStringsSep " " jarPath (
     lib.filter (n: n.kind == "project") (coreNodes ++ onlyPlugins)
   );
-  projectJars = lib.concatMapStringsSep " " jarPath (lib.filter (n: n.kind == "project") (coreNodes ++ onlyPlugins));
 in
 stdenv.mkDerivation {
   pname = "gradle";
@@ -229,7 +257,11 @@ stdenv.mkDerivation {
     javac -nowarn -d cls InstrumentationMetadata.java
     java -cp cls:$CLASSPATH InstrumentationMetadata info ${projectJars}
     : > info/org/gradle/api/internal/runtimeshaded/api-relocated.txt
-    echo "plugins=${lib.concatStringsSep "," (projectJarNames (lib.filter (n: !(lib.elem n.key coreKeys)) apiPluginNodes))}" > info/gradle-plugins.properties
+    echo "plugins=${
+      lib.concatStringsSep "," (
+        projectJarNames (lib.filter (n: !(lib.elem n.key coreKeys)) apiPluginNodes)
+      )
+    }" > info/gradle-plugins.properties
     echo "plugins=${lib.concatStringsSep "," (projectJarNames onlyPlugins)}" > info/gradle-implementation-plugins.properties
     jar cf gradle-runtime-api-info-${version}.jar -C info .
     runHook postBuild

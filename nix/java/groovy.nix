@@ -28,7 +28,9 @@ let
     };
 
   src = gh "apache" "groovy" "GROOVY_${lib.replaceStrings [ "." ] [ "_" ] version}" hash;
-  patches = lib.optional (version == "3.0.5") ../../patches/guix/groovy-add-exceptionutilsgenerator.patch;
+  patches = lib.optional (
+    version == "3.0.5"
+  ) ../../patches/guix/groovy-add-exceptionutilsgenerator.patch;
 
   generateParsers = ''
     (cd src/main/antlr2/org/codehaus/groovy/antlr/java && antlr java.g)
@@ -141,7 +143,9 @@ let
     javaparser-core = mkJar {
       pname = "javaparser-core";
       version = "3.16.1";
-      src = gh "javaparser" "javaparser" "javaparser-parent-3.16.1" "sha256-aVfF9+pxnSUIUtCCa4AI0t2dxgGqbeSBcmEo50SYkqg=";
+      src =
+        gh "javaparser" "javaparser" "javaparser-parent-3.16.1"
+          "sha256-aVfF9+pxnSUIUtCCa4AI0t2dxgGqbeSBcmEo50SYkqg=";
       nativeBuildInputs = [ s.javacc ];
       preBuild = ''
         cd javaparser-core/src/main
@@ -224,7 +228,12 @@ let
         nativeBuildInputs ? [ ],
       }:
       stdenv.mkDerivation {
-        inherit pname version src patches;
+        inherit
+          pname
+          version
+          src
+          patches
+          ;
         nativeBuildInputs = [
           jdk
           zip

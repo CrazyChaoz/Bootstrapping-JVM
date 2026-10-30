@@ -111,7 +111,9 @@ in
   streamex = mkJar {
     pname = "streamex";
     version = "0.6.2";
-    src = gh "amaembo" "streamex" "streamex-0.6.2" "sha256-x1384g7ssZoCxdtUXoz5UbZD+qxyg7snTbgu+JIPe1A=";
+    src =
+      gh "amaembo" "streamex" "streamex-0.6.2"
+        "sha256-x1384g7ssZoCxdtUXoz5UbZD+qxyg7snTbgu+JIPe1A=";
     sourceDirs = [ "src/main/java" ];
     javaRelease = "1.8";
   };
@@ -146,9 +148,20 @@ in
     mkKotlinJar {
       pname = "kotlinx-collections-immutable";
       version = "0.3.7";
-      src = gh "Kotlin" "kotlinx.collections.immutable" "v0.3.7" "sha256-ldMBZsyi2nolxUxnkn9alv7t1j5wVCZwRSzIXRzhOhs=";
+      src =
+        gh "Kotlin" "kotlinx.collections.immutable" "v0.3.7"
+          "sha256-ldMBZsyi2nolxUxnkn9alv7t1j5wVCZwRSzIXRzhOhs=";
       inherit kotlin;
-      sourceDirs = [ "core/commonMain/src" "core/jvmMain/src" ];
-      kotlincFlags = [ "-Xmulti-platform" "-Xcommon-sources=core/commonMain/src" "-Xopt-in=kotlin.RequiresOptIn" "-Xno-call-assertions" "-Xno-param-assertions" ];
+      sourceDirs = [
+        "core/commonMain/src"
+        "core/jvmMain/src"
+      ];
+      kotlincFlags = [
+        "-Xmulti-platform"
+        "-Xcommon-sources=core/commonMain/src"
+        "-Xopt-in=kotlin.RequiresOptIn"
+        "-Xno-call-assertions"
+        "-Xno-param-assertions"
+      ];
     };
 }

@@ -1,9 +1,23 @@
 #!/usr/bin/env bash
-# bridge.sh NAME BASECOMMIT FROMCOMMIT PREVCP FILE... : stage of BASECOMMIT with FILEs taken
-# from FROMCOMMIT -- stands in for the unpublished intermediate compilers behind STARR updates
+# bridge.sh NAME COMMIT PREV FROM FILE... : build a bridge stage NAME by stage PREV, the tree
+# of COMMIT with FILEs as of commit FROM -- or, for a single FILE ending in .sh, changed by
+# that script of patches/scala/bridges (SCRIPT TREE FROMTREE); see the bridge modes in
+# scala/chain/scala2.txt
 set -uo pipefail
-n=$1 base=$2 from=$3 prev=$4; shift 4
-cd /tmp/sc; rm -rf src-$n && mkdir src-$n && (cd full && git archive $base) | tar -x -C src-$n
-for f in "$@"; do (cd full && git show $from:$f) > src-$n/$f; done
-./work/${BUILDER:-stage2.sh} /tmp/sc/src-$n /tmp/sc/st-$n "$prev" > /tmp/sc/log-$n.txt 2>&1; rc=$?
-grep -v '^Note\|not applicable\|warning' /tmp/sc/log-$n.txt | grep -v '^ *^\|^      ' | tail -${TAILN:-15}; echo "rc=$rc"
+. "$(dirname "$0")/env.sh"
+n=$1 commit=$2 prev=$3 from=$4
+shift 4
+use_generation "$GENERATION" || exit 1
+unpack "$n" "$commit" || exit 1
+if [ $# = 1 ] && [[ $1 == *.sh ]]; then
+  unpack "$n-from" "$from" || exit 1
+  bash "$ROOT/patches/scala/bridges/$1" "$WORK/src-$n" "$WORK/src-$n-from" || exit 1
+  rm -rf "$WORK/src-$n-from"
+else
+  for f in "$@"; do git -C "$SCALA_GIT" show "$from:$f" > "$WORK/src-$n/$f" || exit 1; done
+fi
+build "$n" "$prev"; rc=$?
+shortlog < "$WORK/log-$n.txt" | tail -n "${TAILN:-15}"
+echo "rc=$rc"
+[ $rc = 0 ] && stage_test "$n"
+exit $rc

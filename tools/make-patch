@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # usage: make-patch SRC WORKDIR OUT.patch  -- diff of all changed files
 set -u
-src=$1 work=$2 out=$3
+src=$1 work=$2 out=$(realpath -m "$3")
 find "$work" -name '*.rej' -delete
-(cd "$work" && diff -ruN --no-dereference "$src" . 2>/dev/null | grep -E '^(diff|Only)' >/dev/null; true)
 : > "$out"
-cd "$work"
+cd "$work" || exit 1
 diff -rq "$src" . 2>/dev/null | while read -r l; do
   case "$l" in
     "Files "*) f=$(echo "$l" | sed -E 's|^Files [^ ]+ and \./(.*) differ$|\1|');;

@@ -1,24 +1,34 @@
 #!/usr/bin/env bash
-# auto.sh NAME COMMIT PREVSTAGE : try normal, then compiler-first, then fresh (no fallback to the
-# previous library, scala.Array from source: the 2.8 collections, 2009-05), then unnest (locker
-# from sources with single package clauses, 2009-07); then hello test
-# (BUILDER=stage2.sh: nsc-era stages, no compiler-first mode, hello2 test that must pass)
-P=/tmp/sc/st-$3; PREV=$P/out2:$P/classes
-[ "$3" = 1 ] && PREV=/tmp/sc/st1/sc2:/tmp/sc/st1/lib2:/tmp/sc/st1/classes
-ok() { grep -q 'stage done' /tmp/sc/log-$1.txt; }
-# (AUTO_MODES, or else /tmp/sc/auto-modes: the modes to try, e.g. "normal cf" past 2009, where
-# fresh and unnest only cost time)
-# (cflib: compiler first with the library's reflection API and macro context, 2012: CFLIB)
-CFLIB=${CFLIB:-scala/reflect}
-M=" ${AUTO_MODES:-$(cat /tmp/sc/auto-modes 2>/dev/null || echo normal cf fresh unnest)} "; m() { [[ $M == *" $1 "* ]]; }
-if m normal && TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: normal ok"
-elif m cf && COMPILER_FIRST=1 TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: compiler-first ok"; echo "$1 CF" >> /tmp/sc/cf.txt
-elif m cflib && COMPILER_FIRST=1 CF_LIBSRC=$CFLIB TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: cflib ok"
-elif m fresh && FALLBACK=none ARRAY_SRC=1 TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: fresh ok"
-elif m unnest && UNNEST=1 TAILN=0 /tmp/sc/work/try.sh $1 $2 $PREV >/dev/null 2>&1 && ok $1; then echo "$1: unnest ok"
-else echo "$1: FAILED"; grep -v '^Note\|not applicable' /tmp/sc/log-$1.txt | tail -${TAILN:-20}; exit 1; fi
-if [ "${BUILDER:-}" = stage2.sh ]; then
-  # (to a file first: a warning may come before the greeting, and `tee | head -1` cut it off)
-  /tmp/sc/work/hello2.sh /tmp/sc/st-$1 > /tmp/sc/hello-$1.txt 2>&1; grep -m1 '^Hello from' /tmp/sc/hello-$1.txt
-  grep -q '^Hello from' /tmp/sc/hello-$1.txt || { echo "$1: hello2 FAILED"; exit 1; }
-else /tmp/sc/work/hello.sh /tmp/sc/st-$1 | head -1; fi
+# auto.sh NAME COMMIT PREV : build COMMIT as stage NAME by stage PREV in the first mode that
+# works, then run its smoke test.  Prints "NAME: MODE ok" (or FAILED and the end of the log).
+#
+# The modes (AUTO_MODES, default "normal cf fresh"): those of scala/chain/scala2.txt, and two
+# that call for a generation of their own when they are the ones that work:
+#   cflib   compiler first, with the library sources CFLIB (default scala/reflect) in the
+#           compiler's run: CF_LIBRARY_SOURCES (2012)
+#   unnest  locker from sources with single package clauses: LOCKER_SOURCE_PATCH unnest.sh
+#           (2009)
+set -uo pipefail
+. "$(dirname "$0")/env.sh"
+n=$1 commit=$2 prev=$3
+use_generation "$GENERATION" || exit 1
+ok() { grep -q 'stage done' "$WORK/log-$n.txt"; }
+for mode in ${AUTO_MODES:-normal cf fresh}; do
+  unpack "$n" "$commit" || exit 1
+  case $mode in
+    normal) build "$n" "$prev" ;;
+    cf) COMPILER_FIRST=1 build "$n" "$prev" ;;
+    cflib) COMPILER_FIRST=1 CF_LIBRARY_SOURCES=${CFLIB:-scala/reflect} build "$n" "$prev" ;;
+    fresh) NO_FALLBACK=1 ARRAY_FROM_SOURCE=1 build "$n" "$prev" ;;
+    unnest) LOCKER_SOURCE_PATCH=$ROOT/patches/scala/locker/unnest.sh build "$n" "$prev" ;;
+    *) echo "unknown mode $mode" >&2; exit 2 ;;
+  esac
+  if ok; then
+    echo "$n: $mode ok"
+    stage_test "$n" || { echo "$n: smoke test FAILED"; exit 1; }
+    exit 0
+  fi
+done
+echo "$n: FAILED"
+shortlog < "$WORK/log-$n.txt" | tail -n "${TAILN:-20}"
+exit 1

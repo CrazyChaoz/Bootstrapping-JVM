@@ -2,7 +2,7 @@
 # usage: fix-hashes <nix build args...>
 # Builds, and for every fixed-output hash mismatch replaces the specified hash
 # with the actual one in all nix files of the repository.
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 log=$(mktemp)
 nix build --keep-going --no-link "$@" 2>&1 | tee "$log" | grep -E '^error' | grep -v 'hash mismatch\|resolved derivation' | head -20
 python3 - "$log" <<'PY'

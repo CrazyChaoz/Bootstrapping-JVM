@@ -31,7 +31,9 @@ let
         mkdir -p $out/bin
         cat > $out/bin/${name} <<EOF
         #!/bin/sh
-        exec ${jdk}/bin/java -cp $out/share/java/${o.pname}.jar:${javaLib.classpathOf (drv.passthru.javaDeps or [ ])} ${mainClass} "\$@"
+        exec ${jdk}/bin/java -cp $out/share/java/${o.pname}.jar:${
+          javaLib.classpathOf (drv.passthru.javaDeps or [ ])
+        } ${mainClass} "\$@"
         EOF
         chmod +x $out/bin/${name}
       '';
@@ -292,7 +294,9 @@ lib.fix (self: {
   };
 
   # Groovy uses the "optimized" fork of antlr4 by tunnelvisionlabs.
-  tvl-src = gh "tunnelvisionlabs" "antlr4" "4.7.4-opt" "sha256-KC+rcn2l0n8IUleuTMVoFpTL70CqDjE1VfF+rfemwtU=";
+  tvl-src =
+    gh "tunnelvisionlabs" "antlr4" "4.7.4-opt"
+      "sha256-KC+rcn2l0n8IUleuTMVoFpTL70CqDjE1VfF+rfemwtU=";
   tvl-patches = [
     (p "java-antlr4-Add-standalone-generator")
     (p "java-tunnelvisionlabs-antlr-code-too-large")

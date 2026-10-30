@@ -37,7 +37,9 @@ lib.fix (self: {
   cli-parser = mkJar {
     pname = "cli-parser";
     version = "1.1.6";
-    src = gh "spullara" "cli-parser" "cli-parser-1.1.6" "sha256-PDypWr9swyVRdGG69WM8yXlwvc/0zyEhdLZcyyTZSbg=";
+    src =
+      gh "spullara" "cli-parser" "cli-parser-1.1.6"
+        "sha256-PDypWr9swyVRdGG69WM8yXlwvc/0zyEhdLZcyyTZSbg=";
     sourceDirs = [ "src/main/java" ];
     javaRelease = "1.6";
   };
@@ -45,7 +47,9 @@ lib.fix (self: {
   hawtjni-runtime = mkJar {
     pname = "hawtjni-runtime";
     version = "1.15";
-    src = gh "fusesource" "hawtjni" "hawtjni-project-1.15" "sha256-ZazGd/bck2XwSgxb7i+K/3tdnx5hiQ9YlSulZBDn6RM=";
+    src =
+      gh "fusesource" "hawtjni" "hawtjni-project-1.15"
+        "sha256-ZazGd/bck2XwSgxb7i+K/3tdnx5hiQ9YlSulZBDn6RM=";
     sourceDirs = [ "hawtjni-runtime/src/main/java" ];
     javaRelease = "1.6";
   };
@@ -54,7 +58,9 @@ lib.fix (self: {
   jansi-native = mkJar {
     pname = "jansi-native";
     version = "1.7";
-    src = gh "fusesource" "jansi-native" "jansi-native-1.7" "sha256-8Jw8GGfmEU61pjz83OJU8FHmjJg02qtVdui9ILEXx+M=";
+    src =
+      gh "fusesource" "jansi-native" "jansi-native-1.7"
+        "sha256-8Jw8GGfmEU61pjz83OJU8FHmjJg02qtVdui9ILEXx+M=";
     sourceDirs = [ "src/main/java" ];
     deps = [ self.hawtjni-runtime ];
     javaRelease = "1.6";
@@ -63,7 +69,9 @@ lib.fix (self: {
   jansi-1 = mkJar {
     pname = "jansi";
     version = "1.16";
-    src = gh "fusesource" "jansi" "jansi-project-1.16" "sha256-3Su9UVslaO2OrrOwvFUFUmreE2oyWCzIAgM+UUYHc0Y=";
+    src =
+      gh "fusesource" "jansi" "jansi-project-1.16"
+        "sha256-3Su9UVslaO2OrrOwvFUFUmreE2oyWCzIAgM+UUYHc0Y=";
     sourceDirs = [ "jansi/src/main/java" ];
     deps = [ self.jansi-native ];
     javaRelease = "1.6";
@@ -143,7 +151,8 @@ lib.fix (self: {
       javaRelease ? "1.6",
     }:
     mkJar {
-      pname = "asm" + lib.optionalString (relocateTo != null) "-${lib.replaceStrings [ "." ] [ "-" ] relocateTo}";
+      pname =
+        "asm" + lib.optionalString (relocateTo != null) "-${lib.replaceStrings [ "." ] [ "-" ] relocateTo}";
       inherit
         version
         src
@@ -271,7 +280,9 @@ lib.fix (self: {
   automaton = mkJar {
     pname = "automaton";
     version = "1.12.4";
-    src = gh "cs-au-dk" "dk.brics.automaton" "75db9df045892a4c59b8994f51e5cbc60be7fdc9" "sha256-2yt0DdFjcRQQ+ZO1vzz7NyCVnogBn2OnEVSZBWGzXSg=";
+    src =
+      gh "cs-au-dk" "dk.brics.automaton" "75db9df045892a4c59b8994f51e5cbc60be7fdc9"
+        "sha256-2yt0DdFjcRQQ+ZO1vzz7NyCVnogBn2OnEVSZBWGzXSg=";
     sourceDirs = [ "src" ];
     javaRelease = "1.6";
   };
@@ -293,7 +304,9 @@ lib.fix (self: {
     # named like the jar of the intellij-community module
     pname = "intellij-annotations";
     version = "16.0.3";
-    src = gh "JetBrains" "java-annotations" "16.0.3" "sha256-RKdHIrax5lsZnep3HDj2ch9LkN+dPbwJLgPLRw0d/4E=";
+    src =
+      gh "JetBrains" "java-annotations" "16.0.3"
+        "sha256-RKdHIrax5lsZnep3HDj2ch9LkN+dPbwJLgPLRw0d/4E=";
     sourceDirs = [
       "common/src/main/java"
       "java5/src/main/java"
@@ -305,7 +318,9 @@ lib.fix (self: {
   jetbrains-annotations-18 = mkJar {
     pname = "intellij-annotations";
     version = "18.0.0";
-    src = gh "JetBrains" "java-annotations" "18.0.0" "sha256-QbRqxFYp09R58QtHwvmmT6GMkqzzBGN+8BMgi3e//IA=";
+    src =
+      gh "JetBrains" "java-annotations" "18.0.0"
+        "sha256-QbRqxFYp09R58QtHwvmmT6GMkqzzBGN+8BMgi3e//IA=";
     sourceDirs = [
       "common/src/main/java"
       "java8/src/main/java"
@@ -324,7 +339,9 @@ lib.fix (self: {
   streamex = mkJar {
     pname = "streamex";
     version = "0.6.7";
-    src = gh "amaembo" "streamex" "streamex-0.6.7" "sha256-q+pHRTbg6ebMZjPcEPDC4hfPzFxpxEdrc4PbUcUnP+Q=";
+    src =
+      gh "amaembo" "streamex" "streamex-0.6.7"
+        "sha256-q+pHRTbg6ebMZjPcEPDC4hfPzFxpxEdrc4PbUcUnP+Q=";
     sourceDirs = [ "src/main/java" ];
   };
 
@@ -356,7 +373,9 @@ lib.fix (self: {
   commons-compress-1_18 = mkJar {
     pname = "commons-compress";
     version = "1.18";
-    src = gh "apache" "commons-compress" "rel/1.18" "sha256-sDaIxpOpq1loicFBI+YwLeGTA8lmeYIvM0zpOa0ueEk=";
+    src =
+      gh "apache" "commons-compress" "rel/1.18"
+        "sha256-sDaIxpOpq1loicFBI+YwLeGTA8lmeYIvM0zpOa0ueEk=";
     sourceDirs = [ "src/main/java" ];
     # Pack200 is part of the JDK up to 13.
     deps = [
@@ -371,7 +390,9 @@ lib.fix (self: {
   jetbrains-java-compatibility = mkJar {
     pname = "java-compatibility";
     version = "1.0.1";
-    src = gh "JetBrains" "intellij-deps-java-compatibility" "f259bb64676003b94398546ca3cf47b97ce5481f" "sha256-+H2cYxwB8pAU8/cxc2BzE+DxrvfMsgug96xPl+N6uUI=";
+    src =
+      gh "JetBrains" "intellij-deps-java-compatibility" "f259bb64676003b94398546ca3cf47b97ce5481f"
+        "sha256-+H2cYxwB8pAU8/cxc2BzE+DxrvfMsgug96xPl+N6uUI=";
     sourceDirs = [ "src/main/java" ];
     javacFlags = [ "-XDignore.symbol.file" ];
   };
@@ -388,7 +409,9 @@ lib.fix (self: {
   picocontainer-1 = mkJar {
     pname = "picocontainer";
     version = "1.2";
-    src = gh "picocontainer" "PicoContainer1" "picocontainer-1.2" "sha256-Shr1WcQfIh8oB4z73/Zm7XZBjCgo8Z0LKCFknrHYGp0=";
+    src =
+      gh "picocontainer" "PicoContainer1" "picocontainer-1.2"
+        "sha256-Shr1WcQfIh8oB4z73/Zm7XZBjCgo8Z0LKCFknrHYGp0=";
     sourceDirs = [ "container/src/java" ];
     encoding = "ISO-8859-1";
     javaRelease = "1.6";
@@ -397,7 +420,9 @@ lib.fix (self: {
   jetbrains-trove4j = mkJar {
     pname = "jetbrains-trove4j";
     version = "2016.8.24";
-    src = gh "JetBrains" "intellij-deps-trove4j" "29150c19710ef1581c790d0502cf299583db7322" "sha256-jUvaUYcEfY+rAGl+gZQEHSw2Iv4RTozXiMCjEA1eo60=";
+    src =
+      gh "JetBrains" "intellij-deps-trove4j" "29150c19710ef1581c790d0502cf299583db7322"
+        "sha256-jUvaUYcEfY+rAGl+gZQEHSw2Iv4RTozXiMCjEA1eo60=";
     sourceDirs = [
       "core/src"
       "generated/src"
@@ -447,7 +472,9 @@ lib.fix (self: {
   jdom-ij-2 = mkJar {
     pname = "jdom";
     version = "2.0.6-ij";
-    src = gh "JetBrains" "intellij-deps-jdom" "da8644efbf3b50b1fd427953298c0a8cb330f54c" "sha256-LCPU1BfEZZWNwj2FKa+RZkFmSscxZrZkWtjYTB16n08=";
+    src =
+      gh "JetBrains" "intellij-deps-jdom" "da8644efbf3b50b1fd427953298c0a8cb330f54c"
+        "sha256-LCPU1BfEZZWNwj2FKa+RZkFmSscxZrZkWtjYTB16n08=";
     # XPath support needs Jaxen.
     postPatch = ''
       rm -rf core/src/java/org/jdom/xpath
@@ -587,7 +614,9 @@ lib.fix (self: {
   xstream = mkJar {
     pname = "xstream";
     version = "1.4.16";
-    src = gh "x-stream" "xstream" "XSTREAM_1_4_16" "sha256-pRxsGQL7Wt6tUaqREHh2MGF0yYMVk7M7PdwJOAyrYpo=";
+    src =
+      gh "x-stream" "xstream" "XSTREAM_1_4_16"
+        "sha256-pRxsGQL7Wt6tUaqREHh2MGF0yYMVk7M7PdwJOAyrYpo=";
     sourceDirs = [ "xstream/src/java" ];
     deps = [ self.xpp3 ];
     javaRelease = "1.8";
@@ -599,7 +628,7 @@ lib.fix (self: {
              io/xml/BEAStaxDriver.java io/json io/xml/MXParser*
       cd -
     '';
-    
+
   };
 
   native-platform = mkJar {
