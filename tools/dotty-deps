@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """dotty-deps TREE : the versions of the external inputs a dotty/scala3 tree's sbt build names,
 as "KEY VERSION" lines: scalajs (scalajs-ir), zinc (compiler-interface), jline (jline 3+),
-asm (scala-asm); and the compiler flags the build adds for the library (libopts: both
+asm (scala-asm), ow2asm (ASM itself, from 2026); and the compiler flags the build adds for the library (libopts: both
 library builds, libopts-boot: the bootstrapped one only) as "KEY FLAG..." lines.  Reads project/*.scala and project/plugins.sbt; a version given by a name
 (scalaJSVersion, zincVersion, ...) is looked up among their `val NAME = "..."` definitions."""
 import glob
@@ -30,6 +30,7 @@ found = {
     "zinc": dep(r'"compiler-interface"') or vals.get("zincVersion"),
     "jline": dep(r'"jline-reader"') or vals.get("jlineVersion"),
     "asm": dep(r'"scala-asm"') or vals.get("asmVersion"),
+    "ow2asm": dep(r'"asm-util"'),
 }
 for k, v in found.items():
     if v:
@@ -49,6 +50,19 @@ def flags(b):
     return [f for f in re.findall(r'"(-Y[\w-]+|-language:[\w,]+|-source(?::[\w.-]+)?)"', b) if f != "-Ythrough-tasty"]
 
 
+def common():
+    """the flags every project gets (the first `scalacOptions ++= Seq(` of the build), for library projects that set none"""
+    m = re.search(r"scalacOptions \+\+= Seq\((.*?)\n    \),", text, re.S)
+    return m.group(1) if m else ""
+
+
+def libflags(*names):
+    b = next((b for b in (block(n) for n in names) if b), "")
+    return flags(b if re.search(r"scalacOptions\s*:=", b) else b + common())
+
+
 # (the library projects were renamed in 2025-04: scala-library-nonbootstrapped / scala-library-bootstrapped)
-print("libopts", *flags(block("lazy val dottyLibrarySettings") or block("lazy val `scala-library-nonbootstrapped`")))
-print("libopts-boot", *flags(block("lazy val `dotty-library-bootstrapped`") or block("lazy val `scala-library-bootstrapped`")))
+print("libopts", *libflags("lazy val dottyLibrarySettings", "lazy val `scala-library-nonbootstrapped`"))
+print("libopts-boot", *libflags("lazy val `dotty-library-bootstrapped`", "lazy val `scala-library-bootstrapped`"))
+# the flags of every project (the compiler's sources use e.g. -Yexplicit-nulls, 2025)
+print("compopts", *flags(common()))

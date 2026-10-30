@@ -7,7 +7,7 @@
 # dotty-library, compiled by PREV: the compiler runs on it), lib (dotty-library compiled by the new
 # compiler, as released: what programs compile against), scala2lib (the scala-library).
 # SCALA2LIB: the Scala 2 stage whose library the stage builds on (default: PREV's). Inputs (env.sh):
-# ASM_SRCS, ZINC_SRCS, SBTUTIL_SRCS, JLINE3_SRCS, SCALAJS_SRCS: source trees by version, of which
+# ASM_SRCS, OW2ASM_SRCS, ZINC_SRCS, SBTUTIL_SRCS, JLINE3_SRCS, SCALAJS_SRCS: source trees by version, of which
 # the stage takes the versions its build names (tools/dotty-deps).
 set -euo pipefail
 . "$(dirname "$(readlink -f "$0")")/env.sh"
@@ -15,6 +15,11 @@ SRC=$1 OUT=$2 PREV=$3
 mkdir -p $OUT; cd $OUT
 cp -r $SRC/. tree; TREE=$OUT/tree; chmod -R u+w tree
 JAVA="$J8/bin/java -Xss16m -Xmx4g"
+# the JVM the library's Java sources want (3.8: 17, java.lang.invoke.VarHandle); the Scala output stays at the
+# default target (8), the older compilers run on JDK 8
+rel=$(sed -n 's/.*val minimumJVMVersion = "\([0-9]*\)".*/\1/p' $TREE/project/Versions.scala 2>/dev/null || true); rel=${rel:-8}
+jvm=$J8/bin/java; [ $rel -le 8 ] || { jvm=$J/bin/java; JAVA="$jvm -Xss16m -Xmx4g"; }
+echo $jvm > jvm
 
 # what compiles: a Scala 2 compiler, or a dotty one
 if [ -d $PREV/out2/scala/tools/nsc ]; then
@@ -44,17 +49,24 @@ S2B=${SCALA2LIB_BOOT:+$SCALA2LIB_BOOT/out2}; S2B=${S2B:-$S2}
 bld=$TREE/project/Build.scala
 python3 -I $T/dotty-deps $TREE > deps.versions
 dv() { local v; v=$(sed -n "s/^$1 //p" deps.versions); [ -n "$v" ] && [ -d "$2/$v" ] || { echo "no $1 ${v:-version} in $2" >&2; exit 1; }; echo $2/$v; }
-ASM_SRC=$(dv asm $ASM_SRCS) ZINC_SRC=$(dv zinc $ZINC_SRCS) JLINE3_SRC=$(dv jline $JLINE3_SRCS) SCALAJS_SRC=$(dv scalajs $SCALAJS_SRCS)
+ZINC_SRC=$(dv zinc $ZINC_SRCS) JLINE3_SRC=$(dv jline $JLINE3_SRCS) SCALAJS_SRC=$(dv scalajs $SCALAJS_SRCS)
 # (util-interface: the sbt util version that zinc's build names)
 uv=$(sed -n 's/.*utilVersion = \(nightlyVersion.getOrElse(\)\?"\([^"]*\)".*/\2/p' $ZINC_SRC/project/Dependencies.scala | head -1)
 SBTUTIL_SRC=$SBTUTIL_SRCS/$uv; [ -d $SBTUTIL_SRC ] || { echo "no sbt util-interface $uv" >&2; exit 1; }
 mkdir -p deps
-{ find $ASM_SRC/ -name '*.java'
+# (the compiler's backend uses ASM itself, not Scala's fork, from 2026: org.objectweb.asm)
+OW2ASM_SRCS=${OW2ASM_SRCS:-$S/deps/ow2asm}
+if grep -q '^ow2asm ' deps.versions; then
+  a=$(dv ow2asm $OW2ASM_SRCS); asmdirs=$(for m in asm asm-tree asm-analysis asm-util asm-commons; do echo $a/$m/src/main/java/; done)
+else asmdirs=$(dv asm $ASM_SRCS)/; fi
+{ find $asmdirs -name '*.java' ! -name module-info.java
   find $SBTUTIL_SRC/internal/util-interface/src/main/java/ -name '*.java'
   find $ZINC_SRC/internal/compiler-interface/src/main/java/ $ZINC_SRC/internal/compiler-interface/src/main/contraband-java/ -name '*.java'
-  find $JLINE3_SRC/reader/src/main/java/ $JLINE3_SRC/terminal/src/main/java/ $([ -d $JLINE3_SRC/native/src/main/java ] && echo $JLINE3_SRC/native/src/main/java/) -name '*.java'
+  find $JLINE3_SRC/reader/src/main/java/ $JLINE3_SRC/terminal/src/main/java/ $([ -d $JLINE3_SRC/native/src/main/java ] && echo $JLINE3_SRC/native/src/main/java/) -name '*.java' ! -name module-info.java
 } > deps.files
-$J8/bin/javac -nowarn -encoding utf8 -d deps @deps.files > deps.log 2>&1 || { cat deps.log; exit 1; }
+# (dotty reads the Java classes of these fine, so for the compilers that need a newer JVM, javac 21: jline 4 wants 17)
+if [ $rel -le 8 ]; then jc="$J8/bin/javac"; else jc="$J/bin/javac --release $rel"; fi
+$jc -nowarn -encoding utf8 -d deps @deps.files > deps.log 2>&1 || { cat deps.log; exit 1; }
 for r in $JLINE3_SRC/reader/src/main/resources $JLINE3_SRC/terminal/src/main/resources; do [ -d $r ] && cp -r $r/. deps/; done
 
 # dotty-interfaces (Java)
@@ -85,7 +97,7 @@ if grep -qE '"-sourcepath", \((Compile / )?sourceDirectories' $bld; then srcpath
 else srcpath() { echo $TREE/library/src; }; fi
 compile -d lib0 -classpath $lcp $( [ $KIND = dotty ] && echo -sourcepath $(srcpath) $lopts ) @lib.files
 jl=$(grep '\.java$' lib.files || true)
-[ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib0:$lcp -d lib0 $jl
+[ -z "$jl" ] || $J/bin/javac -nowarn --release $rel -encoding utf8 -cp lib0:$lcp -d lib0 $jl
 [ ! -d refall ] || cp -rn refall/. lib0/
 
 # tasty-core (the TASTy format, its own project from 2019-12), by the reference compiler
@@ -100,7 +112,7 @@ fi
 mkdir -p comp
 { find $TREE/compiler/src $([ -d $TREE/compiler/src-non-bootstrapped ] && echo $TREE/compiler/src-non-bootstrapped) -name '*.scala' -o -name '*.java'
   if [ -d $TREE/compiler/src/dotty/tools/backend/sjs ]; then
-    irdirs=$(ls -d $SCALAJS_SRC/ir/src/main/scala $SCALAJS_SRC/ir/shared/src/main/scala $SCALAJS_SRC/ir/jvm/src/main/scala 2>/dev/null || true)
+    irdirs=$(ls -d $SCALAJS_SRC/ir/src/main/scala $SCALAJS_SRC/ir/shared/src/main/scala $SCALAJS_SRC/ir/shared/src/main/scala-2 $SCALAJS_SRC/ir/jvm/src/main/scala 2>/dev/null || true)
     # (from 2024-07 the build unpacks them as dotty.tools.sjs.ir)
     if grep -q '"org.scalajs.ir" => "dotty.tools.sjs.ir"' $bld; then
       python3 -I $T/dotty-sjsir sjsir $irdirs
@@ -111,9 +123,9 @@ v=$(sed -n 's/.*val baseVersion = "\([^"]*\)".*/\1/p' $bld | head -1)
 printf 'version.number=%s-bootstrap\nmaven.version.number=%s-bootstrap\ngit.hash=unknown\ncopyright.string=Copyright 2002-2019, LAMP/EPFL\n' $v $v > comp/compiler.properties
 echo "== compiler ($KIND)"
 [ ! -d $TREE/compiler/resources ] || cp -r $TREE/compiler/resources/. comp/
-compile -d comp -classpath lib0:tasty:interfaces:deps:$S2 @comp.files
+compile -d comp -classpath lib0:tasty:interfaces:deps:$S2 $(sed -n "s/^compopts //p" deps.versions) @comp.files
 cj=$(grep '\.java$' comp.files || true)
-[ -z "$cj" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp comp:lib0:tasty:interfaces:deps:$S2 -d comp $cj
+[ -z "$cj" ] || $J/bin/javac -nowarn --release $rel -encoding utf8 -cp comp:lib0:tasty:interfaces:deps:$S2 -d comp $cj
 
 # the library again, by the new compiler (src-bootstrapped: what only it compiles); TASTy
 # versions change between stages, so programs (and the next stage) need this one
@@ -124,5 +136,5 @@ echo "== library (new compiler)"
 $JAVA -cp comp:lib0:tasty:interfaces:deps:$RT2 dotty.tools.dotc.Main -nowarn -encoding UTF8 -language:existentials,higherKinds,implicitConversions \
   -d lib -classpath $S2B -sourcepath $(srcpath) $lopts $(sed -n 's/^libopts-boot //p' deps.versions) @lib2.files
 jl=$(grep '\.java$' lib2.files || true)
-[ -z "$jl" ] || $J/bin/javac -nowarn --release 8 -encoding utf8 -cp lib:$S2B -d lib $jl
+[ -z "$jl" ] || $J/bin/javac -nowarn --release $rel -encoding utf8 -cp lib:$S2B -d lib $jl
 echo "stage done"

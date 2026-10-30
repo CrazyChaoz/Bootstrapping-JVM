@@ -240,6 +240,10 @@
     "4905801fc161300ba20bae4f7adf045b1698e831" = "sha256-ud/2nwN+33R+ChtJtfkLK7UGd3/D6pTEThxl4ObKp10=";
     "9ecf74d42bcea9459a1734d7864544976f772ced" = "sha256-B2+bIefR/KDIaD/Q8SAq8HTbz6sZVHgL+LdxP2pe8/g=";
     "80514f73a6c7db32df9887d9a5ca9ae921e25118" = "sha256-3P8iVrWygjwX6DUQsIGFtoGeASyvj5xJLUSs0JXltJE=";
+    "a5270194b6eec9678a79e2f88a83d83aa6b92de1" = "sha256-WC5a1Muiyir6XdBolz8VtfBSacReONwTAdwsOvFgbew=";
+    "b6f70d2347f2857695e5c0fe544b0f921544b02a" = "sha256-kMDTOERRhYl/8Ykhb2HdWoMt5WuPxCTXka3/IqqS46g=";
+    "3f6bdaeafde17d790023cc3f299b81eaaf876ca3" = "sha256-Dkhx1yL8AgqxRdqM4ppj2dZxZlDsNVcXuFp0Cuu9RrM=";
+    "98f40d00ddcf59a802862d38a9fe79806cde59fa" = "sha256-EzmHbedQKVlyHqCgpsMsesiVsIhmPK+LOB/JN+hqckY=";
   };
   stages = [
     { name = "st1"; rev = "3b4e70e1bdf4dcf237d398157b13cbd941e1001e"; builder = "stage1.sh"; gen = "1"; }
@@ -478,5 +482,9 @@
     { name = "s224"; rev = "4905801fc161300ba20bae4f7adf045b1698e831"; builder = "stage2.sh"; gen = "29"; prev = "s223"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
     { name = "s225"; rev = "9ecf74d42bcea9459a1734d7864544976f772ced"; builder = "stage2.sh"; prev = "s224"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
     { name = "s226"; rev = "80514f73a6c7db32df9887d9a5ca9ae921e25118"; builder = "stage2.sh"; prev = "s225"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s227"; rev = "a5270194b6eec9678a79e2f88a83d83aa6b92de1"; builder = "stage2.sh"; prev = "s226"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s228"; rev = "b6f70d2347f2857695e5c0fe544b0f921544b02a"; builder = "stage2.sh"; prev = "s227"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s229"; rev = "3f6bdaeafde17d790023cc3f299b81eaaf876ca3"; builder = "stage2.sh"; prev = "s228"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
+    { name = "s230"; rev = "98f40d00ddcf59a802862d38a9fe79806cde59fa"; builder = "stage2.sh"; prev = "s229"; env = { PREDEF_KEEP = "1"; ARRAY_SRC = "1"; LIB_ONESTEP = "1"; JAVA_API = "1.8"; LIB_JAVA_AFTER = "1"; REFLECT_FIRST = "1"; }; }
   ];
 }
