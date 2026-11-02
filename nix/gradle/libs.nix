@@ -15,7 +15,7 @@
   jdk,
   java,
   antlr,
-  perl,
+  regexEdit,
   ncurses,
   callPackage,
   runCommand,
@@ -203,11 +203,11 @@ lib.fix (self: {
     pname = "asm";
     version = "9.10.1";
     src = asmSrc;
-    nativeBuildInputs = [ perl ];
+    nativeBuildInputs = [ regexEdit ];
     postPatch = ''
       sed -i '/api < Opcodes.ASM9/,/^    }/d' asm/src/main/java/org/objectweb/asm/ClassVisitor.java
       # (the pre-release API the compiler's own ASM fork was compiled with)
-      perl -0pi -e 's/(  public void visitPermittedSubclass)/  public void visitPermittedSubtypeExperimental(final String permittedSubclass) {\n    visitPermittedSubclass(permittedSubclass);\n  }\n\n$1/' asm/src/main/java/org/objectweb/asm/ClassVisitor.java
+      regex-edit '(  public void visitPermittedSubclass)' '  public void visitPermittedSubtypeExperimental(final String permittedSubclass) {\n    visitPermittedSubclass(permittedSubclass);\n  }\n\n\1' asm/src/main/java/org/objectweb/asm/ClassVisitor.java
     '';
     sourceDirs = [ "asm/src/main/java" ];
   };
@@ -456,10 +456,10 @@ lib.fix (self: {
     src = mvn "com.github.mwiede" "jsch" "0.2.16" "sha256-hlYwvTDC/oynWhRNtQoTGUTI/nCtgjBsE/O6AbXHPFo=";
     sourceDirs = [ "." ];
     useRelease = true;
-    nativeBuildInputs = [ perl ];
+    nativeBuildInputs = [ regexEdit ];
     postPatch = ''
       rm -rf META-INF/versions com/jcraft/jsch/JUnixSocketFactory.java com/jcraft/jsch/Log4j2Logger.java com/jcraft/jsch/PageantConnector.java
-      perl -0pi -e 's/try \{\s*return new JUnixSocketFactory\(\);.*?\n      \}\n    \}\n  \}/throw e;\n    }\n  }/s' com/jcraft/jsch/SSHAgentConnector.java
+      regex-edit '(?s)try \{\s*return new JUnixSocketFactory\(\);.*?\n      \}\n    \}\n  \}' 'throw e;\n    }\n  }' com/jcraft/jsch/SSHAgentConnector.java
     '';
     deps = [
       self.slf4j-api
@@ -669,11 +669,11 @@ lib.fix (self: {
       self.objenesis
     ];
     # sun.misc.Cleaner is gone since JDK 9
-    nativeBuildInputs = [ perl ];
+    nativeBuildInputs = [ regexEdit ];
     postPatch = ''
       f=src/com/esotericsoftware/kryo/util/UnsafeUtil.java
       sed -i -e '/^import sun.misc.Cleaner;/d' -e '/^import sun.nio.ch.DirectBuffer;/d' $f
-      perl -0pi -e 's/Object cleaner = \(\(DirectBuffer\) niobuffer\).cleaner\(\);\s*if\(cleaner != null\)\s*\(\(Cleaner\)cleaner\).clean\(\);/try { Object cleaner = niobuffer.getClass().getMethod("cleaner").invoke(niobuffer); if (cleaner != null) cleaner.getClass().getMethod("clean").invoke(cleaner); } catch (Exception e) { }/' $f
+      regex-edit 'Object cleaner = \(\(DirectBuffer\) niobuffer\).cleaner\(\);\s*if\(cleaner != null\)\s*\(\(Cleaner\)cleaner\).clean\(\);' 'try { Object cleaner = niobuffer.getClass().getMethod("cleaner").invoke(niobuffer); if (cleaner != null) cleaner.getClass().getMethod("clean").invoke(cleaner); } catch (Exception e) { }' $f
       grep -q 'getMethod("clean")' $f
     '';
     buildDeps = [ self.reflectasm ];

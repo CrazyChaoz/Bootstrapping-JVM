@@ -39,11 +39,12 @@ lib.fix (self: {
   # nixpkgs has no recipes for 9 and 10; ported from Guix.
   openjdk9 = old.openjdk9 self.openjdk8;
   openjdk10 = old.openjdk10 self.openjdk9;
-  # Built serially, like in Guix: otherwise the interim javac hits a
-  # ConcurrentModificationException reading the boot JDK's jrt filesystem.
+  # Built serially, like in Guix, and without the javac server (one JVM for all javac
+  # runs): otherwise javac hits a ConcurrentModificationException reading the boot JDK's
+  # jrt filesystem.
   openjdk11 = (mkOpenjdk "11" (asBootJdk self.openjdk10 "${self.openjdk10}")).overrideAttrs (o: {
     preConfigure = ''
-      configureFlags+=("--with-jobs=1")
+      configureFlags+=("--with-jobs=1" "--disable-javac-server")
     '';
   });
   openjdk12 = old.openjdk12 self.openjdk11;

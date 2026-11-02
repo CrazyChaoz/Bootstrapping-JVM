@@ -8,7 +8,8 @@
   ant,
   zip,
   unzip,
-  perl,
+  python3,
+  regexEdit,
   kotlinSources,
   javaLib,
 }:
@@ -65,7 +66,8 @@ let
         ant
         zip
         unzip
-        perl
+        python3
+        regexEdit
       ];
 
       configurePhase = ''

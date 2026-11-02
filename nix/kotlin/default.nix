@@ -76,19 +76,20 @@ let
         '';
         # 'level' should work even for targets enabling 'compress'
         fix-jar-task = ''
-          perl -pi -e 's/<(jar|jarjar) /<$1 level="0" modificationtime="0" /g' build.xml
+          regex-edit --lines --all '<(jar|jarjar) ' '<\1 level="0" modificationtime="0" ' build.xml
         '';
+        # (the names of several versions: each one only where present)
         remove-targets = ''
           for t in android-compiler-plugin androidSdkAnnotations android-sdk-annotations compilerSources \
                    compiler-sources daemon-client j2kConverter jslib runtime_sources; do
-            perl -pi -e "s/,$t(,|\")/\$1/g" build.xml
+            regex-edit --lines --all --optional ",$t(,|\")" '\1' build.xml
           done
         '';
         # fix non-deterministic bytecode generation caused by random iteration
         # order of basic hash maps and sets
         fix-value-order = ''
           find . -type f \( -name '*.java' -o -name '*.kt' \) -print0 \
-            | xargs -0 perl -pi -e 's/([^_[:alnum:]]|new)Hash(Map|Set)/$1LinkedHash$2/g'
+            | xargs -0 regex-edit --lines --all --optional '([^_A-Za-z0-9]|new)Hash(Map|Set)' '\1LinkedHash\2'
           find . -depth -type f -regextype posix-extended -regex '.*/(|.*[^_[:alnum:]]|new)Hash(Map|Set)[^/]*' -print \
             | while read -r f; do
                 d=$(dirname "$f"); b=$(basename "$f")
@@ -96,14 +97,13 @@ let
               done
         '';
         disable-classpath-from-env = ''
-          perl -0pi -e 's/(<project[^>]+>)/$1<property name="build.sysclasspath" value="ignore"\/>/' build.xml
+          regex-edit '(<project[^>]+>)' '\1<property name="build.sysclasspath" value="ignore"/>' build.xml
         '';
         update-asm = ''
-          find . -type f \( -name '*.java' -o -name '*.kt' \) -print0 | xargs -0 perl -pi -e '
-            s/([^[:alnum:]])org\.jetbrains\.asm4([^[:alnum:]])/$1org.jetbrains.org.objectweb.asm$2/g;
-            s/(new InstructionAdapter\()(.+\)\s+\{\s*)$/$1org.jetbrains.org.objectweb.asm.Opcodes.ASM4, $2/;
-            s/(new MethodNode\()(.+\)\s+\{\s*)$/$1org.jetbrains.org.objectweb.asm.Opcodes.ASM4, $2/;
-          '
+          srcs() { find . -type f \( -name '*.java' -o -name '*.kt' \) -print0; }
+          srcs | xargs -0 regex-edit --lines --all --optional '([^A-Za-z0-9])org\.jetbrains\.asm4([^A-Za-z0-9])' '\1org.jetbrains.org.objectweb.asm\2'
+          srcs | xargs -0 regex-edit --lines --optional '(new InstructionAdapter\()(.+\)\s+\{\s*)$' '\1org.jetbrains.org.objectweb.asm.Opcodes.ASM4, \2'
+          srcs | xargs -0 regex-edit --lines --optional '(new MethodNode\()(.+\)\s+\{\s*)$' '\1org.jetbrains.org.objectweb.asm.Opcodes.ASM4, \2'
         '';
         # build.xml expects exact file names in dependencies directory
         prepare-ant-lib = ''
@@ -722,7 +722,7 @@ let
           grep -rlE '::(Js|Jvm)MetadataVersion\)' build-common/src | xargs sed -i -E 's/\?\.let\(::(Js|Jvm)MetadataVersion\)/?.let { \1MetadataVersion(*it) }/'
           # references to inline library functions crash codegen with -Xnew-inference
           grep -rlE '\((Collection|List|Map|Array|Iterable|CharSequence|String)(<[^>()]*>)?::\w+\)' core compiler build-common js --include=*.kt \
-            | xargs perl -pi -e 's/\.(takeIf|takeUnless|filter|filterNot|dropLastWhile|use)\((?:Collection|List|Map|Array|Iterable|CharSequence|String)(?:<[^>()]*>)?::(\w+)\)/.$1 { it.$2() }/g'
+            | xargs regex-edit --lines --all '\.(takeIf|takeUnless|filter|filterNot|dropLastWhile|use)\((?:Collection|List|Map|Array|Iterable|CharSequence|String)(?:<[^>()]*>)?::(\w+)\)' '.\1 { it.\2() }'
         '')
         (addLast "kotlin-annotations-jvm" ''
           mkdir -p build/annotations-jvm lib
@@ -760,20 +760,56 @@ let
           # unsigned types are 1.3 API (the compiler is compiled as Kotlin 1.2)
           sed -i -e 's/-> UByte.MAX_VALUE.toLong()/-> 0xFFL/' -e 's/-> UShort.MAX_VALUE.toLong()/-> 0xFFFFL/' -e 's/-> UInt.MAX_VALUE.toLong()/-> 0xFFFFFFFFL/' \
             core/descriptors/src/org/jetbrains/kotlin/resolve/constants/IntegerValueTypeConstructor.kt
-          perl -0pi -e 's/sequence \{(.*?)\}\.toList\(\)/my $b = $1; $b =~ s#\byield\(#add(#g; "mutableListOf<ModuleDescriptorImpl>().apply {$b}"/se' \
-            compiler/frontend/src/org/jetbrains/kotlin/analyzer/AnalyzerFacade.kt
           f=compiler/frontend/src/org/jetbrains/kotlin/types/expressions/DoubleColonExpressionResolver.kt
-          perl -0pi -e 's/val resultSequence = sequence \{(.*?)(\n *\/\/ TODO: Maybe it makes sense)/my ($b, $t) = ($1, $2); $b =~ s#return\@sequence#return\@apply#g; $b =~ s#yieldIfNotNull(\((?:[^()]++|(?1))*\))#add { $1 }#g; "val resultSequence = mutableListOf<() -> ResolutionResultsAndTraceCommitCallback?>().apply {$b$t"/se; s/for \(result in resultSequence\) \{/for (thunk in resultSequence) {\n            val result = thunk() ?: continue/' $f
+          python3 - compiler/frontend/src/org/jetbrains/kotlin/analyzer/AnalyzerFacade.kt $f <<'PY'
+          import re, sys
+
+          def edit(path, f):
+              s = open(path, encoding="latin-1").read()
+              open(path, "w", encoding="latin-1").write(f(s))
+
+          def balanced(s, i):  # the end of the parenthesized group at s[i] == "("
+              depth = 0
+              for j in range(i, len(s)):
+                  depth += {"(": 1, ")": -1}.get(s[j], 0)
+                  if depth == 0:
+                      return j + 1
+              raise ValueError("unbalanced")
+
+          # sequence { ... yield(x) ... }.toList()  ->  mutableListOf<...>().apply { ... add(x) ... }
+          def facade(s):
+              m = re.search(r"sequence \{(.*?)\}\.toList\(\)", s, re.S)
+              body = re.sub(r"\byield\(", "add(", m.group(1))
+              return s[: m.start()] + "mutableListOf<ModuleDescriptorImpl>().apply {" + body + "}" + s[m.end() :]
+
+          # the sequence of resolution results becomes a list of thunks, computed in the loop
+          def resolver(s):
+              m = re.search(r"val resultSequence = sequence \{(.*?)(\n *// TODO: Maybe it makes sense)", s, re.S)
+              body = m.group(1).replace("return@sequence", "return@apply")
+              out, i = [], 0
+              for y in re.finditer(r"yieldIfNotNull(?=\()", body):
+                  if y.start() < i:
+                      continue
+                  end = balanced(body, y.end())
+                  out += [body[i : y.start()], "add { ", body[y.end() : end], " }"]
+                  i = end
+              body = "".join(out) + body[i:]
+              s = s[: m.start()] + "val resultSequence = mutableListOf<() -> ResolutionResultsAndTraceCommitCallback?>().apply {" + body + m.group(2) + s[m.end() :]
+              return s.replace("for (result in resultSequence) {", "for (thunk in resultSequence) {\n            val result = thunk() ?: continue", 1)
+
+          edit(sys.argv[1], facade)
+          edit(sys.argv[2], resolver)
+          PY
           grep -q 'thunk()' $f
           ! grep -n 'sequence {' compiler/frontend/src/org/jetbrains/kotlin/analyzer/AnalyzerFacade.kt $f
           # no kotlinx.coroutines: block on the experimental coroutine
           f=compiler/frontend.script/src/org/jetbrains/kotlin/script/AsyncDependencyResolverWrapper.kt
           sed -i 's|^import kotlinx.coroutines.runBlocking|import kotlin.coroutines.experimental.*|' $f
-          perl -0pi -e 's/\)\: DependenciesResolver\.ResolveResult\s*= runBlocking \{ (delegate\.resolveAsync\(scriptContents, environment\)) \}/): DependenciesResolver.ResolveResult {
+          regex-edit '(?s)\)\: DependenciesResolver\.ResolveResult\s*= runBlocking \{ (delegate\.resolveAsync\(scriptContents, environment\)) \}' '): DependenciesResolver.ResolveResult {
                   val latch = java.util.concurrent.CountDownLatch(1)
                   var res: DependenciesResolver.ResolveResult? = null
                   var error: Throwable? = null
-                  val block: suspend () -> DependenciesResolver.ResolveResult = { $1 }
+                  val block: suspend () -> DependenciesResolver.ResolveResult = { \1 }
                   block.startCoroutine(object : Continuation<DependenciesResolver.ResolveResult> {
                       override val context: CoroutineContext get() = EmptyCoroutineContext
                       override fun resume(value: DependenciesResolver.ResolveResult) { res = value; latch.countDown() }
@@ -782,7 +818,7 @@ let
                   latch.await()
                   error?.let { throw it }
                   return res!!
-              }/s' $f
+              }' $f
           ! grep -n runBlocking $f
           # 1.3.0's effect system takes a local `fun equals(other: Any?)` for Any.equals (crash)
           sed -i -e 's/    fun equals(other: Any?): Boolean =/    fun equalsImpl(other: Any?): Boolean =/' -e 's/-> equals(args.single())/-> equalsImpl(args.single())/' \
@@ -798,16 +834,16 @@ let
           # no kotlinx.coroutines: block on the coroutine
           f=compiler/frontend.script/src/org/jetbrains/kotlin/script/AsyncDependencyResolverWrapper.kt
           sed -i 's|^import kotlinx.coroutines.runBlocking|import kotlin.coroutines.*|' $f
-          perl -0pi -e 's/\)\: DependenciesResolver\.ResolveResult\s*= runBlocking \{ (delegate\.resolveAsync\(scriptContents, environment\)) \}/): DependenciesResolver.ResolveResult {
+          regex-edit '(?s)\)\: DependenciesResolver\.ResolveResult\s*= runBlocking \{ (delegate\.resolveAsync\(scriptContents, environment\)) \}' '): DependenciesResolver.ResolveResult {
                   val latch = java.util.concurrent.CountDownLatch(1)
                   var res: DependenciesResolver.ResolveResult? = null
                   var error: Throwable? = null
-                  val block: suspend () -> DependenciesResolver.ResolveResult = { $1 }
+                  val block: suspend () -> DependenciesResolver.ResolveResult = { \1 }
                   block.startCoroutine(Continuation(EmptyCoroutineContext) { r -> r.fold({ res = it }, { error = it }); latch.countDown() })
                   latch.await()
                   error?.let { throw it }
                   return res!!
-              }/s' $f
+              }' $f
           ! grep -n runBlocking $f
           # the effect system takes a local `fun equals(other: Any?)` for Any.equals (crash)
           sed -i -e 's/    fun equals(other: Any?): Boolean =/    fun equalsImpl(other: Any?): Boolean =/' -e 's/-> equals(args.single())/-> equalsImpl(args.single())/' \
@@ -871,7 +907,7 @@ let
           sed -i 's|<arg value="-Xuse-experimental=kotlin.contracts.ExperimentalContracts"/>|&\n            <arg value="-Xcommon-sources=libraries/kotlin.test/annotations-common/src/main/kotlin,libraries/kotlin.test/common/src/main/kotlin"/>|' build.xml
           sed -i 's|<fileset dir="idea/src">|<fileset dir="idea/resources">|' build.xml
           # kotlin-reflect.jar
-          perl -pi -e 's|^(\s*)<fileset dir="\$\{basedir\}/(core/[^"/]+)/src" includes="META-INF/services/\*\*"/>|$&\n$1<fileset dir="\$\{basedir\}/$2/resources" includes="META-INF/services/**"/>|' build.xml
+          regex-edit --lines '^(\s*)<fileset dir="\$\{basedir\}/(core/[^"/]+)/src" includes="META-INF/services/\*\*"/>' '\g<0>\n\1<fileset dir="''${basedir}/\2/resources" includes="META-INF/services/**"/>' build.xml
         '')
       ];
       inputs =
@@ -1187,22 +1223,25 @@ let
         '')
         (addLast "mixed-named-args" ''
           # 1.4 language feature "named arguments in their own position" is not known to the 1.3.61 compiler: drop the names
-          d() { perl -0pi -e "$1" "$2"; }
-          d 's/shouldCheckExpectActual = false,(\s+dependenciesContainer)/false,$1/' compiler/cli/cli-common/src/org/jetbrains/kotlin/analyzer/common/CommonResolverForModuleFactory.kt
+          # (carried forward: not every version has every call, or every file)
+          regex-edit --optional 'shouldCheckExpectActual = false,(\s+dependenciesContainer)' 'false,\1' compiler/cli/cli-common/src/org/jetbrains/kotlin/analyzer/common/CommonResolverForModuleFactory.kt
           f=compiler/fir/lightTree/src/org/jetbrains/kotlin/fir/lightTree/converter/DeclarationsConverter.kt
-          d 's/source = null,(\s+ConeClassLikeTypeImpl\()/null,$1/; s/member = (false|parentNode\?\.tokenType != KT_FILE), stubMode/$1, stubMode/g' $f
+          regex-edit --optional 'source = null,(\s+ConeClassLikeTypeImpl\()' 'null,\1' $f
+          regex-edit --optional --all 'member = (false|parentNode\?\.tokenType != KT_FILE), stubMode' '\1, stubMode' $f
           f=compiler/fir/psi2fir/src/org/jetbrains/kotlin/fir/builder/RawFirBuilder.kt
-          d 's/member = (false|!property\.isTopLevel), stubMode/$1, stubMode/g' $f
+          regex-edit --optional --all 'member = (false|!property\.isTopLevel), stubMode' '\1, stubMode' $f
           f=compiler/fir/resolve/src/org/jetbrains/kotlin/fir/FirCallResolver.kt
-          d 's/explicitReceiver = null,(\s+delegatedConstructorCall\.arguments,\s+)isSafeCall = false,(\s+)typeArguments = typeArguments,/null,$1false,$2typeArguments,/; s/dispatchReceiverValue = null,(\s+)implicitExtensionReceiverValue = null,(\s+ExplicitReceiverKind)/null,$1null,$2/' $f
+          regex-edit --optional 'explicitReceiver = null,(\s+delegatedConstructorCall\.arguments,\s+)isSafeCall = false,(\s+)typeArguments = typeArguments,' 'null,\1false,\2typeArguments,' $f
+          regex-edit --optional 'dispatchReceiverValue = null,(\s+)implicitExtensionReceiverValue = null,(\s+ExplicitReceiverKind)' 'null,\1null,\2' $f
           f=compiler/fir/resolve/src/org/jetbrains/kotlin/fir/scopes/impl/FirIntegerLiteralTypeScope.kt
-          d 's/source = null,(\s+session,)/null,$1/g; s/receiverTypeRef = null,(\s+ALL_OPERATORS)/null,$1/' $f
-          d 's/isErrorTypeEqualsToAnything = false, isStubTypeEqualsToAnything = false, /false, false, /' compiler/fir/resolve/src/org/jetbrains/kotlin/fir/scopes/impl/FirSuperTypeScope.kt
-          d 's/isErrorTypeEqualsToAnything = false, isStubTypeEqualsToAnything = false, /false, false, /' compiler/fir/resolve/src/org/jetbrains/kotlin/fir/SessionUtils.kt
-          d 's/argumentName = null,(\s+outerCallContext)/null,$1/' compiler/frontend/src/org/jetbrains/kotlin/resolve/calls/tower/KotlinResolutionCallbacksImpl.kt
-          d 's/forceToSkipNullabilityAnnotation = false,(\s+methodIndex\n    \))/false,$1/' compiler/light-classes/src/org/jetbrains/kotlin/asJava/classes/ultraLightMethods.kt
-          d 's/hasBoundExtensionReceiver = (candidate\.extensionReceiver != null,)/$1/' compiler/resolution/src/org/jetbrains/kotlin/resolve/calls/components/CallableReferenceResolver.kt
-          d 's/topLevelType = null, context/null, context/' compiler/resolution/src/org/jetbrains/kotlin/resolve/calls/inference/components/VariableFixationFinder.kt
+          regex-edit --optional --all 'source = null,(\s+session,)' 'null,\1' $f
+          regex-edit --optional 'receiverTypeRef = null,(\s+ALL_OPERATORS)' 'null,\1' $f
+          regex-edit --optional 'isErrorTypeEqualsToAnything = false, isStubTypeEqualsToAnything = false, ' 'false, false, ' compiler/fir/resolve/src/org/jetbrains/kotlin/fir/scopes/impl/FirSuperTypeScope.kt
+          regex-edit --optional 'isErrorTypeEqualsToAnything = false, isStubTypeEqualsToAnything = false, ' 'false, false, ' compiler/fir/resolve/src/org/jetbrains/kotlin/fir/SessionUtils.kt
+          regex-edit --optional 'argumentName = null,(\s+outerCallContext)' 'null,\1' compiler/frontend/src/org/jetbrains/kotlin/resolve/calls/tower/KotlinResolutionCallbacksImpl.kt
+          regex-edit --optional 'forceToSkipNullabilityAnnotation = false,(\s+methodIndex\n    \))' 'false,\1' compiler/light-classes/src/org/jetbrains/kotlin/asJava/classes/ultraLightMethods.kt
+          regex-edit --optional 'hasBoundExtensionReceiver = (candidate\.extensionReceiver != null,)' '\1' compiler/resolution/src/org/jetbrains/kotlin/resolve/calls/components/CallableReferenceResolver.kt
+          regex-edit --optional 'topLevelType = null, context' 'null, context' compiler/resolution/src/org/jetbrains/kotlin/resolve/calls/inference/components/VariableFixationFinder.kt
         '')
         (ops.replace "sdk-asm" ''
           for f in ideaSDK/core/asm-6.0.jar ideaSDK/core/asm-all*.jar; do
@@ -1357,7 +1396,7 @@ let
           # META-INF/compiler.version, read by KotlinCompilerVersion
           mkdir -p compiler/compiler.version/resources/META-INF
           echo -n "1.4.0-bootstrap" > compiler/compiler.version/resources/META-INF/compiler.version
-          perl -0pi -e 's|(\n(\s*)<fileset dir="\$\{basedir\}/[^"]*" includes="META-INF/services/\*\*"[^>]*/>)|\n$2<fileset dir="\$\{basedir\}/compiler/compiler.version/resources" includes="META-INF/compiler.version"/>$1|' build.xml
+          regex-edit '(\n(\s*)<fileset dir="\$\{basedir\}/[^"]*" includes="META-INF/services/\*\*"[^>]*/>)' '\n\2<fileset dir="''${basedir}/compiler/compiler.version/resources" includes="META-INF/compiler.version"/>\1' build.xml
           grep -q 'compiler.version/resources' build.xml
         '')
       ];
@@ -1372,7 +1411,8 @@ let
         (addLast "stdlib-jdk8-types" ''
           # upstream compiles this against JDK 6 (no Type.getTypeName, no AnnotatedElement in TypeVariable)
           f=libraries/stdlib/jvm/src/kotlin/reflect/TypesJVM.kt
-          perl -0pi -e 's|(private interface TypeImpl : Type \{\n[^\n]*\n)    fun getTypeName\(\): String|$1    override fun getTypeName(): String|; s|(    override fun getBounds\(\): Array<Type> = [^\n]*\n)|$1\n    override fun <T : Annotation?> getAnnotation(annotationClass: Class<T>): T? = null\n    override fun getAnnotations(): Array<Annotation> = emptyArray()\n    override fun getDeclaredAnnotations(): Array<Annotation> = emptyArray()\n    override fun getAnnotatedBounds(): Array<java.lang.reflect.AnnotatedType> = emptyArray()\n|' $f
+          regex-edit '(private interface TypeImpl : Type \{\n[^\n]*\n)    fun getTypeName\(\): String' '\1    override fun getTypeName(): String' $f
+          regex-edit '(    override fun getBounds\(\): Array<Type> = [^\n]*\n)' '\1\n    override fun <T : Annotation?> getAnnotation(annotationClass: Class<T>): T? = null\n    override fun getAnnotations(): Array<Annotation> = emptyArray()\n    override fun getDeclaredAnnotations(): Array<Annotation> = emptyArray()\n    override fun getAnnotatedBounds(): Array<java.lang.reflect.AnnotatedType> = emptyArray()\n' $f
           grep -q getAnnotatedBounds $f
         '')
         (addLast "api-1.4" ''
@@ -1438,7 +1478,7 @@ let
         (ops.replace "compiler-dirs" (compilerDirs dirs1432))
         (addLast "extensions-xml" ''
           # META-INF/extensions/compiler.xml: without it the packed compiler only works from a source checkout
-          perl -0pi -e 's|(\n(\s*)<fileset dir="\$\{basedir\}/compiler/compiler.version/resources" includes="META-INF/compiler.version"/>)|\n$2<fileset dir="\$\{basedir\}/compiler/cli/cli-common/resources" includes="META-INF/extensions/**"/>$1|' build.xml
+          regex-edit '(\n(\s*)<fileset dir="\$\{basedir\}/compiler/compiler.version/resources" includes="META-INF/compiler.version"/>)' '\n\2<fileset dir="''${basedir}/compiler/cli/cli-common/resources" includes="META-INF/extensions/**"/>\1' build.xml
           grep -q 'META-INF/extensions' build.xml
         '')
         (addLast "core-deserialization-common" ''
@@ -1456,7 +1496,7 @@ let
         # SDK 202 API in the sources, SDK 201 is what we have
         # 1.5 dropped the experimental-coroutines stdlib; keep the (empty) target so later targets still work
         (addLast "no-experimental-coroutines" ''
-          perl -0pi -e 's|(<target name="stdlib">).*?(</target>)|$1<mkdir dir="\$\{output\}/classes/stdlib"/>$2|s' build.xml
+          regex-edit '(?s)(<target name="stdlib">).*?(</target>)' '\1<mkdir dir="''${output}/classes/stdlib"/>\2' build.xml
           grep -q 'name="stdlib"><mkdir' build.xml
         '')
         (addLast "compiler-version-150" ''
@@ -1473,9 +1513,9 @@ let
                    compiler/ir/backend.common/src/org/jetbrains/kotlin/backend/common/lower/loops/ProgressionType.kt \
                    compiler/ir/serialization.common/src/org/jetbrains/kotlin/backend/common/serialization/CityHash.kt; do
             if grep -q '^@file:Suppress(' $f; then
-              perl -0pi -e 's/^\@file:Suppress\(/\@file:Suppress("API_NOT_AVAILABLE", /m' $f
+              regex-edit '(?m)^@file:Suppress\(' '@file:Suppress("API_NOT_AVAILABLE", ' $f
             else
-              perl -0pi -e 's/^package /\@file:Suppress("API_NOT_AVAILABLE")\npackage /m' $f
+              regex-edit '(?m)^package ' '@file:Suppress("API_NOT_AVAILABLE")\npackage ' $f
             fi
             grep -q 'API_NOT_AVAILABLE' $f
           done
@@ -1598,8 +1638,11 @@ let
         # upstream fixed the IrDeclarationOrigin initialization cycle itself
         (ops.delete "origin-init-cycle")
         (ops.replace "context-before-annotations" ''
+          # an annotation line (arguments nested up to three deep), a context list line
+          ann='^[ \t]*@[A-Za-z][\w.]*(?:\((?:[^()]|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))*\))?[ \t]*\n'
+          ctx='^[ \t]*context\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)[ \t]*\n'
           for f in $(grep -rlE '^[ \t]*context\(' --include=*.kt compiler core js native wasm analysis | grep -v testData); do
-            perl -0pi -e 'my $ann = qr/^[ \t]*\@[A-Za-z][\w.]*(?:\((?:[^()]|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))*\))?[ \t]*\n/m; my $ctx = qr/^[ \t]*context\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)[ \t]*\n/m; s/((?:$ann)+)($ctx)/$2$1/g' $f
+            regex-edit --all --optional "(?m)((?:$ann)+)($ctx)" '\2\1' $f
           done
           grep -q 'context(context: DiagnosticContext)' compiler/frontend.common/src/org/jetbrains/kotlin/diagnostics/KtDiagnosticReportHelpers.kt
         '')
@@ -1636,7 +1679,8 @@ let
                     rm compiler/cli/cli-base/src/com/intellij/mock/MockProject.kt
                     rm compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/DumbJavaModuleGraphHelper.java compiler/cli/src/com/intellij/openapi/progress/impl/CoreProgressManager.java
                     f=compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreApplicationEnvironment.kt
-                    perl -0pi -e 's/        if \(application\.getService\(JavaModuleGraphHelper::class\.java\) == null\) \{\n.*?\n        \}\n//s; s/^import com\.intellij\.psi\.JavaModuleGraphHelper\n//m' $f
+                    regex-edit '(?s)        if \(application\.getService\(JavaModuleGraphHelper::class\.java\) == null\) \{\n.*?\n        \}\n' "" $f
+                    regex-edit '(?m)^import com\.intellij\.psi\.JavaModuleGraphHelper\n' "" $f
                     f=compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreEnvironment.kt
                     sed -i '/PsiJavaModuleModificationTracker/d' $f
                     if grep -q 'JavaModuleGraphHelper' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreApplicationEnvironment.kt; then exit 1; fi
@@ -1705,11 +1749,14 @@ let
         # types instead), `return` in expression bodies, and the CRI (needs the kotlinx.serialization plugin)
         (addLast "api-24-fixes-2" ''
           f=compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/IncrementalJvmCompilerRunnerBase.kt
-          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.buildtools\.internal\.cri\.CriDataSerializerImpl\n//m; s/(        reporter\.info \{ "Generating Compiler Reference Index\.\.\." \}\n)\n        val serializer = CriDataSerializerImpl\(\).*?(\n    \}\n\}\s*)\z/$1$2/s' $f
+          regex-edit '(?m)^import org\.jetbrains\.kotlin\.buildtools\.internal\.cri\.CriDataSerializerImpl\n' "" $f
+          regex-edit '(?s)(        reporter\.info \{ "Generating Compiler Reference Index\.\.\." \}\n)\n        val serializer = CriDataSerializerImpl\(\).*?(\n    \}\n\}\s*)\Z' '\1\2' $f
           if grep -q CriDataSerializerImpl $f; then exit 1; fi
           sed -i 's|Map<KtSourceFile?, List<KtDiagnostic>>$|Map<KtSourceFile?, MutableList<KtDiagnostic>>|' compiler/frontend.common/src/org/jetbrains/kotlin/diagnostics/impl/DiagnosticsCollectorImpl.kt
           f=compiler/cli/cli-metadata/src/org/jetbrains/kotlin/cli/metadata/K1MetadataKlibSerializer.kt
-          perl -0pi -e 's/    override val moduleInfos: List<ModuleInfo>\n        field = /    private val klibModuleInfos = /; s/(    override val friendModuleInfos)/    override val moduleInfos: List<ModuleInfo> get() = klibModuleInfos\n\n$1/; s/= moduleInfos\.filter/= klibModuleInfos.filter/g' $f
+          regex-edit '    override val moduleInfos: List<ModuleInfo>\n        field = ' '    private val klibModuleInfos = ' $f
+          regex-edit '(    override val friendModuleInfos)' '    override val moduleInfos: List<ModuleInfo> get() = klibModuleInfos\n\n\1' $f
+          regex-edit --all '= moduleInfos\.filter' '= klibModuleInfos.filter' $f
           grep -q 'private val klibModuleInfos' $f
           for f in \
             compiler/fir/checkers/src/org/jetbrains/kotlin/fir/analysis/checkers/config/ComposedLanguageVersionSettingsCheckers.kt \
@@ -1719,7 +1766,7 @@ let
             compiler/frontend.common/src/org/jetbrains/kotlin/diagnostics/impl/DiagnosticsCollectorImpl.kt \
             compiler/util-klib-metadata/src/org/jetbrains/kotlin/library/metadata/resolver/impl/KotlinResolvedLibraryImpl.kt
           do
-            perl -0pi -e 's/^(\s*(?:override )?val \w+: )(List|Set|Map)<([^\n]*)>\n\s+field = /$1Mutable$2<$3> = /mg' $f
+            regex-edit --all '(?m)^(\s*(?:override )?val \w+: )(List|Set|Map)<([^\n]*)>\n\s+field = ' '\1Mutable\2<\3> = ' $f
             if grep -q '^\s*field = ' $f; then exit 1; fi
           done
           sed -i 's|    protected fun mangleTypeArguments(tBuilder: StringBuilder, type: Type, declarationSiteSession: Session) =|    protected fun mangleTypeArguments(tBuilder: StringBuilder, type: Type, declarationSiteSession: Session): Unit =|' compiler/ir/serialization.common/src/org/jetbrains/kotlin/backend/common/serialization/mangle/BaseKotlinMangleComputer.kt
@@ -1781,7 +1828,7 @@ let
         '')
         # KParameter.Kind.CONTEXT is not in the bootstrap's stdlib; api 2.2 makes toLowerCase an error
         (addLast "api-22-fixes" ''
-          perl -0pi -e 's|\s*// Can.t use `\@OptIn.*?KParameter\.Kind\.CONTEXT,\s*-> append\("context parameter \$\{irParameter\.name\}"\)||s' compiler/ir/ir.interpreter/src/org/jetbrains/kotlin/ir/interpreter/state/reflection/KParameterState.kt
+          regex-edit '(?s)\s*// Can.t use `@OptIn.*?KParameter\.Kind\.CONTEXT,\s*-> append\("context parameter \$\{irParameter\.name\}"\)' "" compiler/ir/ir.interpreter/src/org/jetbrains/kotlin/ir/interpreter/state/reflection/KParameterState.kt
           if grep -q 'Kind.CONTEXT' compiler/ir/ir.interpreter/src/org/jetbrains/kotlin/ir/interpreter/state/reflection/KParameterState.kt; then exit 1; fi
           sed -i 's|this?.toLowerCase()|this?.lowercase()|' native/utils/src/org/jetbrains/kotlin/konan/target/Configurables.kt
           grep -rl '^import com.intellij.psi.util.elementType$' compiler --include=*.kt | grep -v psiUtil/psiUtils.kt | xargs -r sed -i 's|^import com.intellij.psi.util.elementType$|import org.jetbrains.kotlin.psi.psiUtil.elementType|'
@@ -1797,7 +1844,7 @@ let
         # the Ant tasks were dropped from the Kotlin repository in 2.3; the build still drives its own `kotlinc` Ant task
         # (runner, daemon-client) from the bootstrap's kotlin-ant.jar, so hand that jar on
         (addLast "no-ant-tools" ''
-          perl -0pi -e 's|<target name="ant-tools">.*?</target>|<target name="ant-tools"><copy file="\$\{bootstrap.compiler.home\}/lib/kotlin-ant.jar" todir="\$\{kotlin-home\}/lib"/></target>|s' build.xml
+          regex-edit '(?s)<target name="ant-tools">.*?</target>' '<target name="ant-tools"><copy file="''${bootstrap.compiler.home}/lib/kotlin-ant.jar" todir="''${kotlin-home}/lib"/></target>' build.xml
           grep -q 'target name="ant-tools"><copy' build.xml
         '')
         # the 2.3 stdlib uses @IgnorableReturnValue (see libraries/stdlib/build.gradle.kts)
@@ -1823,7 +1870,7 @@ let
           printf '\nprivate inline fun <reified T> Any?.asSafely(): T? = this as? T\n' >> $f
           grep -rl 'import com.intellij.util.containers.addIfNotNull' compiler | xargs -r sed -i 's|^import com.intellij.util.containers.addIfNotNull$|import org.jetbrains.kotlin.utils.addIfNotNull|'
           sed -i 's|^private val PsiElement?.elementType|val PsiElement?.elementType|' compiler/psi/src/org/jetbrains/kotlin/psi/psiUtil/psiUtils.kt
-          perl -0pi -e 's|/\*\*\n \* The containing symbol is resolved using the declaration-site session.*?\n    \}\n\n||s' compiler/fir/resolve/src/org/jetbrains/kotlin/fir/resolve/ResolveUtils.kt
+          regex-edit '(?s)/\*\*\n \* The containing symbol is resolved using the declaration-site session.*?\n    \}\n\n' "" compiler/fir/resolve/src/org/jetbrains/kotlin/fir/resolve/ResolveUtils.kt
           if grep -q 'fun FirCallableDeclaration.getContainingClass' compiler/fir/resolve/src/org/jetbrains/kotlin/fir/resolve/ResolveUtils.kt; then exit 1; fi
         '')
         (ops.replace "new-inference" ''
@@ -1921,8 +1968,11 @@ let
         '')
         # the 2.1.20 parser only accepts a context list in front of the annotations of a declaration
         (addLast "context-before-annotations" ''
+          # an annotation line (arguments nested up to three deep), a context list line
+          ann='^[ \t]*@[A-Za-z][\w.]*(?:\((?:[^()]|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))*\))?[ \t]*\n'
+          ctx='^[ \t]*context\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)[ \t]*\n'
           for f in $(grep -rlE '^[ \t]*context\(' --include=*.kt compiler core js native wasm analysis | grep -v testData); do
-            perl -0pi -e 'my $ann = qr/^[ \t]*\@[A-Za-z][\w.]*(?:\((?:[^()]|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))*\))?[ \t]*\n/m; my $ctx = qr/^[ \t]*context\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)[ \t]*\n/m; s/((?:$ann)+)($ctx)/$2$1/g' $f
+            regex-edit --all --optional "(?m)((?:$ann)+)($ctx)" '\2\1' $f
           done
           grep -q 'context(_: DiagnosticContext)' compiler/frontend.common/src/org/jetbrains/kotlin/diagnostics/KtDiagnosticReportHelpers.kt
           if grep -B1 -A0 'context(_: DiagnosticContext)' compiler/frontend.common/src/org/jetbrains/kotlin/diagnostics/KtDiagnosticReportHelpers.kt | grep -q '^)'; then exit 1; fi
@@ -1932,7 +1982,7 @@ let
                     sed -i 's|Opcodes.ASM9|Opcodes.ASM8|' build-common/src/org/jetbrains/kotlin/incremental/impl/InstanceOwnerRecordingClassVisitor.kt
                     f=compiler/cli/src/org/jetbrains/kotlin/cli/common/utils.kt
                     sed -i '/^import com.intellij.openapi.application.runWriteAction$/d; s|^        runWriteAction {$|        ApplicationManager.getApplication().runWriteAction(Runnable {|' $f
-                    perl -0pi -e 's/(runWriteAction\(Runnable \{\n\s*Disposer\.dispose\(disposable\)\n\s*\})/$1)/' $f
+                    regex-edit '(runWriteAction\(Runnable \{\n\s*Disposer\.dispose\(disposable\)\n\s*\})' '\1)' $f
                     sed -i 's|collectSources(configuration, projectEnvironment, messageCollector)|collectSources(configuration, projectEnvironment.project, messageCollector)|' compiler/cli/src/org/jetbrains/kotlin/cli/pipeline/metadata/MetadataFrontendPipelinePhase.kt
                     f=compiler/ir/serialization.js/src/org/jetbrains/kotlin/ir/backend/js/checkers/declarations/JsKlibPossibleFileClashWarning.kt
                     sed -i '/^import com.intellij.util.containers.without$/d; s|\.without(key)|.filterKeys { it != key }|' $f
@@ -1954,18 +2004,18 @@ let
         # 2.2: the builtins are compiled as part of the stdlib, which itself writes the .kotlin_builtins
         # (libraries/stdlib/build.gradle.kts); there is no separate serialization any more
         (addLast "builtins-as-part-of-stdlib" ''
-          perl -0pi -e 's|<target name="serialize-builtins">.*?</target>|<target name="serialize-builtins"><mkdir dir="\$\{output}/builtins"/></target>|s' build.xml
-          perl -0pi -e 's|(<target name="builtins">.*?<src>\n)|$1                <include name="libraries/stdlib/jvm/builtins"/>\n|s' build.xml
-          perl -0pi -e 's|(<target name="builtins">.*?)<class-path>\s*<pathelement path="\$\{output}/builtins"/>\s*</class-path>|$1<class-path><pathelement path="\$\{output}/classes/none"/></class-path>|s' build.xml
-          perl -0pi -e 's|(<target name="builtins">.*?</new-kotlinc>)|$1<mkdir dir="\$\{output}/builtins"/><move todir="\$\{output}/builtins"><fileset dir="\$\{output}/classes/builtins" includes="**/*.kotlin_builtins"/></move>|s' build.xml
+          regex-edit '(?s)<target name="serialize-builtins">.*?</target>' '<target name="serialize-builtins"><mkdir dir="''${output}/builtins"/></target>' build.xml
+          regex-edit '(?s)(<target name="builtins">.*?<src>\n)' '\1                <include name="libraries/stdlib/jvm/builtins"/>\n' build.xml
+          regex-edit '(?s)(<target name="builtins">.*?)<class-path>\s*<pathelement path="\$\{output}/builtins"/>\s*</class-path>' '\1<class-path><pathelement path="''${output}/classes/none"/></class-path>' build.xml
+          regex-edit '(?s)(<target name="builtins">.*?</new-kotlinc>)' '\1<mkdir dir="''${output}/builtins"/><move todir="''${output}/builtins"><fileset dir="''${output}/classes/builtins" includes="**/*.kotlin_builtins"/></move>' build.xml
           sed -i 's|-Xstdlib-compilation|-Xstdlib-compilation -Xoutput-builtins-metadata -Xcompile-builtins-as-part-of-stdlib -Xcontext-parameters|' build.xml
           grep -q 'Xoutput-builtins-metadata' build.xml
-          perl -0ne 'exit(/<target name="builtins">.*?<\/target>/s && $& =~ m#libraries/stdlib/jvm/builtins# ? 0 : 1)' build.xml
+          sed -n '/<target name="builtins">/,/<\/target>/p' build.xml | grep libraries/stdlib/jvm/builtins
         '')
         # kotlin-reflect uses kotlin-metadata (kotlin.metadata.*) in 2.2: compile its sources into the reflection module
         (addLast "reflect-metadata" ''
-          perl -0pi -e 's|(<target name="reflection">\s*<new-kotlinc output="[^"]*" moduleName="kotlin-reflection" additionalOptions=")([^"]*)(">\s*<src>\n)|$1$2 -Xallow-kotlin-package$3                <include name="libraries/kotlinx-metadata/src"/>\n                <include name="libraries/kotlinx-metadata/jvm/src"/>\n|s' build.xml
-          perl -0ne 'exit(/<target name="reflection">.*?<\/target>/s && $& =~ m#kotlinx-metadata/jvm/src# ? 0 : 1)' build.xml
+          regex-edit '(?s)(<target name="reflection">\s*<new-kotlinc output="[^"]*" moduleName="kotlin-reflection" additionalOptions=")([^"]*)(">\s*<src>\n)' '\1\2 -Xallow-kotlin-package\3                <include name="libraries/kotlinx-metadata/src"/>\n                <include name="libraries/kotlinx-metadata/jvm/src"/>\n' build.xml
+          sed -n '/<target name="reflection">/,/<\/target>/p' build.xml | grep kotlinx-metadata/jvm/src
         '')
         (ops.replace "no-223-api-2120" ''
           sed -i '/^const val CONTINUATION_VARIABLE_NAME = /d' compiler/backend/src/org/jetbrains/kotlin/codegen/coroutines/coroutineCodegenUtil.kt
@@ -2007,7 +2057,6 @@ let
           grep -q 'core/kotlinx-collections-immutable.jar' build.xml
         '')
         (ops.replace "no-213-api" ''
-          perl -0pi -e 's/(ExtensionPoint\.Kind\.INTERFACE),\s*false/$1/' compiler/util/src/org/jetbrains/kotlin/extensions/ProjectExtensionDescriptor.kt compiler/util/src/org/jetbrains/kotlin/extensions/ApplicationExtensionDescriptor.kt
           rm compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/DummyJavaFileCodeStyleFacadeFactory.kt
           sed -i '/JavaFileCodeStyleFacade/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreApplicationEnvironment.kt
           sed -i '/hasConfiguredAnnotationRoot/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/MockExternalAnnotationsManager.kt
@@ -2042,7 +2091,8 @@ let
           sed -i '/import com.intellij.util.containers.CollectionFactory;/d; s|CollectionFactory.createFilePathSet()|new java.util.HashSet<String>()|' compiler/util/src/org/jetbrains/kotlin/utils/JavaSdkUtil.java
           grep -rl 'IntellijInternalApi' --include=*.kt analysis compiler | xargs -r sed -i '/IntellijInternalApi/d'
           f=analysis/light-classes-base/src/org/jetbrains/kotlin/asJava/classes/ClassContentFinderCache.kt
-          perl -0pi -e 's/^import [^\n]*thisLogger\n//m; s/thisLogger\(\)\.logErrorWithAttachment\("([^"]*)"\) \{.*?\n\s*\}/com.intellij.openapi.diagnostic.Logger.getInstance(ClassContentFinderCache::class.java).error("$1")/s' $f
+          regex-edit '(?m)^import [^\n]*thisLogger\n' "" $f
+          regex-edit '(?s)thisLogger\(\)\.logErrorWithAttachment\("([^"]*)"\) \{.*?\n\s*\}' 'com.intellij.openapi.diagnostic.Logger.getInstance(ClassContentFinderCache::class.java).error("\1")' $f
           f=compiler/frontend.common-psi/src/org/jetbrains/kotlin/diagnostics/PositioningStrategies.kt
           sed -i '/^import com.intellij.psi.util.descendants$/d' $f
           printf '\nprivate fun PsiElement.descendants(): Sequence<PsiElement> = children.asSequence().flatMap { sequenceOf(it) + it.descendants() }\n' >> $f
@@ -2050,11 +2100,14 @@ let
           sed -i '/VirtualFileSetFactory\|InternalPersistentJavaLanguageLevelReaderService/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreEnvironment.kt
           sed -i 's/override fun getNioPath/fun getNioPath/; s/override fun findFileByNioFile/fun findFileByNioFile/' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/common/localfs/KotlinLocalFileSystem.kt
           f=compiler/light-classes/src/org/jetbrains/kotlin/asJava/classes/ultraLightUtils.kt
-          perl -0pi -e 's/StubBuildingVisitor\.GUESSING_PROVIDER/StubBuildingVisitor.GUESSING_MAPPER/; s/SignatureParsing\.CharIterator\(canonicalSignature\)/java.text.StringCharacterIterator(canonicalSignature)/; s/val typeInfo = SignatureParsing\.parseTypeStringToTypeInfo\(signature, GUESSING_PROVIDER\)\n\s*val typeText = typeInfo\.text\(\) \?: return PsiType\.NULL/val typeText = SignatureParsing.parseTypeString(signature, GUESSING_MAPPER) ?: return PsiType.NULL/' $f
+          regex-edit 'StubBuildingVisitor\.GUESSING_PROVIDER' 'StubBuildingVisitor.GUESSING_MAPPER' $f
+          regex-edit 'SignatureParsing\.CharIterator\(canonicalSignature\)' 'java.text.StringCharacterIterator(canonicalSignature)' $f
+          regex-edit 'val typeInfo = SignatureParsing\.parseTypeStringToTypeInfo\(signature, GUESSING_PROVIDER\)\n\s*val typeText = typeInfo\.text\(\) \?: return PsiType\.NULL' 'val typeText = SignatureParsing.parseTypeString(signature, GUESSING_MAPPER) ?: return PsiType.NULL' $f
           sed -i 's/GUESSING_PROVIDER/GUESSING_MAPPER/' $f
           sed -i 's|containerSource ?: super.source|containerSource ?: SourceElement.NO_SOURCE|' compiler/util-klib-metadata/src/org/jetbrains/kotlin/library/metadata/KlibMetadataPackageFragment.kt
           f=compiler/ir/serialization.native/src/org/jetbrains/kotlin/backend/konan/serialization/IrUtils.kt
-          perl -0pi -e 's/val containerSource = if \(topLevelDeclaration is AbstractFir2IrLazyDeclaration<\*>\)\n\s*getSourceElementFromFir\(topLevelDeclaration\)\n\s*else\n\s*getSourceElementFromDescriptor\(topLevelDeclaration\)/val containerSource = getSourceElementFromDescriptor(topLevelDeclaration)/; s/private fun getSourceElementFromFir\(.*?\n    \}\n\n//s' $f
+          regex-edit 'val containerSource = if \(topLevelDeclaration is AbstractFir2IrLazyDeclaration<\*>\)\n\s*getSourceElementFromFir\(topLevelDeclaration\)\n\s*else\n\s*getSourceElementFromDescriptor\(topLevelDeclaration\)' 'val containerSource = getSourceElementFromDescriptor(topLevelDeclaration)' $f
+          regex-edit '(?s)private fun getSourceElementFromFir\(.*?\n    \}\n\n' "" $f
           sed -i 's|-Xopt-in=org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi|& -Xopt-in=org.jetbrains.kotlin.ir.util.JvmIrInlineExperimental|' build.xml
           grep -q JvmIrInlineExperimental build.xml
         '')
@@ -2095,7 +2148,7 @@ let
           sed -i 's|-Xopt-in=org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi|& -Xopt-in=org.jetbrains.kotlin.fir.symbols.SymbolInternals -Xopt-in=org.jetbrains.kotlin.types.model.K2Only|' build.xml
           grep -q 'fir.symbols.SymbolInternals' build.xml
           f=compiler/fir/resolve/src/org/jetbrains/kotlin/fir/resolve/transformers/body/resolve/FirExpressionsResolveTransformer.kt
-          perl -0pi -e 's/when \(data\) \{\n(\s*)is ResolutionMode\.WithExpectedType if data\.arrayLiteralPosition != null ->/when {\n$1data is ResolutionMode.WithExpectedType && data.arrayLiteralPosition != null ->/' $f
+          regex-edit 'when \(data\) \{\n(\s*)is ResolutionMode\.WithExpectedType if data\.arrayLiteralPosition != null ->' 'when {\n\1data is ResolutionMode.WithExpectedType && data.arrayLiteralPosition != null ->' $f
           grep -q 'data is ResolutionMode.WithExpectedType && data.arrayLiteralPosition' $f
           f=compiler/cli/src/org/jetbrains/kotlin/cli/metadata/FirLegacyMetadataSerializer.kt
           sed -i 's|content.membersPerFile.getOrPut(firFile) { mutableListOf() } += declaration|content.membersPerFile.getOrPut(firFile) { mutableListOf() }.add(declaration as FirMemberDeclaration)|' $f
@@ -2150,9 +2203,10 @@ let
         '')
         (addLast "no-213-api-3" ''
           f=compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
-          perl -0pi -e 's/\.apply \{\n\s*if \(firJvmBackendClassResolver != null\) \{.*?\n\s*\}\n\s*\}\.build\(\)/.build()/s; s/\.let \{\n\s*if \(it is JvmIrCodegenFactory\.JvmIrBackendInput && firJvmBackendExtension != null\) \{.*?\} else it\n\s*\}//s' $f
+          regex-edit --optional '(?s)\.apply \{\n\s*if \(firJvmBackendClassResolver != null\) \{.*?\n\s*\}\n\s*\}\.build\(\)' '.build()' $f
+          regex-edit --optional '(?s)\.let \{\n\s*if \(it is JvmIrCodegenFactory\.JvmIrBackendInput && firJvmBackendExtension != null\) \{.*?\} else it\n\s*\}' "" $f
           ! grep -q 'firJvmBackendExtension != null\|firJvmBackendClassResolver != null' $f
-          perl -0pi -e 's/\@Deprecated\("Moved to the \x27:core:descriptors\x27 module", level = DeprecationLevel\.HIDDEN\)\nfun AnnotationDescriptor\.argumentValue[^\n]*\n//' compiler/frontend/src/org/jetbrains/kotlin/resolve/AnnotationUtil.kt
+          regex-edit --optional '@Deprecated\("Moved to the \x27:core:descriptors\x27 module", level = DeprecationLevel\.HIDDEN\)\nfun AnnotationDescriptor\.argumentValue[^\n]*\n' "" compiler/frontend/src/org/jetbrains/kotlin/resolve/AnnotationUtil.kt
           ! grep -q 'fun AnnotationDescriptor.argumentValue' compiler/frontend/src/org/jetbrains/kotlin/resolve/AnnotationUtil.kt
           sed -i 's|it.fileSystem.getNioPath(it)?.toFile()|File(it.path)|' compiler/ir/ir.actualization/src/main/kotlin/org/jetbrains/kotlin/backend/common/actualizer/ExpectActualCollector.kt
           sed -i 's|Topic(KotlinCodeFragmentImportModificationListener::class.java, Topic.BroadcastDirection.TO_CHILDREN, true)|Topic("KotlinCodeFragmentImportModificationListener", KotlinCodeFragmentImportModificationListener::class.java, Topic.BroadcastDirection.TO_CHILDREN)|' compiler/psi/src/org/jetbrains/kotlin/psi/KtCodeFragment.kt
@@ -2175,12 +2229,12 @@ let
           sed -i '/import com.intellij.openapi.util.NlsSafe/d; s|@NlsSafe ||' $f
           sed -i 's|ExternalIntegerKeyDescriptor.INSTANCE|ExternalIntegerKeyDescriptor()|' build-common/src/org/jetbrains/kotlin/incremental/storage/IdToFileMap.kt
           f=compiler/cli/src/org/jetbrains/kotlin/cli/common/GroupedKtSources.kt
-          perl -0pi -e 's/^import [^\n]*VfsBasedProjectEnvironment\n//m; s/fun collectSources\(\n    compilerConfiguration: CompilerConfiguration,\n    projectEnvironment: VfsBasedProjectEnvironment,.*?\n\}\n\n//s' $f
+          regex-edit '(?m)^import [^\n]*VfsBasedProjectEnvironment\n' "" $f
+          regex-edit --optional '(?s)fun collectSources\(\n    compilerConfiguration: CompilerConfiguration,\n    projectEnvironment: VfsBasedProjectEnvironment,.*?\n\}\n\n' "" $f
           ! grep -q 'NlsSafe\|VfsBasedProjectEnvironment' analysis/light-classes-base/src/org/jetbrains/kotlin/asJava/LightClassUtil.kt $f
         '')
         (ops.replace "no-213-api" ''
           sed -i 's|\.map { it\.toFile() }||; s|getJdkClassesRoots(Paths.get(javaHome), true)|getJdkClassesRoots(File(javaHome), true)|; s|getJdkClassesRoots(jdkHome.toPath(), false)|getJdkClassesRoots(jdkHome, false)|; s|getJdkClassesRoots(javaRoot.toPath(), !isJdk)|getJdkClassesRoots(javaRoot, !isJdk)|' compiler/util/src/org/jetbrains/kotlin/utils/PathUtil.kt
-          perl -0pi -e 's/(ExtensionPoint\.Kind\.INTERFACE),\s*false/$1/' compiler/util/src/org/jetbrains/kotlin/extensions/ProjectExtensionDescriptor.kt compiler/util/src/org/jetbrains/kotlin/extensions/ApplicationExtensionDescriptor.kt
           rm compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/DummyJavaFileCodeStyleFacadeFactory.kt
           sed -i '/JavaFileCodeStyleFacade/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreApplicationEnvironment.kt
           sed -i '/hasConfiguredAnnotationRoot/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/MockExternalAnnotationsManager.kt
@@ -2208,24 +2262,34 @@ let
           stub='throw UnsupportedOperationException("FIR is not part of the bootstrap build")'
           # the diagnostics reporter is shared with K1; drop its FIR error factories
           f=$d/common/fir/FirDiagnosticsCompilerResultsReporter.kt
-          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/diagnosticsCollector\.diagnostics\.any \{ it\.factory == FirErrors\.\w+ \}/false/g' $f
+          regex-edit --all '(?m)^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n' "" $f
+          regex-edit --all 'diagnosticsCollector\.diagnostics\.any \{ it\.factory == FirErrors\.\w+ \}' 'false' $f
           # utils.kt: light tree package check
           f=$d/common/utils.kt
-          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/\nfun checkKotlinPackageUsageForLightTree\(.*?(\nfun <PathProvider)/$1/s' $f
+          regex-edit --all '(?m)^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n' "" $f
+          regex-edit '(?s)\nfun checkKotlinPackageUsageForLightTree\(.*?(\nfun <PathProvider)' '\1' $f
           # cliCompilerUtils.kt: FIR session helpers
           f=$d/jvm/compiler/cliCompilerUtils.kt
-          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/\nfun createContextForIncrementalCompilation\(.*\z/\n/s' $f
+          regex-edit --all '(?m)^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n' "" $f
+          regex-edit '(?s)\nfun createContextForIncrementalCompilation\(.*\Z' '\n' $f
           sed -i '/FirMetadataSerializer/d' $d/metadata/K2MetadataCompiler.kt
           # KotlinToJVMBytecodeCompiler: classic frontend only
           f=$d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
-          STUB="$stub" perl -0pi -e 's/^import [^\n]*(?:\.fir\.|FirKotlinToJvmBytecodeCompiler|\.pipeline\.)[^\n]*\n//mg; s/if \(useFrontendIR\) \{.*?\n        \} else \{/if (useFrontendIR) {\n            $ENV{STUB}\n        } else {/s; s/    private fun runFrontendAndGenerateIrForMultiModuleChunkUsingFrontendIR\(.*?(    private fun runFrontendAndGenerateIrUsingClassicFrontend)/$1/s; s/    private fun Fir2IrActualizedResult\.codegenFactoryWithJvmIrBackendInput\(.*?\n    \}\n\n//s; s/: Fir(?:JvmBackendClassResolver|JvmBackendExtension)\?/: Nothing?/g; s/        FirDiagnosticsCompilerResultsReporter/        org.jetbrains.kotlin.cli.common.fir.FirDiagnosticsCompilerResultsReporter/' $f
+          regex-edit --all '(?m)^import [^\n]*(?:\.fir\.|FirKotlinToJvmBytecodeCompiler|\.pipeline\.)[^\n]*\n' "" $f
+          STUB="$stub" regex-edit --subst-var STUB '(?s)if \(useFrontendIR\) \{.*?\n        \} else \{' 'if (useFrontendIR) {\n            @STUB@\n        } else {' $f
+          regex-edit '(?s)    private fun runFrontendAndGenerateIrForMultiModuleChunkUsingFrontendIR\(.*?(    private fun runFrontendAndGenerateIrUsingClassicFrontend)' '\1' $f
+          regex-edit '(?s)    private fun Fir2IrActualizedResult\.codegenFactoryWithJvmIrBackendInput\(.*?\n    \}\n\n' "" $f
+          regex-edit --all ': Fir(?:JvmBackendClassResolver|JvmBackendExtension)\?' ': Nothing?' $f
+          regex-edit '        FirDiagnosticsCompilerResultsReporter' '        org.jetbrains.kotlin.cli.common.fir.FirDiagnosticsCompilerResultsReporter' $f
           f=$d/jvm/K2JVMCompiler.kt
-          STUB="$stub" perl -0pi -e 's/^import [^\n]*\.pipeline\.[^\n]*\n//mg; s/if \(chunk\.size == 1 &&\s*configuration\.getBoolean\(CommonConfigurationKeys\.USE_FIR\) &&\s*configuration\.getBoolean\(CommonConfigurationKeys\.USE_LIGHT_TREE\)\s*\) \{.*?\} else \{/if (false) {\n                $ENV{STUB}\n            } else {/s' $f
+          regex-edit --all '(?m)^import [^\n]*\.pipeline\.[^\n]*\n' "" $f
+          STUB="$stub" regex-edit --subst-var STUB '(?s)if \(chunk\.size == 1 &&\s*configuration\.getBoolean\(CommonConfigurationKeys\.USE_FIR\) &&\s*configuration\.getBoolean\(CommonConfigurationKeys\.USE_LIGHT_TREE\)\s*\) \{.*?\} else \{' 'if (false) {\n                @STUB@\n            } else {' $f
           f=compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/CompilerRunnerUtils.kt
-          STUB="$stub" perl -0pi -e 's/if \(useK2 && args\.useFirIC && args\.useFirLT[^\n]*\n\s*IncrementalFirJvmCompilerRunner\(.*?\n\s*\)\n(\s*)else/if (false) $ENV{STUB}\n$1else/s' $f
+          STUB="$stub" regex-edit --subst-var STUB '(?s)if \(useK2 && args\.useFirIC && args\.useFirLT[^\n]*\n\s*IncrementalFirJvmCompilerRunner\(.*?\n\s*\)\n(\s*)else' 'if (false) @STUB@\n\1else' $f
           # JS: K1 only
           f=compiler/cli/cli-js/src/org/jetbrains/kotlin/cli/js/K2JsIrCompiler.kt
-          STUB="$stub" perl -0pi -e 's/^import [^\n]*Fir2KlibMetadataSerializer\n//m; s/(    private fun processSourceModuleWithK2\([^)]*\): ModulesStructure \{\n).*?(\n    class IcCachesArtifacts)/$1        $ENV{STUB}\n    }\n$2/s' $f
+          regex-edit '(?m)^import [^\n]*Fir2KlibMetadataSerializer\n' "" $f
+          STUB="$stub" regex-edit --subst-var STUB '(?s)(    private fun processSourceModuleWithK2\([^)]*\): ModulesStructure \{\n).*?(\n    class IcCachesArtifacts)' '\1        @STUB@\n    }\n\2' $f
           f=compiler/cli/cli-js/src/org/jetbrains/kotlin/cli/js/klib/jsCompilerPipeline.kt
           cat > $f <<'KT'
           package org.jetbrains.kotlin.cli.js.klib
@@ -2247,9 +2311,12 @@ let
           KT
           # native serialization: no Fir2Ir lazy declarations
           f=compiler/ir/serialization.native/src/org/jetbrains/kotlin/backend/konan/serialization/KonanFakeOverrideClassFilter.kt
-          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/return this\.isBound && this\.owner is Fir2IrLazyClass[^\n]*/return false/' $f
+          regex-edit --all '(?m)^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n' "" $f
+          regex-edit 'return this\.isBound && this\.owner is Fir2IrLazyClass[^\n]*' 'return false' $f
           f=compiler/ir/serialization.native/src/org/jetbrains/kotlin/backend/konan/serialization/IrUtils.kt
-          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/this\.isFromFirDeserializedInteropLibrary\(\) \|\| //; s/private fun DeclarationDescriptor\.isFromFirDeserializedInteropLibrary\(\).*?\n\}\n\n//s' $f
+          regex-edit --all '(?m)^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n' "" $f
+          regex-edit 'this\.isFromFirDeserializedInteropLibrary\(\) \|\| ' "" $f
+          regex-edit '(?s)private fun DeclarationDescriptor\.isFromFirDeserializedInteropLibrary\(\).*?\n\}\n\n' "" $f
           grep -q 'not part of the bootstrap build' $d/jvm/K2JVMCompiler.kt $d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt compiler/cli/cli-js/src/org/jetbrains/kotlin/cli/js/K2JsIrCompiler.kt compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/CompilerRunnerUtils.kt
           ! grep -rq 'kotlin\.fir\.\(declarations\|lazy\|pipeline\|session\|backend\|analysis\|packageFqName\)\|IncrementalFirJvm\|\.pipeline\.\|FirMetadataSerializer\|FirKotlinToJvm' $d compiler/incremental-compilation-impl/src compiler/cli/cli-js/src compiler/ir/serialization.native/src
         '')
@@ -2265,7 +2332,8 @@ let
         # more SDK 201 vs 213 differences, in Java sources
         (addLast "no-213-api-java" ''
           f=analysis/light-classes-base/src/org/jetbrains/kotlin/asJava/classes/ClassInnerStuffCache.java
-          perl -pi -e 's/collectAugments\((myClass, \w+\.class), (?:null|name)\)/collectAugments($1)/g; s/Interner\.createWeakInterner\(\)/(Interner) new com.intellij.util.containers.WeakInterner()/' $f
+          regex-edit --optional --lines --all 'collectAugments\((myClass, \w+\.class), (?:null|name)\)' 'collectAugments(\1)' $f
+          regex-edit --optional --lines 'Interner\.createWeakInterner\(\)' '(Interner) new com.intellij.util.containers.WeakInterner()' $f
           ! grep -q 'createWeakInterner' $f
           sed -i 's|NotNullLazyValue.atomicLazy(|com.intellij.openapi.util.AtomicNotNullLazyValue.createValue(|' compiler/frontend/src/org/jetbrains/kotlin/resolve/diagnostics/DiagnosticsElementsCache.java
           sed -i 's|NotNullLazyValue.lazy(|NotNullLazyValue.createValue(|' compiler/psi/src/org/jetbrains/kotlin/idea/KotlinFileType.java compiler/psi/src/org/jetbrains/kotlin/idea/KotlinModuleFileType.java
@@ -2280,7 +2348,7 @@ let
         # SDK 201 instead of SDK 213, and no FIR/JS-FIR/wasm-immutable-collections
         (addLast "no-213-api" ''
           sed -i 's|\.map { it\.toFile() }||; s|getJdkClassesRoots(Paths.get(javaHome), true)|getJdkClassesRoots(File(javaHome), true)|; s|getJdkClassesRoots(jdkHome.toPath(), false)|getJdkClassesRoots(jdkHome, false)|; s|getJdkClassesRoots(javaRoot.toPath(), !isJdk)|getJdkClassesRoots(javaRoot, !isJdk)|' compiler/util/src/org/jetbrains/kotlin/utils/PathUtil.kt
-          perl -0pi -e 's/(ExtensionPoint\.Kind\.INTERFACE),\s*false/$1/' compiler/util/src/org/jetbrains/kotlin/extensions/ProjectExtensionDescriptor.kt compiler/util/src/org/jetbrains/kotlin/extensions/ApplicationExtensionDescriptor.kt
+          regex-edit '(ExtensionPoint\.Kind\.INTERFACE),\s*false' '\1' compiler/util/src/org/jetbrains/kotlin/extensions/ProjectExtensionDescriptor.kt compiler/util/src/org/jetbrains/kotlin/extensions/ApplicationExtensionDescriptor.kt
           rm compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/DummyJavaFileCodeStyleFacadeFactory.kt
           sed -i '/JavaFileCodeStyleFacade/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreApplicationEnvironment.kt
           sed -i '/hasConfiguredAnnotationRoot/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/MockExternalAnnotationsManager.kt
@@ -2292,7 +2360,7 @@ let
           sed -i '/import kotlinx.collections.immutable/d; s|private var offsets = persistentListOf<Box>()|private var offsets: List<Box> = emptyList()|' $f
           rm -r compiler/ir/serialization.js/src/org/jetbrains/kotlin/fir
           f=compiler/cli/cli-js/src/org/jetbrains/kotlin/cli/js/K2JsIrCompiler.kt
-          STUB='throw UnsupportedOperationException("FIR is not part of the bootstrap build")' perl -0pi -e 's/val analyzedOutput = compileModuleToAnalyzedFir\(.*?(\n        return moduleStructure)/$ENV{STUB}$1/s' $f
+          STUB='throw UnsupportedOperationException("FIR is not part of the bootstrap build")' regex-edit --subst-var STUB '(?s)val analyzedOutput = compileModuleToAnalyzedFir\(.*?(\n        return moduleStructure)' '@STUB@\1' $f
           grep -q 'not part of the bootstrap build' $f
         '')
         (addLast "builtins-was-experimental" ''
@@ -2318,15 +2386,19 @@ let
           rm compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/incrementalFirCacheUtils.kt
           stub='throw UnsupportedOperationException("FIR is not part of the bootstrap build")'
           f=$d/jvm/compiler/cliCompilerUtils.kt
-          perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n//mg; s/\nfun createContextForIncrementalCompilation\(.*\z/\n/s' $f
+          regex-edit --all '(?m)^import org\.jetbrains\.kotlin\.fir\.[^\n]*\n' "" $f
+          regex-edit '(?s)\nfun createContextForIncrementalCompilation\(.*\Z' '\n' $f
           sed -i '/FirMetadataSerializer/d' $d/metadata/K2MetadataCompiler.kt
           f=$d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
-          STUB="$stub" perl -0pi -e 's/^import [^\n]*FirDiagnosticsCompilerResultsReporter\n//m; s/val projectEnvironment =\s*VfsBasedProjectEnvironment\(.*?buildFile, chunk\s*\)/$ENV{STUB}/s; s/FirDiagnosticsCompilerResultsReporter\.reportToMessageCollector\(.*?\n        \)\n//s' $f
+          regex-edit '(?m)^import [^\n]*FirDiagnosticsCompilerResultsReporter\n' "" $f
+          STUB="$stub" regex-edit --subst-var STUB '(?s)val projectEnvironment =\s*VfsBasedProjectEnvironment\(.*?buildFile, chunk\s*\)' '@STUB@' $f
+          regex-edit '(?s)FirDiagnosticsCompilerResultsReporter\.reportToMessageCollector\(.*?\n        \)\n' "" $f
           sed -i '/FirExtensionRegistrarAdapter/d' compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreEnvironment.kt
           f=$d/jvm/K2JVMCompiler.kt
-          STUB="$stub" perl -0pi -e 's/^import [^\n]*\.pipeline\.[^\n]*\n//mg; s/if \(configuration\.getBoolean\(CommonConfigurationKeys\.USE_FIR\) && configuration\.getBoolean\(CommonConfigurationKeys\.USE_LIGHT_TREE\)\)\s*\{.*?\n            \} else \{/if (false) {\n                $ENV{STUB}\n            } else {/s' $f
+          regex-edit --all '(?m)^import [^\n]*\.pipeline\.[^\n]*\n' "" $f
+          STUB="$stub" regex-edit --subst-var STUB '(?s)if \(configuration\.getBoolean\(CommonConfigurationKeys\.USE_FIR\) && configuration\.getBoolean\(CommonConfigurationKeys\.USE_LIGHT_TREE\)\)\s*\{.*?\n            \} else \{' 'if (false) {\n                @STUB@\n            } else {' $f
           f=compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/CompilerRunnerUtils.kt
-          STUB="$stub" perl -0pi -e 's/if \(useK2 && args\.useFirIC && args\.useFirLT[^\n]*\n\s*IncrementalFirJvmCompilerRunner\(.*?\n\s*\)\n(\s*)else/if (false) $ENV{STUB}\n$1else/s' $f
+          STUB="$stub" regex-edit --subst-var STUB '(?s)if \(useK2 && args\.useFirIC && args\.useFirLT[^\n]*\n\s*IncrementalFirJvmCompilerRunner\(.*?\n\s*\)\n(\s*)else' 'if (false) @STUB@\n\1else' $f
           grep -q 'not part of the bootstrap build' $d/jvm/K2JVMCompiler.kt $d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt $f
           ! grep -rq 'kotlin\.fir\.\|cli\.common\.fir\|IncrementalFirJvm\|\.pipeline\.\|FirMetadataSerializer' $d compiler/incremental-compilation-impl/src compiler/cli/cli-base/src
         '')
@@ -2344,7 +2416,7 @@ let
         '')
         # the stdlib's platform implementations moved into the jdk7/jdk8 source sets
         (addLast "stdlib-jdk78" ''
-          perl -0pi -e 's|(<target name="builtins">.*?<include name="libraries/stdlib/jvm/src"/>\n)|$1                <include name="libraries/stdlib/jdk7/src"/>\n                <include name="libraries/stdlib/jdk8/src"/>\n|s' build.xml
+          regex-edit '(?s)(<target name="builtins">.*?<include name="libraries/stdlib/jvm/src"/>\n)' '\1                <include name="libraries/stdlib/jdk7/src"/>\n                <include name="libraries/stdlib/jdk8/src"/>\n' build.xml
           grep -q 'stdlib/jdk8/src' build.xml
         '')
       ];
@@ -2355,7 +2427,7 @@ let
         (ops.replace "compiler-dirs" (compilerDirs dirs180))
         (ops.delete "fresh-stdlib")
         (addLast "context-receivers-core" ''
-          perl -pi -e 's/(<new-kotlinc output="[^"]*" moduleName="[^"]*")>/$1 additionalOptions="-Xcontext-receivers -Xjvm-default=all">/' build.xml
+          regex-edit --lines '(<new-kotlinc output="[^"]*" moduleName="[^"]*")>' '\1 additionalOptions="-Xcontext-receivers -Xjvm-default=all">' build.xml
           grep -q 'moduleName="kotlin-core" additionalOptions="-Xcontext-receivers' build.xml
         '')
         # IntRange etc. moved from the builtins to the stdlib sources
@@ -2367,15 +2439,15 @@ let
         (addLast "no-203-api-3" ''
           sed -i 's|AnnotationDescriptor.DefaultImpls.getFqName(this)|AnnotationDescriptor.super.getFqName()|' core/descriptors/src/org/jetbrains/kotlin/descriptors/annotations/AnnotationDescriptorImpl.java
           sed -i 's|"kotlin." + getDebugName()|"kotlin." + super.toString()|' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/KtStubElementType.java
-          perl -0pi -e 's/    \@Override\n(    boolean isWhitespaceOrComment)/$1/' compiler/psi/src/org/jetbrains/kotlin/parsing/SemanticWhitespaceAwarePsiBuilder.java
+          regex-edit '    @Override\n(    boolean isWhitespaceOrComment)' '\1' compiler/psi/src/org/jetbrains/kotlin/parsing/SemanticWhitespaceAwarePsiBuilder.java
           grep -q 'super.toString' compiler/psi/src/org/jetbrains/kotlin/psi/stubs/elements/KtStubElementType.java
           ! grep -B1 'boolean isWhitespaceOrComment' compiler/psi/src/org/jetbrains/kotlin/parsing/SemanticWhitespaceAwarePsiBuilder.java | grep -q Override
         '')
         # javac target 1.6 cannot emit the interface invokespecial of AnnotationDescriptor.super.getFqName()
         (addLast "annotation-fqname" ''
           f=core/descriptors/src/org/jetbrains/kotlin/descriptors/annotations/AnnotationDescriptorImpl.java
-          perl -pi -e 's/AnnotationDescriptor\.super\.getFqName\(\)/fqNameDefault(this)/' $f
-          perl -0pi -e 's/    \@Nullable\n    \@Override\n(    public FqName getFqName\(\) \{)/    private static FqName fqNameDefault(AnnotationDescriptor d) {\n        org.jetbrains.kotlin.descriptors.ClassDescriptor c = org.jetbrains.kotlin.resolve.descriptorUtil.DescriptorUtilsKt.getAnnotationClass(d);\n        if (c == null || org.jetbrains.kotlin.types.error.ErrorUtils.isError(c)) return null;\n        return org.jetbrains.kotlin.resolve.descriptorUtil.DescriptorUtilsKt.fqNameOrNull(c);\n    }\n\n    \@Nullable\n$1/' $f
+          regex-edit --lines 'AnnotationDescriptor\.super\.getFqName\(\)' 'fqNameDefault(this)' $f
+          regex-edit '    @Nullable\n    @Override\n(    public FqName getFqName\(\) \{)' '    private static FqName fqNameDefault(AnnotationDescriptor d) {\n        org.jetbrains.kotlin.descriptors.ClassDescriptor c = org.jetbrains.kotlin.resolve.descriptorUtil.DescriptorUtilsKt.getAnnotationClass(d);\n        if (c == null || org.jetbrains.kotlin.types.error.ErrorUtils.isError(c)) return null;\n        return org.jetbrains.kotlin.resolve.descriptorUtil.DescriptorUtilsKt.fqNameOrNull(c);\n    }\n\n    @Nullable\n\1' $f
           grep -q 'static FqName fqNameDefault' $f
           ! grep -B1 'public FqName getFqName' $f | grep -q Override
         '')
@@ -2443,13 +2515,16 @@ let
           rm compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/IncrementalFirJvmCompilerRunner.kt
           stub='throw UnsupportedOperationException("FIR is not part of the bootstrap build")'
           f=$d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
-          STUB="$stub" perl -0pi -e 's/^import [^\n]*FirDiagnosticsCompilerResultsReporter\n//m; s/val projectEnvironment =\s*VfsBasedProjectEnvironment\(.*?buildFile, chunk, extendedAnalysisMode\s*\)/$ENV{STUB}/s; s/FirDiagnosticsCompilerResultsReporter\.reportToMessageCollector\(.*?\n        \)\n//s' $f
+          regex-edit '(?m)^import [^\n]*FirDiagnosticsCompilerResultsReporter\n' "" $f
+          STUB="$stub" regex-edit --subst-var STUB '(?s)val projectEnvironment =\s*VfsBasedProjectEnvironment\(.*?buildFile, chunk, extendedAnalysisMode\s*\)' '@STUB@' $f
+          regex-edit '(?s)FirDiagnosticsCompilerResultsReporter\.reportToMessageCollector\(.*?\n        \)\n' "" $f
           f=$d/jvm/compiler/KotlinCoreEnvironment.kt
           sed -i '/FirExtensionRegistrarAdapter/d' $f
           f=$d/jvm/K2JVMCompiler.kt
-          STUB="$stub" perl -0pi -e 's/^import [^\n]*\.pipeline\.[^\n]*\n//mg; s/if \(configuration\.getBoolean\(CommonConfigurationKeys\.USE_FIR\) && arguments\.useFirLT.*?\n            \} else \{/if (false) {\n                $ENV{STUB}\n            } else {/s' $f
+          regex-edit --all '(?m)^import [^\n]*\.pipeline\.[^\n]*\n' "" $f
+          STUB="$stub" regex-edit --subst-var STUB '(?s)if \(configuration\.getBoolean\(CommonConfigurationKeys\.USE_FIR\) && arguments\.useFirLT.*?\n            \} else \{' 'if (false) {\n                @STUB@\n            } else {' $f
           f=compiler/incremental-compilation-impl/src/org/jetbrains/kotlin/incremental/IncrementalJvmCompilerRunner.kt
-          STUB="$stub" perl -0pi -e 's/if \(args\.useK2 && args\.useFirIC && args\.useFirLT[^\n]*\n\s*IncrementalFirJvmCompilerRunner\(.*?\n\s*\)\n(\s*)else/if (false) $ENV{STUB}\n$1else/s' $f
+          STUB="$stub" regex-edit --subst-var STUB '(?s)if \(args\.useK2 && args\.useFirIC && args\.useFirLT[^\n]*\n\s*IncrementalFirJvmCompilerRunner\(.*?\n\s*\)\n(\s*)else' 'if (false) @STUB@\n\1else' $f
           grep -q 'not part of the bootstrap build' $d/jvm/K2JVMCompiler.kt $d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt $f
           ! grep -rq 'kotlin\.fir\.\|cli\.common\.fir\|IncrementalFirJvm\|\.pipeline\.' $d compiler/incremental-compilation-impl/src
         '')
@@ -2518,7 +2593,7 @@ let
           rm $d/jvm/compiler/FirKotlinToJvmBytecodeCompiler.kt $d/jvm/compiler/PsiBasedProjectEnvironment.kt
           rm -r $d/common/fir
           f=$d/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
-          perl -0pi -e 's/val projectEnvironment =\s*PsiBasedProjectEnvironment\(.*?buildFile, chunk, extendedAnalysisMode\s*\)/throw UnsupportedOperationException("FIR is not part of the bootstrap build")/s' $f
+          regex-edit '(?s)val projectEnvironment =\s*PsiBasedProjectEnvironment\(.*?buildFile, chunk, extendedAnalysisMode\s*\)' 'throw UnsupportedOperationException("FIR is not part of the bootstrap build")' $f
           grep -q 'not part of the bootstrap build' $f
           ! grep -rq 'kotlin\.fir\.' $d
         '')
@@ -2546,7 +2621,7 @@ let
           rm compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/FirKotlinToJvmBytecodeCompiler.kt
           rm -r compiler/cli/src/org/jetbrains/kotlin/cli/common/fir
           f=compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
-          perl -0pi -e 's/return FirKotlinToJvmBytecodeCompiler\.compileModulesUsingFrontendIR\([^\n]*\)/throw UnsupportedOperationException("FIR is not part of the bootstrap build")/' $f
+          regex-edit 'return FirKotlinToJvmBytecodeCompiler\.compileModulesUsingFrontendIR\([^\n]*\)' 'throw UnsupportedOperationException("FIR is not part of the bootstrap build")' $f
           grep -q 'not part of the bootstrap build' $f
           ! grep -rq 'kotlin\.fir\.' compiler/cli/src
         '')
@@ -2593,7 +2668,8 @@ let
     fi
     # Coloured output needs jansi's native library; always enable it.
     f=compiler/cli/src/org/jetbrains/kotlin/cli/common/messages/PlainTextMessageRenderer.java
-    perl -0pi -e 's/public static final boolean COLOR_ENABLED;\s*static \{.*?COLOR_ENABLED = colorEnabled;\s*\}/public static final boolean COLOR_ENABLED = true;/s; s/import org\.fusesource\.jansi\.internal\.CLibrary;\n//' $f
+    regex-edit --optional '(?s)public static final boolean COLOR_ENABLED;\s*static \{.*?COLOR_ENABLED = colorEnabled;\s*\}' 'public static final boolean COLOR_ENABLED = true;' $f
+    regex-edit --optional 'import org\.fusesource\.jansi\.internal\.CLibrary;\n' "" $f
   '';
 
   # Compile a runtime library of the version being built with the bootstrap
@@ -2662,13 +2738,24 @@ let
       cat > compiler-dirs.txt <<'EOF'
       ${list}EOF
       for d in $(cat compiler-dirs.txt); do [ -d $d ] || { echo "compiler-dirs: $d missing"; exit 1; }; done
-      DIRS=compiler-dirs.txt perl -0pi -e '
-        BEGIN { open F, "<", $ENV{DIRS}; @d = grep { /\S/ } split /\s+/, do { local $/; <F> } }
-        s{(<dirset id="compilerSources.dirset" dir="\$\{basedir\}/">).*?(</dirset>)}{$1 . join("", map { "\n        <include name=\"$_\"/>" } @d) . "\n    $2"}se;
-        # resources moved from src/ to resources/ (1.3.20)
-        @r = map { ($_, s{/[^/]+$}{/resources}r) } @d;
-        s{(\s*<fileset dir="\$\{basedir\}/[^"]+" includes="META-INF/services/\*\*"/>)+}{join("", map { "\n                <fileset dir=\"\$\{basedir\}/$_\" includes=\"META-INF/services/**\" erroronmissingdir=\"false\"/>" } @r)}se;
-      ' build.xml
+      python3 - compiler-dirs.txt build.xml <<'PY'
+      import re, sys
+      dirs = open(sys.argv[1]).read().split()
+      s = open(sys.argv[2], encoding="latin-1").read()
+      # the compiler's source dirs
+      m = re.search(r'(<dirset id="compilerSources.dirset" dir="\$\{basedir\}/">).*?(</dirset>)', s, re.S)
+      includes = "".join('\n        <include name="%s"/>' % d for d in dirs)
+      s = s[: m.start()] + m.group(1) + includes + "\n    " + m.group(2) + s[m.end() :]
+      # their service descriptors, in src/ or (resources moved, 1.3.20) resources/
+      res = [x for d in dirs for x in (d, re.sub(r"/[^/]+$", "/resources", d))]
+      m = re.search(r'(\s*<fileset dir="\$\{basedir\}/[^"]+" includes="META-INF/services/\*\*"/>)+', s)
+      filesets = "".join(
+          '\n                <fileset dir="''${basedir}/%s" includes="META-INF/services/**" erroronmissingdir="false"/>' % r
+          for r in res
+      )
+      s = s[: m.start()] + filesets + s[m.end() :]
+      open(sys.argv[2], "w", encoding="latin-1").write(s)
+      PY
     '';
 
   # Kotlin 1.3.0's stdlib compiled with 1.2.71, which has the 1.3 language
@@ -2696,12 +2783,12 @@ let
     ''
       cp -r libraries/stdlib fresh-stdlib-src
       rm fresh-stdlib-src/coroutines/src/kotlin/SuccessOrFailure.kt
-      grep -rlw Result fresh-stdlib-src/coroutines fresh-stdlib-src/coroutines-experimental | xargs perl -pi -e 's/\bResult\b/SuccessOrFailure/g'
+      grep -rlw Result fresh-stdlib-src/coroutines fresh-stdlib-src/coroutines-experimental | xargs regex-edit --lines --all '\bResult\b' 'SuccessOrFailure'
       # 1.2.71 rejects `where C : Array<*>, C : R`
       grep -rl 'UPPER_BOUND_CANNOT_BE_ARRAY")' fresh-stdlib-src | xargs sed -i 's/@Suppress("UPPER_BOUND_CANNOT_BE_ARRAY")/@Suppress("UPPER_BOUND_CANNOT_BE_ARRAY", "BOUNDS_NOT_ALLOWED_IF_BOUNDED_BY_TYPE_PARAMETER")/'
-      grep -rlE 'where \w+ : .*, \w+ : R =' fresh-stdlib-src/src | xargs perl -0pi -e 's/(?<!BOUNDS_NOT_ALLOWED_IF_BOUNDED_BY_TYPE_PARAMETER"\)\n)^(public inline fun [^\n]* where \w+ : [^\n]*, \w+ : R =)$/\@Suppress("BOUNDS_NOT_ALLOWED_IF_BOUNDED_BY_TYPE_PARAMETER")\n$1/mg'
+      grep -rlE 'where \w+ : .*, \w+ : R =' fresh-stdlib-src/src | xargs regex-edit --all '(?m)(?<!BOUNDS_NOT_ALLOWED_IF_BOUNDED_BY_TYPE_PARAMETER"\)\n)^(public inline fun [^\n]* where \w+ : [^\n]*, \w+ : R =)$' '@Suppress("BOUNDS_NOT_ALLOWED_IF_BOUNDED_BY_TYPE_PARAMETER")\n\1'
       # 1.2.71 crashes generating defaults (referring to the receiver) of expect functions
-      perl -pi -e 's/ = (?:0|size)(?=[,)])//g if /expect fun .*\.copyInto\(/' fresh-stdlib-src/common/src/generated/_Arrays.kt
+      sed -i -E '/expect fun .*\.copyInto\(/ s/ = (0|size)([,)])/\2/g' fresh-stdlib-src/common/src/generated/_Arrays.kt
       mkdir -p dependencies/fresh-stdlib dependencies/prev-builtins
       unzip -q "$BOOTSTRAP/lib/kotlin-stdlib.jar" 'kotlin/*.kotlin_builtins' -d dependencies/prev-builtins
       ${kotlinc} -cp dependencies/prev-builtins -Xnormalize-constructor-calls=enable -module-name kotlin-stdlib \
@@ -2756,7 +2843,8 @@ let
   # FIR (experimental front end) needs fun interfaces and kotlinx.collections.immutable: leave it out
   noFir = ''
     f=compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
-    perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\..*\n//mg; s/(    private fun compileModulesUsingFrontendIR\([^\n]*\): Boolean) \{.*?\n(?=    private fun getBuildFilePaths)/$1 =\n        throw UnsupportedOperationException("FIR is not part of the bootstrap build")\n\n/s' $f
+    regex-edit --all '(?m)^import org\.jetbrains\.kotlin\.fir\..*\n' "" $f
+    regex-edit '(?s)(    private fun compileModulesUsingFrontendIR\([^\n]*\): Boolean) \{.*?\n(?=    private fun getBuildFilePaths)' '\1 =\n        throw UnsupportedOperationException("FIR is not part of the bootstrap build")\n\n' $f
     grep -q 'not part of the bootstrap build' $f
     ! grep -q 'kotlin\.fir\.' $f
     sed -i '/org\.jetbrains\.kotlin\.fir\./d' compiler/cli/resources/META-INF/services/org.jetbrains.kotlin.diagnostics.rendering.DefaultErrorMessages\$Extension
@@ -2895,7 +2983,8 @@ let
 
   noFir2 = ''
     f=compiler/cli/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinToJVMBytecodeCompiler.kt
-    perl -0pi -e 's/^import org\.jetbrains\.kotlin\.fir\..*\n//mg; s/    private fun compileModulesUsingFrontendIR\(.*?\n(?=    private fun getBuildFilePaths)/    private fun compileModulesUsingFrontendIR(environment: KotlinCoreEnvironment, buildFile: File?, chunk: List<Module>, extendedAnalysisMode: Boolean): Boolean =\n        throw UnsupportedOperationException("FIR is not part of the bootstrap build")\n\n/s' $f
+    regex-edit --all '(?m)^import org\.jetbrains\.kotlin\.fir\..*\n' "" $f
+    regex-edit '(?s)    private fun compileModulesUsingFrontendIR\(.*?\n(?=    private fun getBuildFilePaths)' '    private fun compileModulesUsingFrontendIR(environment: KotlinCoreEnvironment, buildFile: File?, chunk: List<Module>, extendedAnalysisMode: Boolean): Boolean =\n        throw UnsupportedOperationException("FIR is not part of the bootstrap build")\n\n' $f
     grep -q 'not part of the bootstrap build' $f
     ! grep -q 'kotlin\.fir\.' $f
     sed -i '/org\.jetbrains\.kotlin\.fir\./d' compiler/cli/resources/META-INF/services/org.jetbrains.kotlin.diagnostics.rendering.DefaultErrorMessages\$Extension
@@ -3162,10 +3251,10 @@ let
       stdlibOptions ? "",
     }:
     ''
-      perl -0pi -e 's|<target name="runtime"\s+depends="gradle-runtime[^"]*"\s*/>||' build.xml
+      regex-edit '<target name="runtime"\s+depends="gradle-runtime[^"]*"\s*/>' "" build.xml
       sed -e "s|@JUNIT_JAR@|${jar java.junit4}|" -e "s|@STDLIB_EXTRA_OPTIONS@|${stdlibOptions}|" \
         ${fragment} > runtime-targets.xml
-      FRAG=runtime-targets.xml perl -0pi -e 'BEGIN { local $/; open F, "<", $ENV{FRAG}; $f = <F> } s|</project>\s*$|$f\n</project>\n|' build.xml
+      regex-edit --subst-file TARGETS runtime-targets.xml '</project>\s*$' '@TARGETS@\n</project>\n' build.xml
       grep -q 'name="kotlin-test"' build.xml
     '';
 in

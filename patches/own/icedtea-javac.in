@@ -1,0 +1,95 @@
+#!@PYTHON3@ -I
+# A Python port of IcedTea 2.6's javac.in (Perl), statement for statement: the javac of the
+# bootstrap JDK, running ecj with the javac options it cannot handle removed.  configure
+# substitutes the @...@ values as for the original; @PYTHON3@ is substituted in postPatch.
+import os
+import sys
+
+NO_DUP_ARGS = ("-source", "-target", "-d", "-encoding")
+STRIP_ARGS_1 = ("-Werror", "-implicit:none", "-J-Xbootclasspath/p:")
+STRIP_ARGS_2 = ("-Xmaxwarns",)
+
+if "@ENABLE_WARNINGS@" == "yes":
+    ECJ_WARNINGS = "-warn:-deprecation,serial,unused,warningToken"
+    JAVAC_WARNINGS = "-Xlint:unchecked,cast,divzero,empty,finally,overrides"
+else:
+    ECJ_WARNINGS = "-nowarn"
+    JAVAC_WARNINGS = "-nowarn"
+
+ARGV = sys.argv[1:]
+
+
+def first(prefix):
+    return next((a for a in ARGV if a.startswith(prefix)), None)
+
+
+def value(option):  # s/^[^:]*://
+    return option.split(":", 1)[1]
+
+
+bcp = first("-Xbootclasspath/p:")
+bc = first("-Xbootclasspath:")
+bca = first("-Xbootclasspath/a:")
+systembc = "@abs_top_builddir@/bootstrap/jdk1.6.0/jre/lib/rt.jar"
+if bcp:
+    systembc = value(bcp) + ":" + systembc
+if bc:
+    systembc = value(bc)
+if bca:
+    systembc = systembc + ":" + value(bca)
+bcoption = [] if "-bootclasspath" in ARGV else ["-bootclasspath", systembc]
+ecj_parms = [ECJ_WARNINGS] + bcoption
+javac_parms = [JAVAC_WARNINGS, "-Xprefer:source", "-XDignore.symbol.file=true"]
+
+
+# Work around ecj's inability to handle duplicate command-line
+# options and unknown javac options.
+def gen_ecj_opts(args):
+    new_args = list(args)
+
+    for opt in NO_DUP_ARGS:
+        indices = [i for i, a in enumerate(new_args) if a == opt][::-1]
+        if len(indices) > 1:
+            for i in indices[1:]:  # keep last instance only
+                del new_args[i : i + 2]
+
+    for opt in STRIP_ARGS_1:
+        for i in [i for i, a in enumerate(new_args) if a == opt][::-1]:
+            del new_args[i]
+
+    for opt in STRIP_ARGS_2:
+        for i in [i for i, a in enumerate(new_args) if a == opt][::-1]:
+            del new_args[i : i + 2]
+
+    return new_args
+
+
+def split_vm_args(args):
+    vm_args = [a[2:] for a in args if a.startswith("-J")]
+    javac_args = [a for a in args if not a.startswith("-J")]
+    return vm_args, javac_args
+
+
+def run(program, *args):
+    os.execv(program, [program, *args])
+
+
+if os.path.exists("@abs_top_builddir@/native-ecj"):
+    run("@abs_top_builddir@/native-ecj", *ecj_parms, *gen_ecj_opts(ARGV))
+elif os.path.exists("@JAVAC@"):
+    if "@USING_ECJ@" == "yes":
+        run("@JAVAC@", *ecj_parms, *gen_ecj_opts(ARGV))
+    else:
+        run("@JAVAC@", *javac_parms, *ARGV)
+elif os.path.exists("@ECJ_JAR@"):
+    vm_args, javac_args = split_vm_args(gen_ecj_opts(ARGV))
+    classpath = ["@ECJ_JAR@"]
+    if "CLASSPATH" in os.environ:
+        classpath += os.environ["CLASSPATH"].split(":")
+    while classpath[-1] == "":  # (as perl's split)
+        classpath.pop()
+    os.environ["CLASSPATH"] = ":".join(classpath)
+    run("@JAVA@", *vm_args, "org.eclipse.jdt.internal.compiler.batch.Main", *ecj_parms, *javac_args)
+else:
+    sys.stderr.write("No Java compiler to run")
+    sys.exit(255)

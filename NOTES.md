@@ -43,10 +43,14 @@ previous one, up to 21: nixpkgs' own recipe (`jdk-bootstrap` = our JDK) for 8,
 18–20.  No temurin seed is used anywhere.
 * nixpkgs' hardening (FORTIFY_SOURCE) makes JamVM abort ("buffer overflow
   detected") → `hardeningDisable = [ "all" ]` for these old C packages.
-* 11 is built with `--with-jobs=1`, as in Guix: otherwise the interim javac
-  hits a ConcurrentModificationException reading the boot JDK's jrt filesystem.
+* 11 is built with `--with-jobs=1`, as in Guix, and `--disable-javac-server`: otherwise
+  javac hits a ConcurrentModificationException reading the boot JDK's jrt filesystem.
 * 12+: glibc >= 2.42 declares `uabs()` (renamed in hotspot), 14+ needs a stub
   `<sys/sysctl.h>` (jpackage), 19+: jmod `--date` needs SOURCE_DATE_EPOCH >= 1980.
+* No perl: IcedTea's bootstrap `javac` (an ecj wrapper) and `javah`, Perl scripts
+  upstream (`javac.in`, `javah.in`), are replaced by line-for-line Python ports
+  (`patches/own/icedtea-java{c,h}.in`); configure's remaining perl check (for the systemtap
+  tests) gets `false`.  The OpenJDK 9–21 builds do not use perl.
 
 ### ANTLR + Groovy (nix/java/antlr.nix, nix/java/groovy.nix) — for Gradle
 * ANTLR 2.7.7 → StringTemplate 3 → ANTLR 3.1 → 3.3 → ST 4.0.6 → ANTLR 3.5.2

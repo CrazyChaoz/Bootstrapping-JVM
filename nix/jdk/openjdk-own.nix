@@ -14,7 +14,6 @@
   which,
   file,
   cpio,
-  perl,
   bash,
   pkg-config,
   alsa-lib,
@@ -86,7 +85,6 @@ let
         which
         file
         cpio
-        perl
       ]
       ++ lib.optional (feature >= 11) pkg-config;
       buildInputs = [

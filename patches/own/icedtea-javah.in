@@ -1,0 +1,7 @@
+#!@PYTHON3@ -I
+# A Python port of IcedTea 2.6's javah.in (Perl): the bootstrap JDK's javah, running
+# Classpath's without the -X options it does not know.
+import os
+import sys
+
+os.execv("@JAVAH@", ["@JAVAH@", *(a for a in sys.argv[1:] if not a.startswith("-X"))])

@@ -10,7 +10,8 @@
   unzip,
   cpio,
   which,
-  perl,
+  regexEdit,
+  python3,
   procps,
   wget,
   libxslt,
@@ -102,7 +103,7 @@ gcc13Stdenv.mkDerivation {
     unzip
     cpio
     which
-    perl
+    regexEdit
     procps
     wget
     libxslt
@@ -152,6 +153,10 @@ gcc13Stdenv.mkDerivation {
   '';
 
   postPatch = ''
+    # the bootstrap JDK's javac (an ecj wrapper) and javah: Python ports of IcedTea's Perl scripts
+    substitute ${../../patches/own/icedtea-javac.in} javac.in --replace-fail @PYTHON3@ ${python3.interpreter}
+    substitute ${../../patches/own/icedtea-javah.in} javah.in --replace-fail @PYTHON3@ ${python3.interpreter}
+
     # do not leak information about the build host
     substituteInPlace Makefile.in --replace-quiet 'DISTRIBUTION_ID="$(DIST_ID)"' 'DISTRIBUTION_ID="\"nix\""'
 
@@ -176,7 +181,7 @@ gcc13Stdenv.mkDerivation {
     sed -i 's|^\(OPT_CFLAGS/NOOPT.*\)$|\1\nOPT_CFLAGS/dump.o += -O0|' hotspot/make/linux/makefiles/gcc.make
 
     # fix-x11-extension-include-path
-    perl -0pi -e 's|\$\(firstword \$\(wildcard \$\(OPENWIN_HOME\)/include/X11/extensions\) \\\n\s*\$\(wildcard /usr/include/X11/extensions\)\)|${lib.getDev libxrender}/include/X11/extensions -I${lib.getDev libxtst}/include/X11/extensions -I${lib.getDev libxinerama}/include/X11/extensions|' \
+    regex-edit '\$\(firstword \$\(wildcard \$\(OPENWIN_HOME\)/include/X11/extensions\) \\\n\s*\$\(wildcard /usr/include/X11/extensions\)\)' '${lib.getDev libxrender}/include/X11/extensions -I${lib.getDev libxtst}/include/X11/extensions -I${lib.getDev libxinerama}/include/X11/extensions' \
       jdk/make/sun/awt/mawt.gmk
     grep -n 'include/X11/extensions' jdk/make/sun/awt/mawt.gmk
 
@@ -239,6 +244,9 @@ gcc13Stdenv.mkDerivation {
     export ALT_FREETYPE_HEADERS_PATH=${lib.getDev freetype}/include
     export ALT_FREETYPE_LIB_PATH=${lib.getLib freetype}/lib
     export HOME=$TMPDIR
+    # configure insists on perl, which (javac.in being Python) only the systemtap tapset
+    # tests use, not run here
+    export PERL=$(type -P false)
     configureFlagsArray+=(--with-parallel-jobs=$NIX_BUILD_CORES)
   '';
 

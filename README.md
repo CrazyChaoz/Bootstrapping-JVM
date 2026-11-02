@@ -66,6 +66,10 @@ See `NOTES.md` for the detailed log.
 * ICU's data (`icudata.jar`, used by icu4j to generate ANTLR 4's Unicode tables)
   is rebuilt from the Unicode Character Database text files (`nix/java/icu`);
   the prebuilt data in ICU's sources is deleted at fetch time.
+* Source edits that `substituteInPlace` cannot express are done with `regex-edit`
+  (`nix/lib/regex-edit.py`, a short Python script that fails when an edit no longer
+  matches) or small inline Python; the recipes themselves use no perl.  (nixpkgs' stdenv
+  and glibc still bring perl and Python into every build closure.)
 
 ## Credits
 

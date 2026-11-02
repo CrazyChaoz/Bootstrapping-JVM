@@ -8,6 +8,7 @@ pkgs.lib.makeScope pkgs.newScope (self: {
 
   # Helpers
   javaLib = self.callPackage ./lib/mk-jar.nix { };
+  regexEdit = self.callPackage ./lib/regex-edit.nix { };
   inherit (self.javaLib) mkJar classpathOf;
 
   fetchIntellij = self.callPackage ./lib/fetch-intellij.nix { };
