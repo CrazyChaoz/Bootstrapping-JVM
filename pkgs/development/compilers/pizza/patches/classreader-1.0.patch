@@ -1,0 +1,79 @@
+--- a/pizza/main/src/net/sf/pizzacompiler/compiler/ClassReader.pizza
++++ b/pizza/main/src/net/sf/pizzacompiler/compiler/ClassReader.pizza
+@@ -256,6 +256,17 @@
+                 bp = bp + 8;
+                 i++;
+                 break;
++            // the constants of Java 7+ class files (method handles,
++            // method types, invokedynamic, modules, packages)
++            case 15:
++                bp = bp + 3;
++                break;
++            case 16: case 19: case 20:
++                bp = bp + 2;
++                break;
++            case 17: case 18:
++                bp = bp + 4;
++                break;
+             default:
+                 throw new RuntimeException("bad constant pool tag: " + tag +
+                     " at " + (bp - 1));
+@@ -629,10 +640,15 @@
+         return ((ClassSymbol)readPool(i)).fullname;
+     }
+ 
++/** was the method read last a bridge or synthetic method of a Java 5+
++ *  class file?  (Java 1.4 did not have them.)
++ */
++    private boolean java5Synthetic;
++
+ /** read a field.
+  */
+     private VarSymbol readField() {
+-        int modifiers = nextChar();
++        int modifiers = nextChar() & 0x0FFF; // without the flags of Java 5+
+         Name name = (Name)readPool(nextChar());
+         Type type = readType(nextChar());
+         VarSymbol v = new VarSymbol(modifiers, name, type, target);
+@@ -661,7 +677,11 @@
+ /** read a method.
+  */
+     private FunSymbol readMethod() {
+-        int modifiers = nextChar();
++        int flags = nextChar();
++        // without the flags of Java 5+; their bridge and synthetic methods
++        // are dropped by readClass
++        int modifiers = flags & 0x0FFF;
++        java5Synthetic = (flags & 0x1040) != 0;
+         Name name = (Name)readPool(nextChar());
+         Type ftype = readType(nextChar());
+         FunSymbol f = new FunSymbol(modifiers, name, ftype, target);
+@@ -712,7 +732,7 @@
+ 	    }
+ 	}
+ 	
+-	c.modifiers = nextChar();
++	c.modifiers = nextChar() & 0x0FFF;
+ 	Name ownName = readClassName(nextChar());
+ 	if (c.fullname != ownName)
+ 	    throw new RuntimeException("class file: " + c.fullname +
+@@ -738,6 +758,7 @@
+ 	char methodCount = nextChar();
+ 	for (int i = 0; i < methodCount; i++) {
+ 	    FunSymbol f = readMethod();
++	    if (java5Synthetic) continue;
+ 	    locals.enter(f);
+ 	    if ((f.modifiers & CONTINUE) != 0)
+ 		locals.enter(Continuations.makeStepFun(f));
+@@ -806,8 +827,9 @@
+ 
+ 	    int minorVersion = nextChar();
+ 	    int majorVersion = nextChar();
+-	    if (majorVersion != JAVA_MAJOR_VERSION ||
+-		minorVersion != JAVA_MINOR_VERSION)
++	    // up to Java 8's class files (52.0)
++	    if (majorVersion < JAVA_MAJOR_VERSION || majorVersion > 52 ||
++		majorVersion == JAVA_MAJOR_VERSION && minorVersion < JAVA_MINOR_VERSION)
+ 		throw new RuntimeException("class file has wrong version " +
+ 			  majorVersion + "." + minorVersion + ", should be " +
+ 			  JAVA_MAJOR_VERSION + "." + JAVA_MINOR_VERSION);

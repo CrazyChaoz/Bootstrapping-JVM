@@ -1,0 +1,34 @@
+/* The smoke test of a Pizza stage: algebraic types, pattern matching, generics (with a
+ * primitive type argument) and a closure that assigns a variable it captured. */
+
+class Tree<A> {
+    case Leaf(A value);
+    case Node(Tree<A> left, Tree<A> right);
+
+    <B> Tree<B> map((A)->B f) {
+        switch (this) {
+        case Leaf(A v):
+            return Leaf(f(v));
+        case Node(Tree<A> l, Tree<A> r):
+            return Node(l.map(f), r.map(f));
+        }
+    }
+
+    String show() {
+        switch (this) {
+        case Leaf(A v):
+            return ((Object) v).toString();   // (A may be a primitive type)
+        case Node(Tree<A> l, Tree<A> r):
+            return "(" + l.show() + " " + r.show() + ")";
+        }
+    }
+}
+
+public class Hello {
+    public static void main(String[] args) {
+        Tree<int> t = Tree.Node(Tree.Leaf(1), Tree.Node(Tree.Leaf(2), Tree.Leaf(3)));
+        int sum = 0;
+        Tree<String> s = t.map(fun(int x)->String { sum = sum + x; return "x" + x * 10; });
+        System.out.println("Hello from Pizza: " + s.show() + ", sum " + sum);
+    }
+}

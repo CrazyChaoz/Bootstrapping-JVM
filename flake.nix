@@ -8,7 +8,7 @@
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
-      scope = import ./nix { inherit pkgs; };
+      scope = import ./pkgs/top-level/all-packages.nix { inherit pkgs; };
     in
     {
       # Everything, including intermediate stages: `nix build .#kotlin.v1_0_0`

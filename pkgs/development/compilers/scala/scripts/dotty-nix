@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+"""Generate dotty-chain.nix from the dotty chain record chain/dotty.txt.
+
+usage: scripts/dotty-nix [DOTTYGIT [SCALAGIT]]
+  (clones of scala/scala3 and scala/scala, default /tmp/sc/dotty and /tmp/sc/full)
+
+For each stage: its tree and, from the tree's build (tools/dotty-deps), the versions of
+its external inputs; for all of them the hashes fetchzip gives (for the scala/scala3 trees:
+without the binaries they ship, like fetchScala of default.nix).  Also: the sbt util
+version each zinc release builds on (its util-interface) and the Scala 2 stage at each
+release tag the stages name.  Hashes are kept in dotty-hashes.json, so that only
+new inputs are downloaded.
+"""
+import concurrent.futures
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.request
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CHAIN = os.path.join(ROOT, "chain/dotty.txt")
+SCALA2 = os.path.join(ROOT, "chain/scala2.txt")
+CACHE = os.path.join(ROOT, "dotty-hashes.json")
+OUT = os.path.join(ROOT, "dotty-chain.nix")
+DEPS = os.path.join(ROOT, "tools/dotty-deps")
+DOTTY = sys.argv[1] if len(sys.argv) > 1 else "/tmp/sc/dotty"
+SCALA = sys.argv[2] if len(sys.argv) > 2 else "/tmp/sc/full"
+# keep in sync with fetchScala in default.nix
+BINARY = re.compile(r"\.(jar|class|so|dll|dylib|exe|zip|a|jnilib)$")
+KINDS = ["scala3", "zinc", "sbtutil", "jline", "scalajs", "ow2asm"]
+
+
+def nixfmt(path):
+    """format path as nixpkgs does (nixfmt, or else nixpkgs' nixfmt-rfc-style)"""
+    cmd = ["nixfmt"] if shutil.which("nixfmt") else ["nix", "run", "nixpkgs#nixfmt-rfc-style", "--"]
+    subprocess.run(cmd + [path], check=True)
+
+
+def sh(*a, **kw):
+    return subprocess.run(a, check=True, capture_output=True, text=True, **kw).stdout.strip()
+
+
+def rows(path):
+    return [l.split("#")[0].split() for l in open(path) if l.split("#")[0].strip()]
+
+
+def unpack(url, d):
+    """the archive at url, unpacked into d; returns its top directory"""
+    tgz = os.path.join(d, "a.tgz")
+    urllib.request.urlretrieve(url, tgz)
+    os.mkdir(os.path.join(d, "x"))
+    subprocess.run(["tar", "xzf", tgz, "-C", os.path.join(d, "x")], check=True)
+    (top,) = os.listdir(os.path.join(d, "x"))
+    return os.path.join(d, "x", top)
+
+
+def fetch(kind, url):
+    """the hash fetchzip gives the archive (top directory stripped; for scala3, binaries
+    deleted), and for zinc the sbt util version of its build"""
+    d = tempfile.mkdtemp()
+    try:
+        root = unpack(url, d)
+        util = None
+        if kind == "scala3":
+            for r, _, fs in os.walk(root):
+                for f in fs:
+                    q = os.path.join(r, f)
+                    if BINARY.search(f) and not os.path.islink(q):  # (find -type f)
+                        os.remove(q)
+        if kind == "zinc":
+            m = re.search(r'utilVersion = (?:nightlyVersion\.getOrElse\()?"([^"]+)"',
+                          open(os.path.join(root, "project/Dependencies.scala")).read())
+            util = m.group(1)
+        return sh("nix", "hash", "path", "--sri", root), util
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def tree_deps(rev):
+    """KEY VERSION of a scala/scala3 commit's build (tools/dotty-deps on its project/)"""
+    d = tempfile.mkdtemp()
+    try:
+        tar = subprocess.run(["git", "-C", DOTTY, "archive", rev, "project"], check=True, capture_output=True).stdout
+        subprocess.run(["tar", "x", "-C", d], input=tar, check=True)
+        out = sh(sys.executable, "-I", DEPS, d)
+        return {l.split()[0]: l.split()[1] for l in out.splitlines()
+                if l.split()[0] in ("scalajs", "zinc", "jline", "asm", "ow2asm")}
+    finally:
+        shutil.rmtree(d)
+
+
+TAGS = {}
+
+
+def tag(repo, *candidates):
+    if repo not in TAGS:
+        out = sh("git", "ls-remote", "--tags", f"https://github.com/{repo}.git")
+        TAGS[repo] = {l.split("refs/tags/")[1] for l in out.splitlines() if "^{}" not in l}
+    for c in candidates:
+        if c in TAGS[repo]:
+            return c
+    sys.exit(f"no tag among {candidates} in {repo}")
+
+
+def url(kind, v):
+    if kind == "scala3":
+        return f"https://github.com/scala/scala3/archive/{v}.tar.gz"
+    if kind == "zinc":
+        return f"https://github.com/sbt/zinc/archive/refs/tags/{tag('sbt/zinc', 'v' + v)}.tar.gz"
+    if kind == "jline":
+        return f"https://github.com/jline/jline3/archive/refs/tags/{tag('jline/jline3', 'jline-parent-' + v, 'jline-' + v, v)}.tar.gz"
+    if kind == "scalajs":
+        return f"https://github.com/scala-js/scala-js/archive/refs/tags/{tag('scala-js/scala-js', 'v' + v)}.tar.gz"
+    if kind == "ow2asm":
+        u = v.replace(".", "_")
+        return f"https://gitlab.ow2.org/asm/asm/-/archive/ASM_{u}/asm-ASM_{u}.tar.gz"
+    if kind == "sbtutil":  # (util-interface: in sbt/util up to 1.2, then in sbt/sbt)
+        repo = "sbt/util" if v == "1.2.2" else "sbt/sbt"
+        return f"https://github.com/{repo}/archive/refs/tags/{tag(repo, 'v' + v)}.tar.gz"
+    raise ValueError(kind)
+
+
+def main():
+    chain = rows(CHAIN)  # NAME COMMIT PREV VERSION LIBRARY [BOOTLIBRARY]
+    cache = json.load(open(CACHE)) if os.path.exists(CACHE) else {}
+
+    def get(kind, v):
+        key = f"{kind} {v}"
+        if key not in cache:
+            h, util = fetch(kind, url(kind, v))
+            cache[key] = h
+            if util:
+                cache[f"zinc-util {v}"] = util
+            print("hashed", key, h, file=sys.stderr)
+            json.dump(cache, open(CACHE, "w"), indent=1, sort_keys=True)
+        return cache[key]
+
+    want = {k: set() for k in KINDS}
+    with concurrent.futures.ThreadPoolExecutor(8) as ex:
+        for deps in ex.map(tree_deps, [r[1] for r in chain]):
+            for k, v in deps.items():
+                if k != "asm":  # (scala-asm: deps.nix)
+                    want[k].add(v)
+    want["scala3"] = {r[1] for r in chain}
+    todo = [(k, v) for k in KINDS for v in want[k] if f"{k} {v}" not in cache]
+    with concurrent.futures.ThreadPoolExecutor(4) as ex:
+        list(ex.map(lambda kv: get(*kv), [kv for kv in todo if kv[0] != "sbtutil"]))
+    want["sbtutil"] = {cache[f"zinc-util {v}"] for v in want["zinc"]}
+    for v in sorted(want["sbtutil"]):
+        get("sbtutil", v)
+
+    # the Scala 2 stage at each release tag the stages name: the last stage of that commit
+    stage_of = {}
+    for r in rows(SCALA2):
+        if r[0] != "generation":
+            stage_of[r[1]] = r[0]
+    scala2 = {}
+    for v in sorted({v for r in chain for v in r[4:6]}):
+        scala2[v] = stage_of[sh("git", "-C", SCALA, "rev-parse", f"v{v}^{{commit}}")]
+
+    o = ["# Generated by scripts/dotty-nix from chain/dotty.txt -- do not edit.", "{", "  stages = ["]
+    for name, rev, prev, version, lib, *boot in chain:
+        a = [f'name = "{name}";', f'rev = "{rev}";']
+        if prev != "-":
+            a.append(f'prev = "{prev}";')
+        a += [f'version = "{version}";', f'scala2lib = "{scala2[lib]}";']
+        if boot:
+            a.append(f'scala2libBoot = "{scala2[boot[0]]}";')
+        o.append("    { " + " ".join(a) + " }")
+    o.append("  ];")
+    o.append("  # source trees: kind -> version (scala3: commit) -> fetchzip arguments")
+    o.append("  sources = {")
+    for k in KINDS:
+        o.append(f"    {k} = {{")
+        for v in sorted(want[k]):
+            o.append(f'      "{v}" = {{ url = "{url(k, v)}"; hash = "{cache[k + " " + v]}"; }};')
+        o.append("    };")
+    o += ["  };", "}", ""]
+    open(OUT, "w").write("\n".join(o))
+    nixfmt(OUT)
+    print(f"{OUT}: {len(chain)} stages", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()

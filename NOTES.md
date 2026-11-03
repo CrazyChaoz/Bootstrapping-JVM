@@ -11,7 +11,7 @@
 
 ## What is built from source here
 
-### Java base (nix/java, nix/intellij)
+### Java base (java-modules, java-modules/intellij-sdk)
 * Ant 1.9.16 via its bootstrap.sh.
 * ~30 libraries with `mkJar` (javac on the source tree): guava 20, asm 4/5/6/8
   (+ JetBrains relocations), protobuf 2.5/2.6.1 (protoc built from C++),
@@ -27,14 +27,14 @@
 * IntelliJ SDK 139/141/143/172 (TarCV's chain), then 173 … 203 for the later
   Kotlin versions: annotations, util-rt, util, jps-model-api/impl, "core" (fat
   jar like upstream intellij-core.jar), javac2.  Sources are pruned to the
-  needed modules on fetch; the ports are `patches/own/sdk-NNN.patch`.
+  needed modules on fetch; the ports are `intellij-sdk/patches/sdk-NNN.patch` (sdk-173 on).
 
-### Kotlin chain (nix/kotlin)
+### Kotlin chain (compilers/kotlin)
 Every step of TarCV's chain up to 1.1.2-5, same patches, same per-version
 tweaks, then on to 2.4.0 (see below).  JDK 8 for all steps (TarCV uses
 icedtea-7 up to 0.12.470; JDK 8 works).
 
-### JDK (nix/jdk)
+### JDK (compilers/openjdk)
 Port of Guix' java-bootstrap.scm: jikes → GNU Classpath 0.93 → JamVM 1.5.1 →
 ant 1.8.4 → ECJ 3.2.2 → Classpath 0.99 → Classpath devel → JamVM 2.0 →
 ECJ 4.2.1 → IcedTea 2.6 (JDK 7).  From there each OpenJDK is built by the
@@ -49,15 +49,15 @@ previous one, up to 21: nixpkgs' own recipe (`jdk-bootstrap` = our JDK) for 8,
   `<sys/sysctl.h>` (jpackage), 19+: jmod `--date` needs SOURCE_DATE_EPOCH >= 1980.
 * No perl: IcedTea's bootstrap `javac` (an ecj wrapper) and `javah`, Perl scripts
   upstream (`javac.in`, `javah.in`), are replaced by line-for-line Python ports
-  (`patches/own/icedtea-java{c,h}.in`); configure's remaining perl check (for the systemtap
+  (`openjdk/icedtea-java{c,h}.in`); configure's remaining perl check (for the systemtap
   tests) gets `false`.  The OpenJDK 9–21 builds do not use perl.
 
-### ANTLR + Groovy (nix/java/antlr.nix, nix/java/groovy.nix) — for Gradle
+### ANTLR + Groovy (tools/parsing/antlr, interpreters/groovy) — for Gradle
 * ANTLR 2.7.7 → StringTemplate 3 → ANTLR 3.1 → 3.3 → ST 4.0.6 → ANTLR 3.5.2
   (twice) → ST 4.0.8 → ANTLR 4.1 → tunnelvisionlabs ANTLR 4.7.4 (twice), as
   in Guix.
   * icu4j is only used at build time to generate ANTLR 4's Unicode tables.
-    Its data (`icudata.jar`) is built from source in `nix/java/icu`: the
+    Its data (`icudata.jar`) is built from source in `java-modules/icu`: the
     ICU 70.1 git tree with all prebuilt data (`*.jar`, `data/in/*.icu`/`*.nrm`,
     the generated `*_data.h` headers) stripped at fetch time; gennorm2,
     genprops and genuca are compiled from the source subsets listed in ICU's
@@ -93,14 +93,14 @@ each version's module layout, all the way to 2.4.0.
 Built with Ant from source: 1.1.3-dev-1317 .. 1.1.4, 1.1.51, 1.1.60, 1.2.0,
 1.2.10, 1.2.21, 1.2.31 (`nix build .#kotlin."1.2.31"`).  Per-version notes:
 * 1.1.3+: `build.xml` delegates the runtime to Gradle, so the Ant runtime
-  targets of 1.1.2 are spliced back (`patches/own/runtime-targets-*.xml`).
+  targets of 1.1.2 are spliced back (`kotlin/runtime-targets/*.xml`).
   1.2.x versions: kotlin-test needs `annotations-common` (expect decls) and
   `-Xmulti-platform` (1.2.0); `core/descriptor.loader.java` became
   `core/descriptors.jvm` (1.2.21); builtins also include
   `libraries/stdlib/jvm/runtime` (1.2.31).
 * 1.2.10: compiler needs `-jvm-target 1.8` (Java-8 static interface calls).
 * 1.2.31 needs IntelliJ SDK 181 (JavaModuleSystem, JvmElementProvider);
-  `patches/own/sdk-181.patch` is sdk-173's port, plus lz4-java replaced by
+  `sdk-181.patch` is sdk-173's port, plus lz4-java replaced by
   Snappy in `CompressionUtil`.  `compiler.xml` moved to `compiler/cli/src`.
 
 ### Kotlin 1.2.40 … 1.2.71 (restored build.xml)
@@ -114,7 +114,7 @@ Built with Ant from source: 1.1.3-dev-1317 .. 1.1.4, 1.1.51, 1.1.60, 1.2.0,
   (sources are written for it) with callable references to vararg
   constructors / inline functions rewritten as lambdas (codegen crashes),
   and `kotlin-annotations-jvm` compiled into `lib/`.
-* IntelliJ SDK 182/183/191/192/193 (`patches/own/sdk-NNN.patch`): JDOM 2
+* IntelliJ SDK 182/183/191/192/193 (`intellij-sdk/patches/sdk-NNN.patch`): JDOM 2
   fork, ASM 7, lz4 replaced by a small `lz4-compat`, imgscalr, streamex, JNA
   5, commons-compress (+ xz, brotli, zstd stub); SVG/batik, mac UI and form
   instrumentation removed.
@@ -148,7 +148,7 @@ Things worth knowing:
 * The 2.3.0 compiler ignores `-Xopt-in` for some args (use `-opt-in`), and cannot compile
   explicit backing fields on overrides / `return` in expression bodies: patched in 2.4 sources.
 * 2.4's JS parser is ANTLR-generated: regenerated with the tunnelvisionlabs ANTLR 4.7.4 chain
-  (nix/java/antlr.nix) instead of the committed 4.13.2 output.
+  (the antlr recipe) instead of the committed 4.13.2 output.
 * CRI (kotlinx.serialization plugin) is dropped; Ant tasks are gone since 2.3 (kotlin-ant.jar is
   handed down from the bootstrap).
 
@@ -181,9 +181,9 @@ which can be dropped for a first minimal distribution.
 Smoke test: `JAVA_HOME=$(nix build --no-link --print-out-paths .#jdks.openjdk21) result/bin/gradle --offline --no-daemon build`
 (Groovy and Kotlin DSL builds, `java`/`application` plugins verified).
 
-* Third party libraries: `nix/gradle/libs.nix`; Groovy 4.0.33: `groovy.nix`.
+* Third party libraries: `gradle/libs.nix`; Groovy 4.0.33: `groovy.nix`.
 * Modules: every Gradle module is compiled directly with javac/kotlinc (`modules.nix`); the module graph is
-  extracted from the build scripts by `tools/gradle-modules` into `modules.json` (regenerate against a Gradle checkout).
+  extracted from the build scripts by `gradle/scripts/gradle-modules` into `modules.json` (regenerate against a Gradle checkout).
 * Kotlin pieces (`kotlin-plugins.nix`): compiler plugins, scripting libs, kotlinx.serialization, build-tools-api/impl,
   built from the Kotlin 2.4.0 sources; `kotlin-embeddable.nix` + `Relocate.java` relocate them like Kotlin's embeddable
   (jarjar cannot read modern classes). The bootstrapped compiler's bundled ASM cannot read sealed classes, so a modern
@@ -200,9 +200,9 @@ Smoke test: `JAVA_HOME=$(nix build --no-link --print-out-paths .#jdks.openjdk21)
 
 `nix build .#gradle."8.14.3".dist` (and `.#gradle."9.8.0".dist` = `.#gradleDist`): a working 8.14.3
 (Groovy-DSL and Kotlin-DSL `java`/`application` builds verified, offline, `--no-daemon`).
-`gradleFor` in `nix/default.nix` instantiates modules + dist + generated Kotlin extensions for a Gradle version.
+`gradleFor` in `all-packages.nix` instantiates modules + dist + generated Kotlin extensions for a Gradle version.
 What differs from 9.8:
-* module graph `modules-8.14.3.json` (`tools/gradle-modules`; `optionalProjects`, java-api-extractor, futureKotlin coords);
+* module graph `modules-8.14.3.json` (`scripts/gradle-modules`; `optionalProjects`, java-api-extractor, futureKotlin coords);
 * Groovy 3.0.24 (`groovy3.nix`: antlr2 grammars + the tunnelvisionlabs ANTLR 4 for the Parrot grammar; official ANTLR
   4.9-4.13 reject its duplicate alt labels); Gradle 8 breaks at runtime on Groovy 4;
 * Kotlin 2.1.0 compiler stack (`kotlinPlugins21`, `kotlinRelocated21`), because 8's Kotlin DSL uses compiler APIs that
@@ -212,15 +212,20 @@ What differs from 9.8:
 * small source patches in `default.nix` (`patches`: core, kotlin-dsl, instrumentation processor), `scala` is built partial like the Zinc worker.
 Not done: AWS/GCS/maven modules, JNI libraries (jansi, native-platform), Scala compilation.
 
-## Scala chain (nix/scala, scala/): 2.13.18 and 3.10.0
+## Scala chain (compilers/scala): 2.13.18 and 3.10.0
 
-Goal: a current Scala without any Scala binary.  No from-source Pizza compiler exists, so the chain starts at the
-last scala/scala commit with a complete Java ("scalacboot") compiler, 3b4e70e1bd (2004-02-19), and goes commit by
-commit (`scala/chain/scala2.txt`) through Scala 1.x, the first Scala 2 compiler (nsc, 2005-12), 2.0.0 (s14) and the
-2.x releases to 2.13.18 (s230); from 2.12.8 the dotty chain (`scala/chain/dotty.txt`, each tree built by the
-reference compiler it names) goes from the dotty of 2019-04 to 3.10.0 (d74).  See `scala/README.md` for the layout.
-* Pizza (algebraic `case` classes, pattern `switch`, …) → Java: `scala/tools/pizza2java.py`, then javac; PiCo
-  classfile conventions (JacoMeta/JacoInterface attributes, case fields) by `scala/tools/pico-classfiles.py`.
+Goal: a current Scala without any Scala binary.  The chain starts at the last scala/scala commit with a complete
+boot compiler written in PiCo ("scalacboot"), 3b4e70e1bd (2004-02-19), and goes commit by commit
+(`chain/scala2.txt`) through Scala 1.x, the first Scala 2 compiler (nsc, 2005-12), 2.0.0 (s14) and the
+2.x releases to 2.13.18 (s230); from 2.12.8 the dotty chain (`chain/dotty.txt`, each tree built by the
+reference compiler it names) goes from the dotty of 2019-04 to 3.10.0 (d74).  See its `README.md` for the layout.
+* The Java (PiCo: algebraic `case` classes, pattern `switch`, …) sources: by PiCo (see below) while the trees'
+  builds used it (the Makefile, then Ant's `<pico>`: st1 to s16, 2006-06), by javac from s17 on.  Until 2026-11
+  a translator to Java (`scala/tools/pizza2java.py`) and a post-processor for PiCo's class file conventions
+  (JacoMeta/JacoInterface attributes, case fields: `pico-classfiles.py`) did the PiCo part; st1's lib2/sc2 are the
+  same either way modulo generated-name numbers and member order (see PiCo).  The trees' CLR (.NET) class reader
+  is compiled now too (the translator had stubbed its bodies), with `MemberInfo.Attribute` → `Attribute` for the
+  MSIL library of 2009.
 * FJBG and the MSIL reader API from the 2009 sources (src/fjbg 0f10ffedc8, src/msil 4304b15730); the MSIL backend
   is stubbed in every stage (msil.jar was a binary until 2009).  jline 1.0 from source for the REPL (2007-07+),
   the generified jline (lib/jline.jar from 2009-06, imported as source 2009-10) and jansi 1.4 with
@@ -229,19 +234,19 @@ reference compiler it names) goes from the dotty of 2019-04 to 3.10.0 (d74).  Se
 * The compiler's ASM once src/asm left the tree (2015-05+): scala-asm from source, the release a tree names in
   versions.properties, else v5.1.0-scala-2 (a superset of the 5.0.x-scala-N never tagged).
 * Old classfile readers are patched for Java 8 class files; they see the JDK through period-accurate API views
-  (`scala/tools/jdk-api-view.py`: Java 1.4 without Java 5 attributes, Java 1.5 with generic signatures; hidden
+  (`tools/jdk-api-view.py`: Java 1.4 without Java 5 attributes, Java 1.5 with generic signatures; hidden
   supertypes flattened, signatures rewritten with substituted type arguments).
 * Flag days: locker falls back to the previous library for classes the reference compiler needs, compiler-first
   lockers (new compiler by the old one against the old library), `bridge` stages (an old commit plus a few files of
-  a later one, or changed by a script of `patches/scala/bridges`) standing in for unpublished intermediate
+  a later one, or changed by a script of `patches/bridges`) standing in for unpublished intermediate
   reference compilers (b42: Java generics, 2007-12; b96, b98, b110, b119).
-* Dotty: the trees' sbt builds are replaced by `scala/builders/dotty.sh` (interfaces, library by the previous
+* Dotty: the trees' sbt builds are replaced by `builders/dotty.sh` (interfaces, library by the previous
   stage, tasty-core, compiler, library again by the new compiler); zinc's compiler interface, sbt's util interface,
   jline 3, scala-asm/ASM and the Scala.js IR the trees name are built from source.
 * JDKs: the chain's openjdk8 runs the Scala 2 compilers, openjdk21 (`--release 8`, …) compiles the Java parts.
 
 Generations: a stage's derivation depends on its builder and settings, so the stages are grouped into
-generations (`nix/scala/generations.nix`, the `generation` lines of `scala/chain/scala2.txt`): a builder with the
+generations (`generations.nix`, the `generation` lines of `chain/scala2.txt`): a builder with the
 settings that hold from an upstream build change to the next, and a generation of its own for each workaround one
 or two stages need.  (While the chain was being found, stages verified in Nix were frozen with copies of the
 scripts of the time instead; a cleanup replaced the frozen copies by the generations, checking that every stage
@@ -257,7 +262,85 @@ still builds to the same classes.)  Things that cleanup turned up:
 * The dead ends (2.7.7 and the stages left behind where the chain climbs side branches) are built and smoke
   tested too: `nix build .#scala.all`.
 
-Workflow (if the chain is ever extended): the prototype (`scala/proto`, outside Nix, in `/tmp/sc`) finds new
-stages (`climb.sh` / `bisect.sh` / `auto.sh`); they go into `scala/chain/scala2.txt`, and `tools/scala-chain`
-regenerates `nix/scala/chain.nix` (revisions, versions and source hashes).  For dotty, `scala/proto/dotty-chain`
-lists the chain and `tools/dotty-nix` regenerates `nix/scala/dotty-chain.nix`.
+Workflow (if the chain is ever extended): the prototype (`scripts/`, outside Nix, in `/tmp/sc`) finds new
+stages (`climb.sh` / `bisect.sh` / `auto.sh`); they go into `chain/scala2.txt`, and `scripts/scala-chain`
+regenerates `chain.nix` (revisions, versions and source hashes).  For dotty, `scripts/dotty-chain`
+lists the chain and `scripts/dotty-nix` regenerates `dotty-chain.nix`.
+
+## Pizza (compilers/pizza): 0.40, 1.0, 1.1
+
+Goal (2026-11-03): the Pizza compiler bootstrapped from source.  Pizza is written in Pizza, and the source
+releases on SourceForge came with no compiler (0.40) or with a binary one (1.0 and 1.1: `bootstrap/pizzaself.jar`,
+deleted at fetch time like all their jars and class files).  The chain is boot → 0.40 → 1.0 → 1.1; see
+its `README.md`.
+* boot: `tools/pizza2java.py`, which started as a copy of the Scala chain's translator of the time, extended with generic cases, function types (`pizza0.FunN`, boxed), closures (lambdas),
+  method values (method references), cells for the locals that closures assign, and primitive type arguments;
+  JDK 8's javac compiles the result.  One edit in the translated Java: `type.tag` in Gen.typecode is the method
+  as a closure value (Pizza: `expr.m` without parentheses), not a field.
+* Every release is compiled by the previous compiler, then by itself twice; the last two must be the same class
+  files (`builders/stage.sh`).  In fact all three are the same at every step, also for 0.40 compiled by the
+  translated boot compiler: its translation behaves exactly like the real compiler.
+* The class file readers are patched for JDK 8's rt.jar (versions up to 52.0, the constant pool tags of Java 7+,
+  Java 5+ access flags masked, bridge and synthetic methods dropped).  The compilers run on the chain's
+  openjdk8 (Pizza reads `sun.boot.class.path`, which JDK 9+ do not have).  The Java 1.4 API view of the Scala
+  chain was tried as the boot class path: the compilers come out the same, so it is not used.
+* Things found on the way:
+  * Pizza's pattern switches that do not match do nothing, as in Java; the translator adds a `default` that
+    throws only when the cases are exhaustive or the switch ends a method with a result (javac's flow analysis
+    needs it there).  The `default` comes first, since the last case group may fall through to the end.
+  * Pizza lets the cases of a class see its private members (they are subclasses), and pizzadoc reads the
+    private field `Type.tsym` from another package; the translation makes those members public.
+  * Type variables are not subtypes of Object in Pizza (they may be primitive types): `String.valueOf(v)` does
+    not compile for `A v`, `((Object) v).toString()` does.
+  * 0.40's compiler exits with status 0 when it reports errors; stage.sh looks for "N errors" in its output.
+  * The upstream `pizzaself.jar`s are older builds (1.1's lacks AST.Assert; their `SourceFile` attributes name
+    `C:\pizza\...`), so there is no upstream binary to compare the results with.  1.1 reports itself as v1.0g.
+* Not done: the Ant task (net.sf.pizzacompiler.ant, built by javac in upstream's build.xml), the junit tests.
+* Scala's boot compiler of 2004 (st1) cannot be compiled by this Pizza: those sources are PiCo, the EPFL dialect Scala's Makefile.config builds them with
+  (`pico -make -source 1.4`), not Pizza.  Pizza 1.1 (with `-pizza -source 1.4`, which handles `assert`) rejects
+  extensible algebraic types (subclasses that add cases: meta's `TreeType extends meta.java.Type`), methods
+  overloaded by their result type (`scala.Int.coerce()`), `fun` as a name (`Tree.Apply(Tree fun, ...)`; it is
+  Pizza's closure keyword, and only goes away with all of Pizza's extensions), C-style `Tree args[]` in patterns
+  and qualified `new` of anonymous classes; and it writes no `JacoMeta` attributes, which scalac's class file
+  reader needs.  After renaming `fun` and rewriting the array patterns, 100 errors were left; going on would mean
+  emulating PiCo on top of Pizza.  PiCo itself does it (below).
+
+## PiCo (compilers/pico)
+
+Goal (2026-11-03): the compiler that Scala's 2004 boot compiler was written for, from source.  PiCo is the Pizza
+front end of JaCo, Matthias Zenger's extensible Java compiler (https://github.com/objecthub/jaco, "Latest version
+from 2003", published 2023), and written in PiCo; its repository ships `bootstrap/jaco*.jar`, `lib/ant.jar`,
+`distrib/*` jars, and three serialized parse tables.  `nix build .#pico.pico`; layout in its `README.md`.
+* Parse tables: JCup (a Java 1.1 CUP) reads grammars with a parser made by itself.  `jcup-bootstrap/parser.java`
+  is a stand-in for it that reads `jcup/parser.cup` only (symbols and productions, no precedence), and the unchanged
+  `jcup.Main` writes the tables with it; JCup built with those makes them again (identical).  The tables for
+  `parser.cup` and for the two JaCo grammars are the same bytes as the shipped ones, and JCup's generated parsers
+  differ from the shipped sources in white space only (JCup dates them; the date line is removed for
+  reproducibility).  Only the shipped `jcup/parser.java`, text, is used as is: its actions are the specification's.
+* Boot: Pizza's translator (`compilers/pizza/tools/pizza2java.py`) and javac.  It first needed 11 lines on top of
+  the Scala chain's translator of the time (`assert` is a name in this code, renamed like `enum`; the cases that a
+  type extension adds, `PizzaTree` adds `CaseDecl` to `Tree`; `switch ((PizzaTree) x)` selects over the root
+  type); since the Scala chain uses PiCo, these went into Pizza's translator instead, with two more things: no
+  method values where no source has a function type (JaCo's `emitop(ldc, 1)` is a constant, not the method
+  `ldc`), and the exhaustive-switch `default` throws `Error`, not Pizza's `MatchError`.  Pizza 0.40/1.0/1.1 and
+  PiCo come out as the same class files as with the two translators.  The Scala-only parts were then dropped
+  (result-type overloads renamed `$$pizza`, `--classpath-src`, `;;`, duplicate modifiers, `\u000a` escapes,
+  imports of missing packages, the guessing among same-named cases): the translations of Pizza 0.40 and JaCo stay
+  the same bytes.  The class file reader gets the patch of Pizza's (`patches/classreader.patch`).  The 135 files
+  of upstream's `compile.jaco` target, without the Ant task.
+* Fixpoint: boot compiles PiCo, that compiler compiles it twice more; the last two are the same class files, and
+  so is the first (the translated boot compiler compiles like PiCo).  Reproducible (`nix build --rebuild`).
+* PiCo exits with status 0 after errors (like Pizza); the builders look for "N errors".
+* JaCo's `sources/` has more extensions (join, keris, sjava, ...) with test binaries (OCaml and SPARC objects, PDFs):
+  only framework, java, pizza and jcup are kept at fetch time.
+* Scala: the chain compiles its PiCo sources with PiCo (2026-11-03): st1 (`builders/boot.sh`), the Java parts of
+  the Scala 1.x stages and of n0 to s16, whose build.xml has `<pico>`.  Scala's flags are `pico -make -source 1.4`,
+  and `-scala-hack` for the library's Java files (Ant: `scalahack="yes"` everywhere; it allows `scala.Int.coerce()`
+  to be overloaded by its result type; Pizza 1.1 rejects that); the builders use `-source 1.4 -scala-hack` for all.
+  st1's lib2 and sc2 (446 and 297 class files, what the next stage uses) are the same as with the translator and
+  pico-classfiles.py modulo three things: the numbers in generated names (`Set$$anon$49`, `List.loop$1`: the order
+  in which the two boot compilers visit things), the order of members in a class file, and the type of the static
+  field of a constant case (PiCo: `Tree.Empty : Tree$$Var`, the translator: `Tree`, so scalac's `getstatic`
+  descriptors name `Tree$$Var`).  Verified in Nix: st1 through s17 (the first tree compiled by javac) build and
+  pass their smoke tests; the stages after s17 were not rebuilt (their Java is compiled by javac as before, from
+  the sources instead of from the translator's output, which only re-braced `case` groups and split files).

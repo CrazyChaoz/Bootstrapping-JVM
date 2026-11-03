@@ -1,0 +1,57 @@
+--- a/sources/jaco/java/component/ClassReader.java	2026-11-03 21:36:15.381728498 +0100
++++ b/sources/jaco/java/component/ClassReader.java	2026-11-03 21:36:15.407728119 +0100
+@@ -250,6 +250,20 @@
+                     i++;
+                     break;
+                 
++                // the constants of Java 7+ class files (method handles, method
++                // types, invokedynamic, modules, packages)
++                case 15:
++                    in.skip(3);
++                    break;
++                
++                case 16: case 19: case 20:
++                    in.skip(2);
++                    break;
++                
++                case 17: case 18:
++                    in.skip(4);
++                    break;
++                
+                 default:
+                     throw new RuntimeException("bad constant pool tag: " + tag +
+                         " at " + (in.bp - 1));
+@@ -396,7 +410,7 @@
+  */
+     public Definition readField()
+     {
+-        int modifiers = in.nextChar();
++        int modifiers = in.nextChar() & 0x0FFF; // without the flags of Java 5+
+         Name name = (Name)readPool(in.nextChar());
+         Type type = readType(in.nextChar());
+         Definition v = definitions.make.VarDef(modifiers, name, type, target);
+@@ -407,11 +421,13 @@
+  */
+     public Definition readMethod()
+     {
+-        int modifiers = in.nextChar();
++        int flags = in.nextChar();
++        int modifiers = flags & 0x0FFF; // without the flags of Java 5+
+         Name name = (Name)readPool(in.nextChar());
+         Type ftype = readType(in.nextChar());
+         Definition  f = definitions.make.MethodDef(modifiers & (~0x040), name, ftype, target);
+-        if ((modifiers & 0x040) != 0) {
++        // bridge methods and the synthetic methods of Java 5+ (Java 1.4 had none)
++        if (((modifiers & 0x040) != 0) || ((flags & 0x1000) != 0)) {
+             attrib.readAttributes(f, methodAttr);
+         	return null;
+         } else
+@@ -424,7 +440,7 @@
+         c.setLocals(locals);
+         target = c;
+         
+-        c.modifiers = in.nextChar();
++        c.modifiers = in.nextChar() & 0x0FFF;
+         Name ownName = readClassName(in.nextChar());
+         if (c.fullname != ownName)
+             throw new RuntimeException("class file '" + c.fullname +

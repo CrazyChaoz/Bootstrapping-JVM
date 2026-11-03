@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# usage: fix-hashes <nix build args...>
+# Builds, and for every fixed-output hash mismatch replaces the specified hash
+# with the actual one in all nix files of the repository.
+cd "$(dirname "$0")/../.." || exit 1
+log=$(mktemp)
+nix build --keep-going --no-link "$@" 2>&1 | tee "$log" | grep -E '^error' | grep -v 'hash mismatch\|resolved derivation' | head -20
+python3 - "$log" <<'PY'
+import re,sys,glob,subprocess
+log=open(sys.argv[1]).read()
+pairs=re.findall(r'specified:\s+(\S+)\s+got:\s+(\S+)',log)
+files=glob.glob("pkgs/**/*.nix",recursive=True)
+for spec,got in pairs:
+    n=0
+    for f in files:
+        s=open(f).read()
+        if spec in s:
+            open(f,'w').write(s.replace(spec,got)); n+=1
+    print(f"fixed {spec} -> {got} in {n} file(s)")
+PY
