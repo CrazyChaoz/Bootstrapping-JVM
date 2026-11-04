@@ -20,7 +20,7 @@ nix build .#pico.boot         # the first PiCo
 | `patched` | its class file reader reads the class files of Java 8 (pool tags of Java 7+, flags of Java 5+, synthetic methods) | `patches/classreader.patch` |
 | `jcup` | the parser generator, with tables of its own | `builders/jcup.sh` |
 | `parsers` | the two parsers made from `Grammar.cup`; the generated sources shipped are overwritten | `default.nix` |
-| `boot` | the sources translated to Java by Pizza's boot translator (`../pizza/tools/pizza2java.py`) and compiled by javac | `builders/boot.sh` |
+| `boot` | the sources translated to Java by `tools/pico2java.py` and compiled by javac | `builders/boot.sh` |
 | `pico` | compiled by `boot`, then by itself twice; the last two are the same class files | `builders/stage.sh` |
 
 ## JCup's tables
@@ -40,12 +40,14 @@ ones, and the parsers differ from the shipped sources in white space only.
 
 - JCup's shipped `parser.java`, the generated parser of its own specification language, is used
   as source.  It is text with the actions in it; only its tables were binary.
-- Pizza's boot translator (`../pizza/tools/pizza2java.py`) translates PiCo too: it knows
-  `assert` as a name, and the cases that a type extension adds (`PizzaTree` adds `CaseDecl`
-  to `Tree`), about 15 lines.  JaCo uses no function types, and the translator leaves out
-  Pizza's method values where there are none.
+- The boot translator (`tools/pico2java.py`) works on tokens and knows only what JaCo's
+  sources use: algebraic cases (also those a type extension adds: `PizzaTree` adds `CaseDecl`
+  to `Tree`), pattern switches, `enum` and `assert` as names.  It began as the boot translator
+  of the Pizza chain (`../pizza`), cut down to
+  what JaCo needs; its translation of JaCo stayed the same bytes.  The Pizza chain
+  (`../pizza`) keeps its own full `pizza2java.py`; neither uses the other's files.
 - Not built: the Ant task.
-- Like Pizza, the compiler exits with status 0 after errors; `builders/common.sh` looks for them.
+- The compiler exits with status 0 after errors; `builders/common.sh` looks for them.
 - The compilers run on the chain's OpenJDK 8 (they read `rt.jar`).
 - The LICENSE file of the repository is Apache-2.0; its COPYRIGHT file (1997-2002) allows
   research and teaching use only.

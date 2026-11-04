@@ -31,9 +31,10 @@ Pizza 0.40 compiles itself.
 
 ## The boot compiler
 
-`tools/pizza2java.py` translates Pizza to Java.  It is also the translator of PiCo's boot
-compiler (`../pico`), whose few extra needs are listed at its top.  For the Pizza that the
-Pizza compiler is written in it does this:
+`tools/pizza2java.py` translates Pizza to Java.  It still knows PiCo's few extras (listed at
+its top), because it was the translator of PiCo's boot compiler too, but that one now has its
+own cut-down copy (`../pico/tools/pico2java.py`): nothing outside this directory uses these
+files.  For the Pizza that the Pizza compiler is written in it does this:
 
 | Pizza feature | Becomes in Java |
 | --- | --- |

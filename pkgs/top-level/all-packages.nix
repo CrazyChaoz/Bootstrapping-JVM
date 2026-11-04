@@ -28,6 +28,7 @@ pkgs.lib.makeScope pkgs.newScope (self: {
   scala = self.callPackage ../development/compilers/scala { };
 
   # The Pizza compiler from source, see pkgs/development/compilers/pizza: `nix build .#pizza.latest`
+  # (standalone: nothing else uses it; PiCo has its own boot translator)
   pizza = self.callPackage ../development/compilers/pizza { };
 
   # PiCo, the compiler Scala's 2004 boot compiler was written for, see pkgs/development/compilers/pico

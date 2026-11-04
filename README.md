@@ -20,7 +20,7 @@ helpers in `pkgs/build-support/`, and each package in a directory of its own und
 | `pkgs/development/compilers/openjdk/` | the JDK chain: jikes → GNU Classpath/JamVM → ecj → IcedTea 7 → OpenJDK 8 … 21 (`jdks.openjdkNN`); Guix-derived recipes for 9, 10 and 12–20 |
 | `pkgs/development/compilers/kotlin/` | the Kotlin chain 0.6.786 → 1.1 → 1.2 → 1.3 → … → 2.4.0 |
 | `pkgs/development/compilers/scala/` | the Scala chain (the 2004 boot compiler → 1.x → nsc → 2.13.18, and dotty → 3.10.0); see its `README.md` |
-| `pkgs/development/compilers/pizza/` | the Pizza compiler: boot (0.40 translated to Java) → 0.40 → 1.0 → 1.1; see its `README.md` |
+| `pkgs/development/compilers/pizza/` | the Pizza compiler: boot (0.40 translated to Java) → 0.40 → 1.0 → 1.1; standalone, nothing depends on it; see its `README.md` |
 | `pkgs/development/compilers/pico/` | PiCo, the compiler of Scala's Java sources until 2006: JCup → boot (JaCo translated to Java) → pico; see its `README.md` |
 | `pkgs/development/java-modules/` | ~30 third party Java libraries, protobuf, ICU data; `intellij-sdk/`: IntelliJ SDK modules (util, core, jps-model, javac2, …) for SDKs 139 … 193, 201+ |
 | `pkgs/development/tools/build-managers/apache-ant/` | Ant |
@@ -76,9 +76,10 @@ See `NOTES.md` for the detailed log.
   sources, translated to Java by its `tools/pizza2java.py` and compiled by javac,
   compile 0.40, which compiles 1.0, which compiles 1.1.  Each release then compiles
   itself twice, and the two results must be the same class files.  (They are
-  also the same as the class files the previous compiler produced.)
+  also the same as the class files the previous compiler produced.)  Standalone:
+  nothing else in the repository uses it.
 * **PiCo**: JaCo's Pizza front end of 2003, which Scala's boot compiler of 2004 was written for.
-  Pizza's boot translator and javac make a boot compiler from its sources, which compiles PiCo,
+  A boot translator (to Java) and javac make a boot compiler from its sources, which compiles PiCo,
   and PiCo compiles itself twice (same class files).  JCup's parse tables are made by a stand-in
   for JCup's own parser and are the same bytes as the shipped ones; no jar or table of the
   repository is used.  The Scala chain compiles its Java sources with it.

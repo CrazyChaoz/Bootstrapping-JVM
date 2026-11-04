@@ -6,7 +6,7 @@
 #   JCup's tables      made by a stand-in for JCup's own spec parser (pico/jcup-bootstrap)
 #   the parsers        made by that JCup from the grammars (the generated sources shipped
 #                      are overwritten, the tables are the same as the shipped ones)
-#   boot               the sources translated to Java by Pizza's boot translator and javac
+#   boot               the sources translated to Java by tools/pico2java.py and javac
 #   pico               compiled by boot, then by itself twice; the last two are the same
 #
 # See README.md.
@@ -102,7 +102,7 @@ let
     nativeBuildInputs = [ python3 ];
     env = {
       JDK = "${jdk}";
-      TRANSLATOR = "${../pizza/tools/pizza2java.py}";
+      TRANSLATOR = "${./tools/pico2java.py}";
     };
     buildPhase = "bash ${builders}/boot.sh ${parsers} $out";
     dontInstall = true;

@@ -269,6 +269,9 @@ lists the chain and `scripts/dotty-nix` regenerates `dotty-chain.nix`.
 
 ## Pizza (compilers/pizza): 0.40, 1.0, 1.1
 
+Since 2026-11-04 standalone: PiCo's boot has its own cut-down copy of the translator
+(`compilers/pico/tools/pico2java.py`, below), and nothing outside `compilers/pizza` uses its files.
+
 Goal (2026-11-03): the Pizza compiler bootstrapped from source.  Pizza is written in Pizza, and the source
 releases on SourceForge came with no compiler (0.40) or with a binary one (1.0 and 1.1: `bootstrap/pizzaself.jar`,
 deleted at fetch time like all their jars and class files).  The chain is boot → 0.40 → 1.0 → 1.1; see
@@ -328,6 +331,11 @@ from 2003", published 2023), and written in PiCo; its repository ships `bootstra
   imports of missing packages, the guessing among same-named cases): the translations of Pizza 0.40 and JaCo stay
   the same bytes.  The class file reader gets the patch of Pizza's (`patches/classreader.patch`).  The 135 files
   of upstream's `compile.jaco` target, without the Ant task.
+* 2026-11-04, own translator: a copy of Pizza's went to `compilers/pico/tools/pico2java.py` and was cut from 1827
+  to 970 lines, down to what JaCo's sources use (coverage-guided): no function types, closures, method values
+  or captured-variable cells (`pizza0.*`), no generics (type parameters of cases, type variables in
+  patterns), no literal patterns, case bodies, cases named like their class, or `private` rewriting.  The 135
+  files translate to the same bytes as before, but for the unused `pizza0/Ref.java`, which is no longer written.
 * Fixpoint: boot compiles PiCo, that compiler compiles it twice more; the last two are the same class files, and
   so is the first (the translated boot compiler compiles like PiCo).  Reproducible (`nix build --rebuild`).
 * PiCo exits with status 0 after errors (like Pizza); the builders look for "N errors".

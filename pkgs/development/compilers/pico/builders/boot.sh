@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # boot.sh SRC OUT : the boot compiler.  SRC is JaCo's sources/ directory, which is written in
-# PiCo; TRANSLATOR (the Pizza chain's tools/pizza2java.py) translates it to Java and
+# PiCo; TRANSLATOR (tools/pico2java.py) translates it to Java and
 # javac compiles that.  This compiler only has to compile PiCo once (stage.sh).
 #
 # Inputs: JDK, TRANSLATOR, and python3 on the PATH.
