@@ -273,7 +273,7 @@ lists the chain and `scripts/dotty-nix` regenerates `dotty-chain.nix`.
 done step by step with the chain's d74 (the nonbootstrapped compiler) and s230 (scalac 2.13.18),
 and the chain's JDK 17.  All five jars (scala-library, scala3-library_3, scala3-interfaces,
 tasty-core_3, scala3-compiler_3) come out byte-identical to Maven Central's: the library every
-run, the compiler jar in about 1 of 4.  The 3.10.0 build is not deterministic: MoveStatics orders
+run, the compiler jar in some runs (1 of 4 by hand, 1 of 8 in the Nix sandbox).  The 3.10.0 build is not deterministic: MoveStatics orders
 classes by identity hash, so InlineInfo is sometimes built before LambdaLift; wildcard exports
 forward in identity-hash order; typing depends on GC (a WeakHashSet of hash-consed types).  Two
 replay lists (InlineInfo, export order), read off upstream's jars, fix the first two; the third

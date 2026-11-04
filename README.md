@@ -77,8 +77,8 @@ See `NOTES.md` for the detailed log.
   names, reaches 3.10.0.  The MSIL backend is stubbed; jline, jansi, scala-asm, zinc's
   interfaces and the other Java inputs are built from source.  From the chain's compilers,
   the five jars of the 3.10.0 release on Maven Central are rebuilt byte for byte
-  (`compilers/scala/repro`; the compiler jar in about 1 of 4 runs: upstream's typing
-  depends on GC timing).
+  (`compilers/scala/repro`; the compiler jar in some runs, 1 of 8 in Nix so far: upstream's
+  typing depends on GC timing).
 * **Pizza**: 0.40, 1.0 and 1.1.  The Pizza compiler is written in Pizza; its 0.40
   sources, translated to Java by its `tools/pizza2java.py` and compiled by javac,
   compile 0.40, which compiles 1.0, which compiles 1.1.  Each release then compiles

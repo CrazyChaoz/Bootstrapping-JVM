@@ -2,11 +2,11 @@
 #
 #   library    scala-library-3.10.0.jar (deterministic)
 #   compiler   scala3-interfaces, tasty-core_3, scala3-compiler_3 and scala3-library_3 3.10.0
-#              (the compiler jar comes out identical in about 1 of 4 runs: upstream's typing
-#              depends on GC timing; `nix build --rebuild` runs it again)
+#              (the compiler jar comes out identical in some runs, 1 of 8 so far: upstream's
+#              typing depends on GC timing; delete the output and build again, see README.md)
 #   upstream   the jars of Maven Central, for the comparison only
 #   check      all five against upstream (fails unless all are identical: for the
-#              compiler jar, `nix build --rebuild .#scala.repro.compiler` until it is)
+#              compiler jar, build it again until it is)
 #   checkLibrary  the library jar against upstream (deterministic)
 #   env        the inputs for the scripts run by hand: REPRO_ENV=$(nix build --print-out-paths .#scala.repro.env)
 {

@@ -9,7 +9,7 @@ nix build .#scala.repro.library    # scala-library-3.10.0.jar
 nix build .#scala.repro.compiler   # scala3-interfaces, tasty-core_3, scala3-compiler_3, scala3-library_3
 nix build .#scala.repro.check      # all five against Maven Central's (upstream)
 nix build .#scala.repro.checkLibrary  # the library alone (deterministic; `check` fails when the
-                                     # compiler jar does not come out identical: --rebuild it)
+                                     # compiler jar does not come out identical: build it again)
 ```
 
 By hand (the scripts' work directory is `WORK`, default `./work`):
@@ -21,10 +21,13 @@ scripts/build-compiler.sh out
 scripts/check.sh $(nix build --print-out-paths .#scala.repro.upstream) out
 ```
 
-The derivations need the chain up to d74 and s230.  In the sandbox (tested with the d74 and s230
-of before 2026-11-04) the library and the four small jars came out identical; in the first
-compiler run 6 of its 6552 entries differed (ClosureOptimizer, Comments, ParsedComment: the GC
-dependence below).
+The derivations need the chain up to d74 and s230.  Built by Nix (2026-11-04, the chain of
+8982959): the library and the three small jars came out identical every time; the compiler jar
+in 1 of 8 runs.  The other runs differed in 1 to 6 classes of 3252 (TASTy and class file each),
+all of the GC dependence below: ClosureOptimizer, Comments, Completion, Inliner,
+OptimizerUtils, ParsedComment, PropertiesTrait, QuotesImpl, scripting/Util, ShowAPI.  A rebuild
+needs the old output gone (`nix build --rebuild` keeps it when the new one differs):
+`nix store delete $(nix path-info .#scala.repro.compiler)` and build again.
 
 Upstream's jars (`.#scala.repro.upstream`) are used only for comparison and diagnosis, never as
 build inputs. The one exception is the two small replay lists described below. They record outcomes
