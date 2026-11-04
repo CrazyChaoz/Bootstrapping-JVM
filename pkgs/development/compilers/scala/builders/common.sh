@@ -17,7 +17,7 @@ require() { # require VAR... : fail unless the environment sets each VAR
     [ -n "${!v:-}" ] || { echo "$0: $v is not set" >&2; exit 1; }
   done
 }
-require JDK8 JDK21 PICO TOOLS
+require JDK8 JDK21 TOOLS
 T=$TOOLS
 
 # The inputs are read-only (the Nix store): copies of them have to be writable.
@@ -49,6 +49,7 @@ javac8() { "$JDK21/bin/javac" -nowarn --release 8 "$@"; }
 # -scala-hack, which lets scala.Int.coerce() be overloaded by its result type; Ant: scalahack
 # everywhere); it exits with status 0 after errors
 pico() {
+  require PICO # (set for the Scala 2 stages only; the dotty ones never call pico)
   "$PICO/bin/pico" -source 1.4 -scala-hack "$@" > pico.log 2>&1 || { cat pico.log; exit 1; }
   if grep -qE '^[0-9]+ errors?$|^Exception in thread' pico.log; then cat pico.log; exit 1; fi
 }
