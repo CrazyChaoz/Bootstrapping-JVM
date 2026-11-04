@@ -9,6 +9,9 @@ starting from the (bootstrappable) Nix stdenv.
 The tree follows nixpkgs: the package set in `pkgs/top-level/all-packages.nix`, the build
 helpers in `pkgs/build-support/`, and each package in a directory of its own under
 `pkgs/development/`, with its patches, build scripts and maintenance scripts next to it.
+`docs/scala-dependency-graph.md` and `docs/kotlin-dependency-graph.md` draw the two chains,
+with the JDK chain, PiCo, IntelliJ SDKs and ANTLR they are built with (generated:
+`maintainers/scripts/dep-graph docs`).
 
 | Path | What |
 | --- | --- |

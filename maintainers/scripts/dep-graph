@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""dep-graph OUTDIR [NAME=ATTR...]: dependency graphs of the compiler chains, from Nix.
+
+One graph per NAME (default: scala=scala.latest kotlin='kotlin."2.4.0"').  Reads the
+derivation graph of ATTR with
+`nix derivation show -r`.  It keeps the derivations that are steps of a chain: the JDK chain,
+PiCo, the Scala 2 and Scala 3 stages, the Kotlin steps, IntelliJ SDKs, Ant and ANTLR.  It then
+connects them through everything else (sources, scripts, stdenv), and drops the edges that
+other paths imply (transitive reduction).  "A -> B" means B is built with A.
+
+Writes OUTDIR/NAME-dependency-graph.dot, with every stage, and OUTDIR/NAME-dependency-graph.md,
+where runs of stages that each only build the next are one box, as Mermaid (GitHub renders it).
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+from collections import defaultdict
+
+DEFAULT = {"scala": ("Scala", "scala.latest"), "kotlin": ("Kotlin", 'kotlin."2.4.0"')}
+
+
+def node_of(name):
+    """(node id, label, cluster) for a derivation name, or None for the ones skipped."""
+    if re.search(r"\.(tar\.\w+|zip|jar)$|-src$|wrapper", name):
+        return None
+    m = re.match(r"scala-bootstrap-(\w+)-(.*)$", name)
+    if m:
+        st, v = m.groups()
+        v = v.replace("0-unstable-", "")
+        return f"scala_{st}", f"{st} {v}", "Scala 2"
+    m = re.match(r"scala3-bootstrap-(d\d+)-(.*)$", name)
+    if m:
+        st, v = m.groups()
+        v = re.sub(r"-bin-(\d{8})-\w+-NIGHTLY", r" nightly \1", v)
+        return f"scala_{st}", f"{st} {v}", "Scala 3"
+    m = re.match(r"kotlin-(?:bootstrap|build)-(.*)$", name)
+    if m:
+        v = m.group(1)
+        return "kotlin_" + re.sub(r"\W", "_", v), f"kotlin {v}", "Kotlin"
+    m = re.match(r"intellij-annotations-(\S+)$", name)
+    if m:
+        v = m.group(1)
+        return "intellij_ann_" + re.sub(r"\W", "_", v), f"IntelliJ annotations {v}", "IntelliJ"
+    m = re.match(r"intellij-(?:util-rt|util|core|jps-model-api|jps-model-impl|compiler-javac2)-(\S+)$", name)
+    if m:
+        v = m.group(1)
+        return "intellij_" + re.sub(r"\W", "_", v), f"IntelliJ SDK {v}", "IntelliJ"
+    for pat, cluster in [
+        (r"(jikes|jamvm|classpath|ecj-bootstrap|icedtea|openjdk|openjdk-headless)-[\d.]", "JDK"),
+        (r"(pico|pico-boot|jcup-bootstrapped)-\d", "PiCo"),
+        (r"(ant|ant-bootstrap)-\d", "Ant/ANTLR"),
+        (r"antlr\d?-\d", "Ant/ANTLR"),
+    ]:
+        if re.match(pat, name):
+            label = name.replace("openjdk-headless-", "openjdk-")
+            return re.sub(r"\W", "_", label), label, cluster
+    return None
+
+
+def load(attrs):
+    drvs = {}
+    for a in attrs:
+        out = subprocess.run(["nix", "derivation", "show", "-r", f".#{a}"], check=True,
+                             capture_output=True, text=True).stdout
+        d = json.loads(out)
+        drvs.update(d.get("derivations", d))
+    return drvs
+
+
+def inputs(d):
+    ins = d.get("inputs", {}).get("drvs") if "inputs" in d else d.get("inputDrvs")
+    return list(ins or {})
+
+
+def build_graph(drvs):
+    key = {p if p.startswith("/nix/store/") else "/nix/store/" + p: p for p in drvs}
+    drvs = {k: drvs[v] for k, v in key.items()}
+    norm = lambda p: p if p.startswith("/nix/store/") else "/nix/store/" + p
+    nodes = {}
+    of = {}
+    for p, d in drvs.items():
+        n = node_of(d["name"])
+        if n:
+            of[p] = n[0]
+            nodes[n[0]] = n
+    # two derivations of the same name (jamvm 2.0.0 is built twice): one node each
+    byname = defaultdict(set)
+    for p in of:
+        byname[drvs[p]["name"]].add(p)
+    for name, ps in byname.items():
+        if len(ps) > 1:
+            for p in ps:
+                h = os.path.basename(p)[:6]
+                nid, label, c = nodes.pop(of[p], None) or node_of(name)
+                of[p] = f"{nid}_{h}"
+                nodes[of[p]] = (of[p], f"{label} ({h})", c)
+    # kept node -> kept nodes reachable through skipped derivations
+    memo = {}
+
+    def reach(p):
+        if p in memo:
+            return memo[p]
+        memo[p] = set()
+        res = set()
+        for q in map(norm, inputs(drvs[p])):
+            if q not in drvs:
+                continue
+            if q in of:
+                res.add(of[q])
+            else:
+                res |= reach(q)
+        memo[p] = res
+        return res
+
+    sys.setrecursionlimit(100000)
+    edges = defaultdict(set)   # dependency -> dependents
+    for p in of:
+        for q in reach(p):
+            if q != of[p]:
+                edges[q].add(of[p])
+    return nodes, edges
+
+
+def reduce(nodes, edges):
+    """transitive reduction of a DAG"""
+    order = []
+    seen = set()
+
+    def visit(n):
+        if n in seen:
+            return
+        seen.add(n)
+        for m in edges.get(n, ()):
+            visit(m)
+        order.append(n)
+
+    for n in nodes:
+        visit(n)
+    desc = {}
+    for n in order:   # dependents first
+        s = set()
+        for m in edges.get(n, ()):
+            s |= desc[m] | {m}
+        desc[n] = s
+    red = defaultdict(set)
+    for n in nodes:
+        for m in edges.get(n, ()):
+            if not any(m in desc[k] for k in edges[n] if k != m):
+                red[n].add(m)
+    return red
+
+
+def runs(nodes, red):
+    """maximal paths whose inner links are the only ones of both ends, in the same cluster"""
+    preds = defaultdict(set)
+    for a, bs in red.items():
+        for b in bs:
+            preds[b].add(a)
+
+    def linked(a, b):
+        return red[a] == {b} and preds[b] == {a} and nodes[a][2] == nodes[b][2]
+
+    head = {}
+    for n in nodes:
+        p = next(iter(preds[n])) if len(preds[n]) == 1 else None
+        if p is None or not linked(p, n):
+            r = [n]
+            while len(red[r[-1]]) == 1 and linked(r[-1], next(iter(red[r[-1]]))):
+                r.append(next(iter(red[r[-1]])))
+            for m in r:
+                head[m] = r
+    return head
+
+
+def dot(nodes, red):
+    out = ["digraph chains {", "  rankdir=LR; node [shape=box, fontsize=10];"]
+    clusters = defaultdict(list)
+    for n, (_, label, c) in nodes.items():
+        clusters[c].append(n)
+    for i, (c, ns) in enumerate(sorted(clusters.items())):
+        out.append(f'  subgraph cluster_{i} {{ label="{c}";')
+        for n in sorted(ns):
+            out.append(f'    {n} [label="{nodes[n][1]}"];')
+        out.append("  }")
+    for a in sorted(red):
+        for b in sorted(red[a]):
+            out.append(f"  {a} -> {b};")
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def mermaid(nodes, red):
+    head = runs(nodes, red)
+    box = {}
+    for n, r in head.items():
+        rid = r[0]
+        if len(r) == 1:
+            box[n] = (rid, nodes[n][1])
+        else:
+            box[n] = (rid, f"{nodes[r[0]][1]} … {nodes[r[-1]][1]} ({len(r)} stages)")
+    out = ["```mermaid", "flowchart LR"]
+    clusters = defaultdict(dict)
+    for n, (rid, label) in box.items():
+        clusters[nodes[n][2]][rid] = label
+    for i, (c, bs) in enumerate(sorted(clusters.items())):
+        out.append(f'  subgraph c{i}["{c}"]')
+        for rid, label in sorted(bs.items()):
+            out.append(f'    {rid}["{label}"]')
+        out.append("  end")
+    links = set()
+    for a, bs in red.items():
+        for b in bs:
+            ra, rb = box[a][0], box[b][0]
+            if ra != rb:
+                links.add((ra, rb))
+    for a, b in sorted(links):
+        out.append(f"  {a} --> {b}")
+    out.append("```")
+    return "\n".join(out) + "\n"
+
+
+def main(argv):
+    outdir = argv[1]
+    graphs = {n: (n.capitalize(), a) for n, a in (x.split("=", 1) for x in argv[2:])} or DEFAULT
+    os.makedirs(outdir, exist_ok=True)
+    for name, (title, attr) in graphs.items():
+        nodes, edges = build_graph(load([attr]))
+        red = reduce(nodes, edges)
+        base = os.path.join(outdir, f"{name}-dependency-graph")
+        with open(base + ".dot", "w") as f:
+            f.write(dot(nodes, red))
+        with open(base + ".md", "w") as f:
+            f.write(f"""# Dependency graph of the {title} chain
+
+Generated by `maintainers/scripts/dep-graph` from the derivations of `.#{attr}`
+(`nix derivation show -r`).  "A → B": B is built with A.  Only the steps of the chains are drawn,
+and edges that follow from others are left out, so a JDK that every stage runs on shows up once,
+at the first stage that needs it.  A box "X … Y (n stages)" is a run of steps that each build
+only the next.  Every step is in `{name}-dependency-graph.dot` (`dot -Tsvg {name}-dependency-graph.dot`).
+{len(nodes)} steps.
+
+""")
+            f.write(mermaid(nodes, red))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
