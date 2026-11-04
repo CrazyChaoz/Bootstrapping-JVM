@@ -49,7 +49,11 @@ let
   drop =
     name: hash:
     fetchurl {
-      url = "http://icedtea.classpath.org/download/drops/icedtea7/${version}/${name}.tar.bz2";
+      # (two hosts of the IcedTea project; either one has been down at times)
+      urls = [
+        "https://icedtea.classpath.org/download/drops/icedtea7/${version}/${name}.tar.bz2"
+        "http://icedtea.wildebeest.org/download/drops/icedtea7/${version}/${name}.tar.bz2"
+      ];
       inherit hash;
     };
   drops = {
@@ -93,7 +97,10 @@ gcc13Stdenv.mkDerivation {
   inherit version;
 
   src = fetchurl {
-    url = "http://icedtea.wildebeest.org/download/source/icedtea-${version}.tar.xz";
+    urls = [
+      "https://icedtea.classpath.org/download/source/icedtea-${version}.tar.xz"
+      "http://icedtea.wildebeest.org/download/source/icedtea-${version}.tar.xz"
+    ];
     hash = "sha256-EE6EIF0RduIX4k93B4TFPRzWZq6yOrC66KyFjlsOY/A=";
   };
 
