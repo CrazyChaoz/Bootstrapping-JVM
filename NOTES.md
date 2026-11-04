@@ -267,6 +267,18 @@ stages (`climb.sh` / `bisect.sh` / `auto.sh`); they go into `chain/scala2.txt`, 
 regenerates `chain.nix` (revisions, versions and source hashes).  For dotty, `scripts/dotty-chain`
 lists the chain and `scripts/dotty-nix` regenerates `dotty-chain.nix`.
 
+### Bit for bit: the published 3.10.0 jars (compilers/scala/repro)
+
+2026-11-03/04, at first outside the repository (scala-repro): sbt's build of the 3.10.0 release
+done step by step with the chain's d74 (the nonbootstrapped compiler) and s230 (scalac 2.13.18),
+and the chain's JDK 17.  All five jars (scala-library, scala3-library_3, scala3-interfaces,
+tasty-core_3, scala3-compiler_3) come out byte-identical to Maven Central's: the library every
+run, the compiler jar in about 1 of 4.  The 3.10.0 build is not deterministic: MoveStatics orders
+classes by identity hash, so InlineInfo is sometimes built before LambdaLift; wildcard exports
+forward in identity-hash order; typing depends on GC (a WeakHashSet of hash-consed types).  Two
+replay lists (InlineInfo, export order), read off upstream's jars, fix the first two; the third
+is not pinned down.  Details in `compilers/scala/repro/README.md`; `nix build .#scala.repro.check`.
+
 ## Pizza (compilers/pizza): 0.40, 1.0, 1.1
 
 Since 2026-11-04 standalone: PiCo's boot has its own cut-down copy of the translator

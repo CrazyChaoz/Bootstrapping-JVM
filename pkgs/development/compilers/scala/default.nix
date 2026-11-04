@@ -10,6 +10,7 @@
   lib,
   stdenv,
   fetchzip,
+  fetchurl,
   fetchFromGitHub,
   runCommand,
   writeText,
@@ -230,6 +231,22 @@ let
     scala2Stages = stages;
     inherit (deps) scalaAsmSrcs;
   };
+
+  # the published 3.10.0 jars, bit for bit (repro/README.md)
+  repro = import ./repro {
+    inherit
+      lib
+      stdenv
+      runCommand
+      writeText
+      fetchurl
+      python3
+      ;
+    jdk17 = jdks.openjdk17;
+    d74 = dotty.stages.d74;
+    s230 = stages.s230;
+    scalajsSrc = "${dotty.inputs.SCALAJS_SRCS}/1.22.0";
+  };
 in
 {
   inherit
@@ -238,6 +255,7 @@ in
     apiViews
     jline5
     dotty
+    repro
     ;
   inherit (deps) jline jansi;
   "1.4.0.4" = stages.s10;

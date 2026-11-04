@@ -17,6 +17,7 @@ nix build .#scala.\"2.13.18\"        # = .#scala.stages.s230
 nix build .#scala.\"3.10.0\"         # = .#scala.latest = .#scala.dotty.stages.d74
 nix build .#scala.stages.s52         # 2.7.7 (a dead end: a release branch)
 nix build .#scala.all                # every stage, the dead ends included
+nix build .#scala.repro.check        # the published 3.10.0 jars, bit for bit (repro/README.md)
 ```
 
 Every stage's compiler compiles and runs a small program (`tests/`) as its install check.
@@ -35,6 +36,7 @@ which allows `scala.Int.coerce()` to be overloaded by its result type), by javac
 | `builders/` | the stage builders: `boot.sh` (st1), `scala1.sh` (Scala 1.x), `nsc0.sh` (n0), `scala2.sh` (Scala 2), `dotty.sh` (Scala 3); `common.sh` and the source patches every tree of a builder gets (`scala1-patches.sh`, `nsc-patches.sh`) |
 | `tools/` | what the builders run: `jdk-api-view.py` (the Java class library as of 1.4/1.5/1.6), `scala-unnest.py`, `scala-pickle-rename.py`, `classfile.py` (class files for these two), `dotty-*` (the inputs of a dotty build) |
 | `tests/` | the smoke tests |
+| `repro/` | Scala 3.10.0's Maven Central jars rebuilt byte-identical from d74 and s230, and the upstream nondeterminism found on the way; see its `README.md` |
 | `patches/` | the hooks of single generations, and the bridges' scripts |
 | `scripts/` | `scala-chain` and `dotty-nix`, which generate `chain.nix` and `dotty-chain.nix` from the chain files, and the prototype that found the stages, building commits outside Nix (see below) |
 

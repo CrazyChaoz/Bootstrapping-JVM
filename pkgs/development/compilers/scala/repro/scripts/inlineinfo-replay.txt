@@ -1,0 +1,11 @@
+# Upstream 3.10.0's outcome of the nondeterministic InlineInfo (MoveStatics' class order is
+# identity-hash dependent; see NOTES.md): the classes whose InlineInfo upstream built from decls
+# before LambdaLift.  Every other class compiled gets the fresh one (decls at genBCode).
+scala.collection.immutable.IntMap=stale
+scala.collection.immutable.IntMap$=stale
+scala.collection.immutable.LongMap=stale
+scala.collection.immutable.LongMap$=stale
+scala.collection.mutable.LongMap=stale
+scala.collection.mutable.LongMap$=stale
+scala.collection.SortedMapOps=stale
+scala.collection.SortedMapOps$WithFilter=stale

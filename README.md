@@ -46,6 +46,7 @@ nix build .#gradleDist                      # Gradle 9.8.0 (= .#gradle."9.8.0".d
 nix build .#gradle."8.14.3".dist            # Gradle 8.14.3
 nix build .#scala.\"2.13.18\"                # Scala 2.13.18, from the 2004 Java scalac
 nix build .#scala.\"3.10.0\"                 # Scala 3.10.0 (= .#scala.latest)
+nix build .#scala.repro.check              # Scala 3.10.0's published jars rebuilt bit for bit, checked
 nix build .#pizza.\"1.1\"                    # the Pizza compiler 1.1 (= .#pizza.latest)
 nix build .#pico.pico                       # PiCo (= .#pico.latest)
 ```
@@ -74,7 +75,10 @@ See `NOTES.md` for the detailed log.
   Scala's own builds did), each stage compiled by the previous one, reaches 2.13.18;
   from 2.12.8 a chain of scala/scala3 commits, each built by the reference compiler it
   names, reaches 3.10.0.  The MSIL backend is stubbed; jline, jansi, scala-asm, zinc's
-  interfaces and the other Java inputs are built from source.
+  interfaces and the other Java inputs are built from source.  From the chain's compilers,
+  the five jars of the 3.10.0 release on Maven Central are rebuilt byte for byte
+  (`compilers/scala/repro`; the compiler jar in about 1 of 4 runs: upstream's typing
+  depends on GC timing).
 * **Pizza**: 0.40, 1.0 and 1.1.  The Pizza compiler is written in Pizza; its 0.40
   sources, translated to Java by its `tools/pizza2java.py` and compiled by javac,
   compile 0.40, which compiles 1.0, which compiles 1.1.  Each release then compiles

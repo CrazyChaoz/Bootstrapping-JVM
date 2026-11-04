@@ -1,1 +1,3 @@
 result*
+# the repro scripts' default work directory
+pkgs/development/compilers/scala/repro/work/

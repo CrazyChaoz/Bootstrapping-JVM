@@ -1,0 +1,3 @@
+# Upstream 3.10.0 scala3-compiler: classes whose InlineInfo upstream built stale (see inlineinfo-replay.txt)
+dotty.tools.backend.jvm.opt.MissingBytecodeWarning=stale
+dotty.tools.dotc.interactive.LogicalPackage=stale
