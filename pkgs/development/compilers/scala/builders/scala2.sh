@@ -271,7 +271,9 @@ lib() { # lib NAME COMPILERCP [FALLBACKCP] : the library into NAME/lib by the co
     # a class file, the fallback's, not from the source path)
     sp=$n/libsp; rm -rf $sp; mkdir -p $n; cp -rs "$PWD/src/library" $sp; rm $sp/scala/Array.scala
   fi
-  ( cd src/library; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" ) | sed 's|^|src/library/|' > $n.libscala
+  # (all source lists sorted: the old compilers are sensitive to the order of their sources, and
+  # find's order is the file system's)
+  ( cd src/library; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" | LC_ALL=C sort ) | sed 's|^|src/library/|' > $n.libscala
   if [ -z "${LIBRARY_ONE_RUN:-}" ]; then
     # Two runs, as SABBUS until 2010: Predef and ScalaRunTime (and Predef's superclass
     # LowPriorityImplicits, 2009-09) without the predefs, then the rest.  (From 2009-11
@@ -357,9 +359,9 @@ comp() { # comp NAME COMPILERCP LIBCP [FALLBACKCP] : the compiler into NAME/comp
     fi
   fi
   echo "== $n: compiler"
-  ( cd src/compiler; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" ) | sed 's|^|src/compiler/|' > $n.compscala
+  ( cd src/compiler; find . -name '*.scala' | sed 's|^\./||' | grep -v "$EXCL" | LC_ALL=C sort ) | sed 's|^|src/compiler/|' > $n.compscala
   # (with src/reflect, the reflection library of 2012-06, scala-reflect.jar: into the compiler's classes)
-  if [ -d src/reflect ]; then find src/reflect -name '*.scala' >> $n.compscala; csp=src/compiler:src/reflect; fi
+  if [ -d src/reflect ]; then find src/reflect -name '*.scala' | LC_ALL=C sort >> $n.compscala; csp=src/compiler:src/reflect; fi
   if [ -n "${COMPILER_FIRST:-}" ] && [ $n = locker ] && [ -n "${CF_LIBRARY_SOURCES:-}" ]; then
     # Library parts the new compiler needs that the previous library lacks, compiled with it
     # (the reflection API in scala/reflect/api, 2012-03).  Copies: macro definitions (`def f =
@@ -374,7 +376,7 @@ comp() { # comp NAME COMPILERCP LIBCP [FALLBACKCP] : the compiler into NAME/comp
       mkdir -p "$n/cf-libsrc/$(dirname "$f")"; sed -E "$stub" "$f" > "$n/cf-libsrc/$f"
     done
     [ -z "${CF_LIBRARY_PATCH:-}" ] || bash "$CF_LIBRARY_PATCH" $n/cf-libsrc/src/library
-    find $n/cf-libsrc -name '*.scala' >> $n.compscala
+    find $n/cf-libsrc -name '*.scala' | LC_ALL=C sort >> $n.compscala
   fi
   if [ -n "${REFLECT_SEPARATELY:-}" ] && [ -d src/reflect ]; then
     # (src/reflect in a run of its own, the compiler against its classes, as the sbt projects:
