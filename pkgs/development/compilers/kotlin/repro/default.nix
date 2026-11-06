@@ -90,6 +90,18 @@ let
     };
 in
 lib.mapAttrs release {
+  "2.2.0" = {
+    # bootstrap 2.2.0-dev-15683
+    compiler = kotlin."2.2.0";
+    build = "294";
+    hashes = {
+      kotlin-stdlib = "sha256-ZdEthaO4ZcFg25FHhRcSpksQ2t1osi7qIqlb+KhnDco=";
+      kotlin-stdlib-jdk7 = "sha256-DRC8DUK4YF8jYpo/MeonwZzbyp3N9PU/bSLNY2aDbRg=";
+      kotlin-stdlib-jdk8 = "sha256-rcFmSNu881sNEOfsMBw110bRwv5GDGBqulnxKxF8+bA=";
+      kotlin-script-runtime = "sha256-Ttl/0eDJux0JSO1eY8yRRWMTpZUYKVuSssFRSu9VYVA=";
+      kotlin-test = "sha256-jbF1o/Vs8Tnr34k28pPOWmSha1KgQIgE4OwHfohI6zI=";
+    };
+  };
   "2.3.0" = {
     # bootstrap 2.3.0-Beta2-130
     compiler = kotlin."2.3.0";

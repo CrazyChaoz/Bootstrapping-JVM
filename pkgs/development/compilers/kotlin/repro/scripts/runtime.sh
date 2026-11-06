@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The JVM runtime jars of a Kotlin 2.3.x or 2.4.x release as its Gradle build makes them, by kotlinc and javac
+# The JVM runtime jars of a Kotlin 2.2.x, 2.3.x or 2.4.x release as its Gradle build makes them, by kotlinc and javac
 # run directly (README.md):
 #   kotlin-stdlib          libraries/stdlib/build.gradle.kts (jvm compilations main, mainJdk7, mainJdk8; java9)
 #   kotlin-stdlib-jdk7/8   libraries/stdlib/jdk7, jdk8 (module descriptors only)
@@ -17,6 +17,14 @@ LINE=${VERSION%.*}
 
 # what changed between the release lines' build scripts
 case $LINE in
+2.2)
+  stdlibLV="-language-version 2.2 -api-version 2.2"
+  redundant=""
+  mainOnly="-Xcompile-builtins-as-part-of-stdlib"
+  rvc=""
+  testModule=kotlin-test
+  testRvc=""
+  ;;
 2.3)
   # mainCompilationOptions: languageVersion, apiVersion 2.3; the return value checker in main only
   stdlibLV="-language-version 2.3 -api-version 2.3"
@@ -25,6 +33,7 @@ case $LINE in
   rvc=""
   # the multiplatform plugin's default module name
   testModule=kotlin-test
+  testRvc="-Xreturn-value-checker=full"
   ;;
 2.4)
   stdlibLV=""
@@ -32,6 +41,7 @@ case $LINE in
   mainOnly=""
   rvc="-Xreturn-value-checker=full"
   testModule=org.jetbrains.kotlin:kotlin-test
+  testRvc="-Xreturn-value-checker=full"
   ;;
 *)
   echo "unknown release line $LINE"
@@ -121,7 +131,7 @@ fragments=$( { echo "$assertions" | sed 's|^|assertionsCommonMain:|'; echo "$tes
 kc -no-stdlib -no-reflect -module-name $testModule -jvm-target 1.8 -Xmulti-platform \
   -Xfragments=commonMain,assertionsCommonMain,jvmMain \
   -Xfragment-refines=assertionsCommonMain:commonMain,jvmMain:assertionsCommonMain -Xfragment-sources="$fragments" \
-  -language-version $LINE -api-version $LINE -Xdont-warn-on-error-suppression -Xreturn-value-checker=full \
+  -language-version $LINE -api-version $LINE -Xdont-warn-on-error-suppression $testRvc \
   -opt-in=kotlin.contracts.ExperimentalContracts -Xallow-kotlin-package -Xexpect-actual-classes \
   -Xexplicit-api=strict -Werror -cp $STDLIB -d $B/test $assertions $testJvm
 java9 $SRC/$T/jvm/src/java9/java kotlin-test $STDLIB kotlin.test=$B/test

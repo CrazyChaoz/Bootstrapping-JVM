@@ -7,11 +7,22 @@ kotlin-script-runtime, kotlin-test.
 
 | release | compiler (upstream's bootstrap) | result |
 |---|---|---|
+| 2.2.0 | chain 2.2.0 (2.2.0-dev-15683) | 3 identical; kotlin-stdlib (26 of 1033) and kotlin-test (1 of 77) differ, see below |
 | 2.3.0 | chain 2.3.0 (2.3.0-Beta2-130) | 3 identical; kotlin-stdlib (51 of 1041 entries) and kotlin-test (10 of 77) differ, see below |
 | 2.4.0 | chain 2.4.0 (2.4.0-dev-8449) | all 5 identical |
 | 2.4.10 | chain 2.4.0 (2.4.0-dev-8449) | all 5 identical |
 
 `check` fails unless all are identical; `runtime` builds the jars alone.
+
+## 2.2.0: open
+
+- The stdlib's 26 classes: around inlined calls, ours keeps an argument in a temporary local
+  (`key$iv` where upstream passes the caller's parameter on, `key$iv$iv` for `key$iv`), so the
+  locals, the code and the constant pools shift.
+- kotlin-test's AssertionsKt__AssertionsKt: its metadata (d1) differs.
+
+Not yet known whether this is upstream's bootstrap compiler (2.2.0-dev-15683) against the 2.2.0
+release, as for 2.3.0, or the chain's 2.2.0 behaving unlike the release.
 
 ## 2.3.0: the bootstrap compiler's
 
