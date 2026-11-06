@@ -10,8 +10,12 @@
   stripJavaArchivesHook,
   kotlinSrc,
   kotlinSrc17,
+  version ? "2.4.0", # of kotlinSrc
   withPowerAssert ? true,
   kxVersion ? "1.11.0",
+  # kotlinx.serialization's compiler options (buildSrc/.../CompilerOptions.kt: defaultCompilerArgs,
+  # setJava8Compatible); null: the older approximation (-Xreturn-value-checker=check)
+  kxCompilerArgs ? null,
   kxHash ? "sha256-mDlxNHJCVCpjG42EDaHVpDEA9qiB4gSv+3HkBeqVYno=",
   kotlinCompiler,
   kotlinAsm,
@@ -42,8 +46,7 @@ let
     }:
     stdenv.mkDerivation {
       pname = name;
-      version = "2.4.0";
-      inherit src;
+      inherit version src;
       nativeBuildInputs = [
         jdk
         zip
@@ -108,9 +111,12 @@ let
         mkdir -p build/classes
         find ${lib.escapeShellArgs dirs} \( -name '*.kt' -o -name '*.java' \) > build/sources
         find ${commonDir} -name '*.kt' | paste -sd, > build/common
-        ${kotlinRun} -no-stdlib -no-reflect -nowarn -Xskip-prerelease-check -jvm-target 1.8 -Xcommon-sources=$(cat build/common) -Xjvm-default=all \
+        ${kotlinRun} -no-stdlib -no-reflect -nowarn -Xskip-prerelease-check -jvm-target 1.8 -Xcommon-sources=$(cat build/common)${lib.optionalString (kxCompilerArgs == null) " -Xjvm-default=all"} \
           ${
-            lib.optionalString (kxVersion == "1.11.0") "-Xreturn-value-checker=check"
+            if kxCompilerArgs != null then
+              lib.escapeShellArgs kxCompilerArgs
+            else
+              lib.optionalString (kxVersion == "1.11.0") "-Xreturn-value-checker=check"
           } -opt-in=kotlinx.serialization.SealedSerializationApi -opt-in=kotlinx.serialization.json.internal.JsonFriendModuleApi -opt-in=kotlinx.serialization.internal.CoreFriendModuleApi \
           -Xmulti-platform -Xexpect-actual-classes -Xno-check-actual \
           -opt-in=kotlin.RequiresOptIn -opt-in=kotlinx.serialization.InternalSerializationApi \
@@ -179,6 +185,24 @@ let
       postCompile = ''
         unzip -q ${kotlinCompiler}/lib/kotlin-compiler.jar 'org/jetbrains/kotlin/protobuf/*' -d build/classes
       '';
+    };
+
+    # atomicfu's JVM IR transformation (kotlinx-coroutines is compiled with it); only its JVM part
+    atomicfu = mkPlugin {
+      name = "atomicfu-compiler-plugin";
+      dirs = [ "plugins/atomicfu/atomicfu-compiler/src" ];
+      resourceDirs = [ "plugins/atomicfu/atomicfu-compiler/resources" ];
+    };
+
+    # the compile daemon and its protocol (kotlin-daemon-embeddable, relocated in all-packages.nix)
+    daemon = mkPlugin {
+      name = "kotlin-daemon";
+      dirs = [
+        "compiler/daemon/src"
+        "compiler/daemon/daemon-common/src"
+      ];
+      # (optInToK1Deprecation())
+      extraArgs = [ "-opt-in=org.jetbrains.kotlin.K1Deprecation" ];
     };
 
     # --- scripting and build tools (unshaded; the embeddable variants are relocated in default.nix)

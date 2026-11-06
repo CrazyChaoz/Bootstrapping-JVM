@@ -57,4 +57,9 @@ lib.fix (self: {
   openjdk19 = old.openjdk19 self.openjdk18;
   openjdk20 = old.openjdk20 self.openjdk19;
   openjdk21 = mkOpenjdk "21" (asBootJdk self.openjdk20 "${self.openjdk20}");
+  # (25: Gradle 9.x's build JDK; nixpkgs' recipe is 25.0.4.1+1, the release of Gradle 9.8.2's CI)
+  openjdk22 = old.openjdk22 self.openjdk21;
+  openjdk23 = old.openjdk23 self.openjdk22;
+  openjdk24 = old.openjdk24 self.openjdk23;
+  openjdk25 = mkOpenjdk "25" (asBootJdk self.openjdk24 "${self.openjdk24}");
 })

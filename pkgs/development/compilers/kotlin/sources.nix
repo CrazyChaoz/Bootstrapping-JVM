@@ -506,4 +506,8 @@
     rev = "v2.4.0";
     hash = "sha256-Rj/4LLzOjuMsWCC4P1Y4p611cWFGmGdgqpOYksKnqVs=";
   };
+  "2.4.10" = fetchKotlin {
+    rev = "v2.4.10";
+    hash = "sha256-nk9RBX3ptTDef1w2RL/MjL8GLrpXFVYrkn1e03PA2OA=";
+  };
 }

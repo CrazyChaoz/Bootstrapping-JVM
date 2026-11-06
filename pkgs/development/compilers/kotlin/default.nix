@@ -1807,6 +1807,13 @@ let
       ];
     };
 
+    # (Gradle 9.8.2's embedded Kotlin)
+    "2.4.10" = step k."2.4.0" "2.4.10" [ ] {
+      steps = ops.replace "compiler-version-150" ''
+        echo -n "2.4.10" > compiler/compiler.version/resources/META-INF/compiler.version
+      '';
+    };
+
     "2.3.0" = step k."2.2.0" "2.3.0" [ ] {
       steps = lib.flip lib.pipe [
         (ops.replace "compiler-dirs" (compilerDirs (dirs230 ++ firDirs230)))

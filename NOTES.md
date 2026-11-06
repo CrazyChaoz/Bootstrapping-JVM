@@ -177,13 +177,13 @@ which can be dropped for a first minimal distribution.
 
 ## Gradle 9.8.0
 
-`nix build .#gradleDist` → a working Gradle distribution (lib/, lib/plugins, lib/agents, bin/gradle).
+`nix build .#gradle."9.8.0".dist` → a working Gradle distribution (lib/, lib/plugins, lib/agents, bin/gradle).
 Smoke test: `JAVA_HOME=$(nix build --no-link --print-out-paths .#jdks.openjdk21) result/bin/gradle --offline --no-daemon build`
 (Groovy and Kotlin DSL builds, `java`/`application` plugins verified).
 
 * Third party libraries: `gradle/libs.nix`; Groovy 4.0.33: `groovy.nix`.
 * Modules: every Gradle module is compiled directly with javac/kotlinc (`modules.nix`); the module graph is
-  extracted from the build scripts by `gradle/scripts/gradle-modules` into `modules.json` (regenerate against a Gradle checkout).
+  extracted from the build scripts by `gradle/scripts/gradle-modules` into `modules/VERSION.json` (regenerate against a Gradle checkout).
 * Kotlin pieces (`kotlin-plugins.nix`): compiler plugins, scripting libs, kotlinx.serialization, build-tools-api/impl,
   built from the Kotlin 2.4.0 sources; `kotlin-embeddable.nix` + `Relocate.java` relocate them like Kotlin's embeddable
   (jarjar cannot read modern classes). The bootstrapped compiler's bundled ASM cannot read sealed classes, so a modern
@@ -193,24 +193,114 @@ Smoke test: `JAVA_HOME=$(nix build --no-link --print-out-paths .#jdks.openjdk21)
   `kotlin-extensions.nix` generates the Kotlin DSL extensions of the Gradle API with the code generators of
   kotlin-dsl-shared-runtime (`GenerateExtensions.java`).
 * Not done: resources-s3/gcs and build-init (AWS/GCS/maven-core libs), api-relocated.txt (empty), tests of the
-  test-kit/native/plugin-development plugins, Scala compilation (the Zinc worker is stubbed and throws; the Scala
-  chain below is not wired into Gradle).
+  test-kit/native/plugin-development plugins.  (Scala compilation: see "Scala in Gradle" below.)
 
 ### Gradle 8.14.3
 
-`nix build .#gradle."8.14.3".dist` (and `.#gradle."9.8.0".dist` = `.#gradleDist`): a working 8.14.3
+`nix build .#gradle."8.14.3".dist`: a working 8.14.3
 (Groovy-DSL and Kotlin-DSL `java`/`application` builds verified, offline, `--no-daemon`).
 `gradleFor` in `all-packages.nix` instantiates modules + dist + generated Kotlin extensions for a Gradle version.
 What differs from 9.8:
-* module graph `modules-8.14.3.json` (`scripts/gradle-modules`; `optionalProjects`, java-api-extractor, futureKotlin coords);
+* module graph `modules/8.14.3.json` (`scripts/gradle-modules`; `optionalProjects`, java-api-extractor, futureKotlin coords);
 * Groovy 3.0.24 (`groovy3.nix`: antlr2 grammars + the tunnelvisionlabs ANTLR 4 for the Parrot grammar; official ANTLR
   4.9-4.13 reject its duplicate alt labels); Gradle 8 breaks at runtime on Groovy 4;
 * Kotlin 2.1.0 compiler stack (`kotlinPlugins21`, `kotlinRelocated21`), because 8's Kotlin DSL uses compiler APIs that
   2.4 removed; kotlinx.serialization 1.6.2 and kotlinx-metadata-jvm 0.5.0 (from the Kotlin 1.7.0 sources);
 * libs: slf4j 1.7.36 (`slf4jLegacy`), jansi 1.18 (Java only, no JNI), commons-lang 2.6, jsoup;
 * module registry: each jar carries `<module>-classpath.properties` (`registryStyle = "embedded"`) instead of 9.x's sidecar files;
-* small source patches in `default.nix` (`patches`: core, kotlin-dsl, instrumentation processor), `scala` is built partial like the Zinc worker.
-Not done: AWS/GCS/maven modules, JNI libraries (jansi, native-platform), Scala compilation.
+* small source patches in `default.nix` (`patches`: core, kotlin-dsl, instrumentation processor).
+Not done: AWS/GCS/maven modules, JNI libraries (jansi, native-platform).  8.14.3 defaults to an older Zinc:
+Scala builds set `scala { zincVersion = "1.12.0" }` (as gradle/tests/scala does).
+
+### Further versions: 9.8.1, 9.8.2, 9.9.0-RC1
+
+The versions are a table, `gradle/versions.nix` (the hash of each source tree) plus `gradle/modules/VERSION.json`;
+`maintainers/scripts/gradle-add-version VERSION` adds a release (fake-hash fetch, `gradle-modules` on the tree,
+inserted in version order).  `gradleLine` in `all-packages.nix` holds the settings of a release line (8.x: the old
+8.14.3 settings; 9.9+: below), a version's own entry in `versions.nix` goes on top.  `.#gradle."VERSION".smoke`
+runs `gradle/tests/smoke` (a Kotlin-DSL root, a Groovy-DSL `java-library` and an `application`, offline) on the
+distribution; `.#gradleDist` is the newest release without -M/-RC (`gradleLatest`).
+* 9.8.1 and 9.8.2: the 9.8.0 module graph (only the file counts differ), nothing to change.
+* 9.9.0-RC1 (254 modules, new: dependency-management-resources):
+  * multi-release source sets (`jvmCompile { addMultiReleaseVersion(9, 17) }`, process-services-base):
+    `modules.nix` compiles `src/main/java<N>` with `--release N` against the main classes, into the jar's
+    `META-INF/versions/N`;
+  * `libs.configurationCacheReport` 1.36 is now compiled against (the report model), not only the viewer at runtime:
+    `configuration-cache-report.nix` builds its common+JVM half from gradle/configuration-cache-report c52219d
+    (1.36 is untagged; the published sources are that commit's; same 101 jar entries as upstream).  The viewer
+    `configuration-cache-report.html` is Kotlin/JS, not bootstrapped: in its place a page that prints the report
+    data as JSON (configuration-cache and problems reports verified to be written);
+  * native-platform 0.22-milestone-30 (`SystemInfo.Architecture` gained riscv64, e2k);
+  * the build receipt spells the version as GradleVersion parses it (`9.9.0-rc-1`, base `9.9.0`).
+  * kotlin-dsl's new runtimeOnly kotlinCompilerRunner/kotlinToolingCore are not provided (smoke test passes without).
+
+### 9.8.2 bit for bit against the published distribution
+
+`gradleRelease."9.8.2"` (all-packages.nix) builds 9.8.2 in *upstream mode*: `upstreamLock = gradle/dists/9.8.2.json`,
+the facts Gradle's build resolves from Maven (`scripts/gradle-dist-lock` writes it from a published distribution:
+third-party components and their registry entries, licenses, the launchers' Class-Path, build receipt, transform
+times).  Older versions are built as before (their drvPaths are unchanged by everything below).  Compared with
+gradle-9.8.2-bin.zip: 210 of 220 Gradle jars and 537 of 716 files identical (2026-11-06); `.smoke` and
+`.scalaSmoke` pass.
+What it took, beyond javac -g and jars written like Gradle's Jar task (`gradle-jar.py`):
+* the build JDK is 25 (gradle-daemon-jvm.properties) and Kotlin 2.4.10 (kotlin chain step, `kotlinPlugins2410`);
+  kotlinc runs on JDK 21 with `-jdk-home` JDK 25: the bootstrapped compiler's IntelliJ `JavaVersion.parse` takes
+  feature versions 5..24 only;
+* javac is run as Gradle's JdkJavaCompiler runs it (`Javac.java`: javax.tools with a DiagnosticListener,
+  `-proc:none`, `-XDuseUnsharedTable=true`, empty `-sourcepath`), the sources in the order of Gradle's file
+  snapshots (children sorted by name, files and directories alike);
+* the compile classpath is Gradle's (`gradleClasspathOf`): direct dependencies plus what project dependencies
+  export (api, compileOnlyApi), not the runtime closure.  The superset changes the output: dependency-management's
+  `@NullMarked` package-info enhances the types of core's half of the split package org.gradle.api.internal.artifacts
+  (more null checks in kotlinc's output);
+* Kotlin module names `org.gradle:<name>` (the .kotlin_module file is `org.gradle_<name>`); build-logic modules
+  (kotlin-dsl-shared-runtime) get only the JVM target, not configureKotlinCompilerForGradleBuild's options;
+* third-party jars feed Gradle's own classes: javac copies a superclass constructor's parameter names into an
+  anonymous subclass (Groovy built with `-g`), kotlinc a SAM interface's (Guava with `-parameters`); kotlinx
+  serialization 1.11.0 with its own options (`-Xreturn-value-checker=full`: the serializers Gradle's plugin
+  generates inherit must-use flags);
+* registry entries: shadedImplementation and public-api's externalApi/legacyExternalApi are recorded by
+  `gradle-modules`; the distributions-* platforms depend on distributions-dependencies (gradlebuild.distributions);
+  the legacy public API's entry (a Maven resolution: compile scopes) is in the lock (`publicApiLegacy`).
+  Deliberately different: entries leave out components not built (native-platform's platform jars), since Gradle's
+  module registry fails on resolving them.
+Not identical yet:
+* LogLevelMapping$1 (gradle-logging): the implicit return of an anonymous class's initializer has line 35 upstream,
+  1 here (javac 21: 38); upstream's javac runs the Error Prone and NullAway plugins, not reproduced;
+* generated artifacts: kotlin-dsl's shadow jar, gradle-api-metadata, runtime-api-info's lists, kotlin-dsl
+  extensions, the public-api ABI stubs, test-kit's package list, the R8-minified gradle-wrapper.jar, jQuery
+  (a webjar) in software-diagnostics;
+* missing modules: resources-s3/gcs, build-init, the jgit ssh agent, native-platform's platform jars;
+* most third-party jars (their own builds: compilers, flags, packaging); kotlinx-coroutines-core 1.10.2 is 863 of
+  864 entries (`kotlinx-coroutines.nix`), the one left (DelayKt) from a chain bug: the stdlibs of Kotlin
+  1.4.32..2.3.0 are compiled without `-Xuse-14-inline-classes-mangling-scheme`, so value-class members get other
+  names (`Duration.plus-wmV0flA`, upstream `plus-LRDsOJo`); fixing it rebuilds the whole chain.  kotlinx
+  serialization 1.11.0 is built with Kotlin 2.3.20 upstream (not in the chain).
+
+### Scala in Gradle: Zinc 1.12.0 from source (pkgs/development/scala-modules)
+
+Gradle's `scala-compiler-worker` (and 8.x's `scala`) compile against `libs.zinc` = `scalaModules.zinc`; at a
+build's runtime the Scala plugin resolves Scala, Zinc and the compiler bridge from a repository:
+`scalaModules.mavenRepo` (41 jars, POMs written from the dependencies declared in the scope).
+`.#gradle."V".scalaSmoke` (gradle/tests/scala): Scala + Java joint compilation through Zinc, `run`, `scaladoc`.
+* Scala 2.13.18's jars split out of stage s230 (library = quick/lib, reflect = scala/reflect/{api,internal,io,
+  macros,runtime}, compiler = the rest + scala-asm), with the release's *.properties.  The chain compiles the compiler
+  proper only; src/{interactive,repl,repl-frontend,scaladoc} are compiled here (the REPL frontend against jline 3.27.1,
+  upstream 3.29.0).  Scaladoc's fonts/images and jQuery webjar are left out (binaries / a minified build): a patch
+  makes it skip missing resources (system fonts, no icons, no search).
+* Zinc's closure, each compiled by that scalac/javac: sbt io 1.10.5, util-* 1.11.5 (kind-projector 0.13.3 as the
+  scalac plugin; ScalaKeywords generated from the compiler's nme.keywords), launcher-interface 1.4.4, sjson-new
+  0.10.1 (sbt-boilerplate templates expanded by `boilerplate.py`, a port of its parser) with scalajson/jawn shaded
+  into sjsonnew.shaded, sbinary 0.5.1 (FMPP templates: `fmpp-lite.py`), scala-xml 2.3.0, parser-combinators 1.1.2,
+  parallel-collections 0.2.0, zero-allocation-hashing 0.16, swoval file-tree-views 2.1.12, jline 3.27.1 + sbt's
+  jline 2 fork, log4j 2.17.1, disruptor 3.4.2, and zinc-persist-core-assembly (protoc 25 on the schema, the
+  protobuf 3.25.8 runtime, shaded into sbt.internal.shaded.com.google.protobuf).
+* Source edits for 2.13.18 (the libraries were written against 2.13.0): parallel-collections gets 1.0.0's
+  `override def knownSize`s; parser-combinators wraps Array[Char]/PagedSeq in ArrayCharSequence/SeqCharSequence
+  (no longer implicit).  log4j-core: without Kafka/JMS/mail/ZeroMQ/CSV/XML+YAML Jackson layouts/OSGi (sources
+  importing them dropped, then those javac fails on; 50 of 690), ResolverUtil's OSGi bundle scan throws.  jline's
+  Nano without juniversalchardet.  Prebuilt native libraries (swoval, jline) are dropped: pure Java fallbacks.
+* Not done: Scala 3 through Gradle (needs scala3-sbt-bridge and the 3.x compiler's dependencies as a repository).
 
 ## Scala chain (compilers/scala): 2.13.18 and 3.10.0
 

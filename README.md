@@ -27,7 +27,7 @@ with the JDK chain, PiCo, IntelliJ SDKs and ANTLR they are built with (generated
 | `pkgs/development/compilers/pico/` | PiCo, the compiler of Scala's Java sources until 2006: JCup → boot (JaCo translated to Java) → pico; see its `README.md` |
 | `pkgs/development/java-modules/` | ~30 third party Java libraries, protobuf, ICU data; `intellij-sdk/`: IntelliJ SDK modules (util, core, jps-model, javac2, …) for SDKs 139 … 193, 201+ |
 | `pkgs/development/tools/build-managers/apache-ant/` | Ant |
-| `pkgs/development/tools/build-managers/gradle/` | Gradle 9.8.0 and 8.14.3: ~80 third party libs, Groovy 4.0.33/3.0.24, Kotlin plugins/embeddable jars, every Gradle module compiled directly by javac/kotlinc, distribution assembly |
+| `pkgs/development/tools/build-managers/gradle/` | Gradle 8.14.3, 9.8.x and 9.9.0-RC1 (`versions.nix`, one module graph per version in `modules/`): ~80 third party libs, Groovy 4.0.33/3.0.24, Kotlin plugins/embeddable jars, every Gradle module compiled directly by javac/kotlinc, distribution assembly |
 | `pkgs/development/tools/parsing/antlr/` | ANTLR 2 … tunnelvisionlabs 4.7.4 |
 | `pkgs/development/interpreters/groovy/` | Groovy 3.0.5 |
 | `maintainers/scripts/` | hash prefetch/fix helpers (`prefetch`, `fix-hashes`, …) and patch porting (`port-patch`, `make-patch`) |
@@ -42,8 +42,12 @@ Patches from elsewhere carry their license next to them: `LICENSE-TarCV-kotlin-g
 nix build .#jdks.openjdk21                  # JDK 21, from jikes up
 nix build .#kotlin."0.6.786"                # first Kotlin stage, pure Java
 nix build .#kotlin."2.4.0"                  # Kotlin 2.4.0 (many stages later)
-nix build .#gradleDist                      # Gradle 9.8.0 (= .#gradle."9.8.0".dist)
-nix build .#gradle."8.14.3".dist            # Gradle 8.14.3
+nix build .#gradleDist                      # the newest Gradle release here (9.8.2 = .#gradle."9.8.2".dist)
+nix build .#gradle."8.14.3".dist            # any version of gradle/versions.nix (8.14.3, 9.8.0-9.8.2, 9.9.0-RC1)
+nix build .#gradle."9.8.2".smoke            # that version builds a small Groovy+Kotlin DSL project offline
+nix build .#gradle."9.8.2".scalaSmoke       # ... and a Scala 2.13 one, through Zinc
+nix build .#scalaModules.mavenRepo          # Scala 2.13.18 + Zinc 1.12.0 as a Maven repository
+maintainers/scripts/gradle-add-version 9.9.0  # a new Gradle release: its hash and module graph
 nix build .#scala.\"2.13.18\"                # Scala 2.13.18, from the 2004 Java scalac
 nix build .#scala.\"3.10.0\"                 # Scala 3.10.0 (= .#scala.latest)
 nix build .#scala.repro.check              # Scala 3.10.0's published jars rebuilt bit for bit, checked
@@ -51,7 +55,7 @@ nix build .#pizza.\"1.1\"                    # the Pizza compiler 1.1 (= .#pizza
 nix build .#pico.pico                       # PiCo (= .#pico.latest)
 ```
 
-Smoke test of the Gradle build:
+Smoke test of a Gradle build: `.#gradle."VERSION".smoke` (gradle/tests/smoke), or by hand
 `JAVA_HOME=$(nix build --no-link --print-out-paths .#jdks.openjdk21) result/bin/gradle --offline --no-daemon build`
 
 ## Status
@@ -66,10 +70,12 @@ See `NOTES.md` for the detailed log.
   (Ant-based up to 1.2.x, then module-wise kotlinc/javac).  Built and
   smoke-tested up to 2.4.0 (K2 enabled from 2.1.0).  Note `kotlin.latest` is
   still 1.1.2-5; use `kotlin."2.4.0"`.
-* **Gradle**: 9.8.0 and 8.14.3 distributions build and run (Groovy and Kotlin DSL
+* **Gradle**: 8.14.3, 9.8.0, 9.8.1, 9.8.2 and 9.9.0-RC1 distributions build and run (Groovy and Kotlin DSL
   `java`/`application` builds, offline, `--no-daemon`).  Not done: AWS/GCS/maven
-  modules (`resources-s3`, `resources-gcs`, `build-init`), JNI libraries, and
-  Scala compilation (the Zinc worker is stubbed).
+  modules (`resources-s3`, `resources-gcs`, `build-init`), JNI libraries.  Scala: Gradle's
+  Zinc worker is compiled against Zinc 1.12.0, which, with Scala 2.13.18's jars, is built by
+  the chain's scalac (`pkgs/development/scala-modules`); `.#scalaModules.mavenRepo` is a
+  Maven repository of them for builds (`.#gradle."9.8.2".scalaSmoke`: compile, run, scaladoc).
 * **Scala**: 2.13.18 and 3.10.0.  A chain of scala/scala commits (the boot compiler of
   2004 → Scala 1.x → nsc → 2.x; their Java sources compiled by PiCo until 2006-06, as
   Scala's own builds did), each stage compiled by the previous one, reaches 2.13.18;

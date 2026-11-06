@@ -537,6 +537,11 @@ lib.fix (self: {
     '';
     javaRelease = "1.8";
   };
+  # (Gradle 9.8's, minified)
+  fastutil_8_5_2 = self.fastutil.overrideAttrs {
+    version = "8.5.2";
+    src = gh "vigna" "fastutil" "8.5.2" "sha256-ZKxKgr2sR4dIJmpBKNxPuv441o+dsDCMnBSMe17lL8E=";
+  };
 
   jna-5 = mkJar {
     pname = "jna";

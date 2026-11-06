@@ -113,9 +113,6 @@ let
       gh "qos-ch" "slf4j" "v_1.7.36" "sha256-A891wuusRHJJJHDTLqKgT6sRUFZQioAk1u1tpnbWbRY="
     else
       gh "qos-ch" "slf4j" "v_2.0.17" "sha256-MOAIvzVPxFv9Nfov4Ych774urZ0v9emscKqwIGI/3Ik=";
-  jackson8Src =
-    gh "FasterXML" "jackson-modules-java8" "jackson-modules-java8-2.22.0"
-      "sha256-zZYt5ehdX69xo1VQ6ZVQhw/3u4HMTbrOOuyvpXFkRnI=";
   # jackson's PackageVersion.java.in
   jacksonVersion =
     {
@@ -254,7 +251,12 @@ lib.fix (self: {
     sourceDirs = [ "futures/failureaccess/src" ];
   };
 
-  guava = mk {
+  guava = self.guavaWith [ ];
+  # (Guava's release build: maven-compiler-plugin <parameters>true</parameters>; Kotlin takes a
+  # SAM-converted lambda's parameter names from MethodParameters)
+  guava-parameters = self.guavaWith [ "-parameters" ];
+  guavaWith = javacFlags: mk {
+    inherit javacFlags;
     pname = "guava";
     version = "33.4.6-jre";
     src = guavaSrc;
@@ -757,96 +759,116 @@ lib.fix (self: {
     sourceDirs = [ "java8" ];
   };
 
-  jackson-core = mk {
-    pname = "jackson-core";
-    version = "2.22.0";
-    src =
-      gh "FasterXML" "jackson-core" "jackson-core-2.22.0"
-        "sha256-52pW647+IDXZdW0uPq1YMiA8cHfVXvaoy+6cRMWTXAA=";
-    preBuild = jacksonVersion {
-      template = "src/main/java/com/fasterxml/jackson/core/json/PackageVersion.java.in";
-      package = "com.fasterxml.jackson.core.json";
-      group = "com.fasterxml.jackson.core";
-      artifact = "jackson-core";
-      version = "2.22.0";
-    };
-    sourceDirs = [ "src/main/java" ];
-    resourceDirs = [ "src/main/resources" ];
-    # shaded upstream
-    buildDeps = [ self.fastdoubleparser ];
-    mergeJars = [ "${self.fastdoubleparser}/share/java/fastdoubleparser.jar" ];
-  };
-
-  jackson-databind = mk {
-    pname = "jackson-databind";
-    version = "2.22.0";
-    src =
-      gh "FasterXML" "jackson-databind" "jackson-databind-2.22.0"
-        "sha256-tPE+Ye/GZdXocQqkye8qjjAUE0kG8fThAWyCQOBdGTM=";
-    preBuild = jacksonVersion {
-      template = "src/main/java/com/fasterxml/jackson/databind/cfg/PackageVersion.java.in";
-      package = "com.fasterxml.jackson.databind.cfg";
-      group = "com.fasterxml.jackson.core";
-      artifact = "jackson-databind";
-      version = "2.22.0";
-    };
-    sourceDirs = [ "src/main/java" ];
-    resourceDirs = [ "src/main/resources" ];
-    deps = [
-      self.jackson-core
-      self.jackson-annotations
-    ];
-  };
-
-  jackson-datatype-jdk8 = mk {
-    pname = "jackson-datatype-jdk8";
-    version = "2.22.0";
-    src = jackson8Src;
-    preBuild =
-      "cd datatypes\n"
-      + jacksonVersion {
-        template = "src/main/java/com/fasterxml/jackson/datatype/jdk8/PackageVersion.java.in";
-        package = "com.fasterxml.jackson.datatype.jdk8";
-        group = "com.fasterxml.jackson.datatype";
-        artifact = "jackson-datatype-jdk8";
-        version = "2.22.0";
+  # jackson-core, -databind and the java8 modules of one release
+  jacksonSet =
+    version: hashes:
+    let
+      java8Src = gh "FasterXML" "jackson-modules-java8" "jackson-modules-java8-${version}" hashes.java8;
+    in
+    lib.fix (js: {
+    jackson-core = mk {
+      pname = "jackson-core";
+      inherit version;
+      src = gh "FasterXML" "jackson-core" "jackson-core-${version}" hashes.core;
+      preBuild = jacksonVersion {
+        template = "src/main/java/com/fasterxml/jackson/core/json/PackageVersion.java.in";
+        package = "com.fasterxml.jackson.core.json";
+        group = "com.fasterxml.jackson.core";
+        artifact = "jackson-core";
+        inherit version;
       };
-    sourceDirs = [ "src/main/java" ];
-    resourceDirs = [ "src/main/resources" ];
-    deps = [ self.jackson-databind ];
-  };
+      sourceDirs = [ "src/main/java" ];
+      resourceDirs = [ "src/main/resources" ];
+      # shaded upstream
+      buildDeps = [ self.fastdoubleparser ];
+      mergeJars = [ "${self.fastdoubleparser}/share/java/fastdoubleparser.jar" ];
+    };
 
-  jackson-datatype-jsr310 = mk {
-    pname = "jackson-datatype-jsr310";
-    version = "2.22.0";
-    src = jackson8Src;
-    preBuild =
-      "cd datetime\n"
-      + jacksonVersion {
-        template = "src/main/java/com/fasterxml/jackson/datatype/jsr310/PackageVersion.java.in";
-        package = "com.fasterxml.jackson.datatype.jsr310";
-        group = "com.fasterxml.jackson.datatype";
-        artifact = "jackson-datatype-jsr310";
-        version = "2.22.0";
+    jackson-databind = mk {
+      pname = "jackson-databind";
+      inherit version;
+      src = gh "FasterXML" "jackson-databind" "jackson-databind-${version}" hashes.databind;
+      preBuild = jacksonVersion {
+        template = "src/main/java/com/fasterxml/jackson/databind/cfg/PackageVersion.java.in";
+        package = "com.fasterxml.jackson.databind.cfg";
+        group = "com.fasterxml.jackson.core";
+        artifact = "jackson-databind";
+        inherit version;
       };
-    sourceDirs = [ "src/main/java" ];
-    resourceDirs = [ "src/main/resources" ];
-    deps = [ self.jackson-databind ];
+      sourceDirs = [ "src/main/java" ];
+      resourceDirs = [ "src/main/resources" ];
+      deps = [
+        js.jackson-core
+        self.jackson-annotations
+      ];
+    };
+
+    jackson-datatype-jdk8 = mk {
+      pname = "jackson-datatype-jdk8";
+      inherit version;
+      src = java8Src;
+      preBuild =
+        "cd datatypes\n"
+        + jacksonVersion {
+          template = "src/main/java/com/fasterxml/jackson/datatype/jdk8/PackageVersion.java.in";
+          package = "com.fasterxml.jackson.datatype.jdk8";
+          group = "com.fasterxml.jackson.datatype";
+          artifact = "jackson-datatype-jdk8";
+          inherit version;
+        };
+      sourceDirs = [ "src/main/java" ];
+      resourceDirs = [ "src/main/resources" ];
+      deps = [ js.jackson-databind ];
+    };
+
+    jackson-datatype-jsr310 = mk {
+      pname = "jackson-datatype-jsr310";
+      inherit version;
+      src = java8Src;
+      preBuild =
+        "cd datetime\n"
+        + jacksonVersion {
+          template = "src/main/java/com/fasterxml/jackson/datatype/jsr310/PackageVersion.java.in";
+          package = "com.fasterxml.jackson.datatype.jsr310";
+          group = "com.fasterxml.jackson.datatype";
+          artifact = "jackson-datatype-jsr310";
+          inherit version;
+        };
+      sourceDirs = [ "src/main/java" ];
+      resourceDirs = [ "src/main/resources" ];
+      deps = [ js.jackson-databind ];
+    };
+    });
+  inherit (self.jacksonSet "2.22.0" {
+    core = "sha256-52pW647+IDXZdW0uPq1YMiA8cHfVXvaoy+6cRMWTXAA=";
+    databind = "sha256-tPE+Ye/GZdXocQqkye8qjjAUE0kG8fThAWyCQOBdGTM=";
+    java8 = "sha256-zZYt5ehdX69xo1VQ6ZVQhw/3u4HMTbrOOuyvpXFkRnI=";
+  })
+    jackson-core
+    jackson-databind
+    jackson-datatype-jdk8
+    jackson-datatype-jsr310
+    ;
+  # (Gradle 9.8.2's)
+  jackson_2_22_3 = self.jacksonSet "2.22.3" {
+    core = "sha256-56duKYW77hjblUjDI0bvMtKHyVEvp3VN3HilUm1pm1Q=";
+    databind = "sha256-K8J7Tca+gjYmmQjcRtTOGsElhp0JzeSLKNiQ9FT1k2A=";
+    java8 = "sha256-cIEpnXh3UWacd5i/f5mmtddJjKK2p/eK9jXKaU7uuFA=";
   };
   # --- JNI libraries -----------------------------------------------------
   # The Java classes plus the Linux x86_64 shared libraries, built with gcc
   # instead of the Gradle C++ plugin / zig; javac -h writes the JNI headers.
-  native-platform = stdenv.mkDerivation {
+  mkNativePlatform =
+    version: hash:
+    stdenv.mkDerivation {
     pname = "native-platform";
-    version = "0.22-milestone-29";
-    src =
-      gh "gradle" "native-platform" "0.22-milestone-29"
-        "sha256-HNVA6QDiPPKh0BQpCBjwiv4LNYxDySlqXcZjYC+FdFo=";
+    inherit version;
+    src = gh "gradle" "native-platform" version hash;
     nativeBuildInputs = [ jdk ];
     buildInputs = [ ncurses ];
     buildPhase = ''
       cd native-platform
-      v=nix-0.22-milestone-29
+      v=nix-${version}
       mkdir -p gen/java/net/rubygrapefruit/platform/internal/jni gen/headers classes
       printf 'package net.rubygrapefruit.platform.internal.jni;\npublic interface NativeVersion {\n    String VERSION = "%s";\n}\n' $v \
         > gen/java/net/rubygrapefruit/platform/internal/jni/NativeVersion.java
@@ -869,6 +891,9 @@ lib.fix (self: {
       jar cf $out/share/java/native-platform-linux-amd64-ncurses6.jar -C native-curses .
     '';
   };
+  native-platform = self.mkNativePlatform "0.22-milestone-29" "sha256-HNVA6QDiPPKh0BQpCBjwiv4LNYxDySlqXcZjYC+FdFo=";
+  # Gradle 9.9 (SystemInfo.Architecture gained riscv64, e2k)
+  native-platform-30 = self.mkNativePlatform "0.22-milestone-30" "sha256-jodO6b/k/Esm9tHPCUZyXyvJgANvnpon5iU364ToiPE=";
 
   gradle-fileevents = stdenv.mkDerivation {
     pname = "gradle-fileevents";
@@ -1358,11 +1383,13 @@ lib.fix (self: {
     src = self.antlr49-git-src;
     sourceDirs = [ "runtime/Java/src" ];
   };
-  antlr49 =
+  # an ANTLR 4 tool (4.7.2, 4.9) of the official sources, run with `runtime`
+  mkAntlr4Tool =
+    version: src: runtime:
     (mk {
       pname = "antlr4";
-      version = "4.9.0";
-      src = self.antlr49-git-src;
+      inherit version;
+      inherit src;
       nativeBuildInputs = [ antlr.antlr3 ];
       preBuild = ''
         rm tool/src/org/antlr/v4/codegen/target/SwiftTarget.java # (needs javax.json; loaded by name only)
@@ -1374,7 +1401,7 @@ lib.fix (self: {
         export CLASSPATH="${
           classpathOf [
             antlr.antlr3
-            self.antlr49-runtime
+            runtime
             antlr.stringtemplate4
             antlr.treelayout
             antlr.icu4j
@@ -1410,7 +1437,7 @@ lib.fix (self: {
       copySourceResources = true;
       deps = [
         antlr.antlr3
-        self.antlr49-runtime
+        runtime
         antlr.stringtemplate4
         antlr.treelayout
       ];
@@ -1426,6 +1453,25 @@ lib.fix (self: {
           chmod +x $out/bin/antlr4
         '';
       });
+
+  antlr49 = self.mkAntlr4Tool "4.9.0" self.antlr49-git-src self.antlr49-runtime;
+
+  # antlr 4.7.2 (tomlj 1.0.0's: its parser generated by and run with 4.7.2, as published)
+  antlr472-git-src = gh "antlr" "antlr4" "4.7.2" "sha256-kta+K/c6cUdOuW6jWMpX4tA22GXsaDBwtalzw4z+gN4=";
+  antlr472-runtime = mk {
+    pname = "antlr4-runtime";
+    version = "4.7.2";
+    src = self.antlr472-git-src;
+    sourceDirs = [ "runtime/Java/src" ];
+  };
+  antlr472 = self.mkAntlr4Tool "4.7.2" self.antlr472-git-src self.antlr472-runtime;
+  tomlj-antlr472 = self.tomlj.overrideAttrs (o: {
+    nativeBuildInputs = [ self.antlr472 ] ++ lib.remove self.antlr4 o.nativeBuildInputs;
+    preBuild = lib.replaceStrings [ "${self.antlr4}" ] [ "${self.antlr472}" ] o.preBuild;
+    passthru = o.passthru // {
+      javaDeps = map (d: if d == self.antlr4-runtime then self.antlr472-runtime else d) o.passthru.javaDeps;
+    };
+  });
 
   antlr413 =
     (mk {

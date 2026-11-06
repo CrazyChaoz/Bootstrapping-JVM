@@ -1,0 +1,8 @@
+// Groovy DSL: a java-library
+plugins {
+    id 'java-library'
+}
+
+tasks.register('greeting') {
+    doLast { println "greeting from the Groovy DSL" }
+}

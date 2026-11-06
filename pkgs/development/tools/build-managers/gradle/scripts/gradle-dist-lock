@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+"""gradle-dist-lock DIST_DIR > dists/VERSION.json
+
+The facts of a Gradle release's distribution that Gradle's build gets from resolving its
+dependencies on Maven Central (POMs, Gradle module metadata), read from the registry of the
+published distribution (DIST_DIR: gradle-VERSION-bin.zip unpacked; only text files are read):
+
+  components  every third-party module: its .properties (alias.*, dependencies, jarFile) and
+              the directory it is in, in the order of the files
+  licenses    "group:name" -> [display name, url]: the license section of LICENSE
+  classPath   the Class-Path of the launchable jars, in Gradle's resolution order
+  receipt     the build receipt (commit ids, timestamp)
+  publicApiLegacy the dependencies of the legacy public API's registry entry: public-api's
+              externalApi and legacyExternalApi with their compile-scope dependencies (Maven
+              scopes are not otherwise recorded here)
+  transformTimes  component -> the time of the entries of its jar where Gradle's build wrote
+              it with JarEntry's default (the time of that build): NoModuleAnnotation
+
+Gradle's own modules are left out: their registry entries come from modules/VERSION.json.
+"""
+import json
+import os
+import re
+import sys
+import zipfile
+
+
+def props(path):
+    out = {}
+    for line in open(path, encoding="iso-8859-1").read().splitlines():
+        if line and not line.startswith("#"):
+            k, _, v = line.partition("=")
+            out[k] = v
+    return out
+
+
+def manifest_attr(jar, key):
+    mf = zipfile.ZipFile(jar).read("META-INF/MANIFEST.MF").decode().replace("\r\n ", "")
+    for line in mf.split("\r\n"):
+        if line.startswith(key + ": "):
+            return line[len(key) + 2:]
+    return None
+
+
+def main(d):
+    components = {}
+    for sub in ("lib", "lib/plugins", "lib/agents"):
+        for f in sorted(os.listdir(os.path.join(d, sub))):
+            if not f.endswith(".properties"):
+                continue
+            p = props(os.path.join(d, sub, f))
+            if "alias.group" not in p:
+                continue
+            components[f[: -len(".properties")]] = {
+                "dir": sub,
+                "group": p["alias.group"],
+                "name": p["alias.name"],
+                "version": p["alias.version"],
+                "dependencies": [x for x in p.get("dependencies", "").split(",") if x],
+                "jarFile": p.get("jarFile"),
+            }
+
+    licenses = {}
+    text = open(os.path.join(d, "LICENSE"), encoding="utf-8").read()
+    section = text.split("Licenses for included components:\n", 1)[1]
+    for block in section.split("-" * 80 + "\n")[1:]:
+        lines = block.strip("\n").split("\n")
+        name = lines[0]
+        url = lines[1] if len(lines) > 1 and lines[1].startswith("http") else None
+        for coord in lines[(2 if url else 1):]:
+            if coord:
+                licenses[coord] = [name, url]
+
+    version = None
+    for f in os.listdir(os.path.join(d, "lib")):
+        m = re.fullmatch(r"gradle-base-services-([0-9][^-]*(?:-[a-z]+-[0-9]+)?)\.jar", f)
+        if m:
+            version = m.group(1)
+    lib = os.path.join(d, "lib")
+    class_path = {
+        m: manifest_attr(os.path.join(lib, f"gradle-{m}-{version}.jar"), "Class-Path").split(" ")
+        for m in ("gradle-cli-main", "daemon-main")
+    }
+    receipt = zipfile.ZipFile(os.path.join(lib, f"gradle-base-services-{version}.jar")).read(
+        "org/gradle/build-receipt.properties").decode()
+    r = {}
+    for line in receipt.splitlines():
+        k, _, v = line.partition("=")
+        r[k] = v.replace("\\:", ":")
+
+    transform_times = {}
+    for key, c in components.items():
+        if c["jarFile"] and c["jarFile"].endswith("-no-module-annotation.jar"):
+            t = zipfile.ZipFile(os.path.join(d, c["dir"], c["jarFile"])).infolist()[0].date_time
+            transform_times[key] = "%04d-%02d-%02d %02d:%02d:%02d" % t
+
+    json.dump({
+        "components": components,
+        "licenses": dict(sorted(licenses.items())),
+        "classPath": class_path,
+        "receipt": {k: r[k] for k in ("commitId", "scriptTemplateCommitId", "buildTimestamp")},
+        "transformTimes": transform_times,
+        "publicApiLegacy": [x for x in props(os.path.join(lib, "api", "gradle-public-api-legacy.properties"))
+                            .get("dependencies", "").split(",") if x],
+    }, sys.stdout, indent=1)
+    sys.stdout.write("\n")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1])

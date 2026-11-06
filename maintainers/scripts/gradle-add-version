@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# usage: gradle-add-version VERSION
+# Adds Gradle VERSION (a tag of gradle/gradle, without the "v") to
+# pkgs/development/tools/build-managers/gradle/versions.nix, with the hash of its source tree as
+# source.nix fetches it (binaries stripped), and writes its module graph,
+# gradle/modules/VERSION.json (scripts/gradle-modules).  Then: nix build .#gradle."VERSION".dist
+set -euo pipefail
+v=${1:?usage: gradle-add-version VERSION}
+cd "$(dirname "$0")/../.."
+G=pkgs/development/tools/build-managers/gradle
+if grep -q "^  \"$v\"" $G/versions.nix; then echo "$v is already in $G/versions.nix" >&2; exit 1; fi
+
+# the hash: a build with a fake one reports it
+hash=$(nix build --impure --no-link --expr "with builtins; let f = getFlake (toString ./.); in f.inputs.nixpkgs.legacyPackages.\${currentSystem}.callPackage ./$G/source.nix { version = \"$v\"; hash = \"sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"; }" 2>&1 \
+  | sed -n 's/^ *got: *//p' | head -1 || true)
+[ -n "$hash" ] || { echo "could not fetch gradle $v (is v$v a tag of gradle/gradle?)" >&2; exit 1; }
+src=$(nix build --impure --no-link --print-out-paths --expr "with builtins; let f = getFlake (toString ./.); in f.inputs.nixpkgs.legacyPackages.\${currentSystem}.callPackage ./$G/source.nix { version = \"$v\"; hash = \"$hash\"; }")
+
+python3 -I $G/scripts/gradle-modules "$src" > $G/modules/$v.json
+python3 - "$G/versions.nix" "$v" "$hash" <<'PY'
+import re, sys
+path, v, h = sys.argv[1:]
+s = open(path).read()
+entries = re.findall(r'^  "([^"]+)"\.hash = "[^"]+";\n', s, re.M)
+line = f'  "{v}".hash = "{h}";\n'
+# keep the entries in version order
+def key(x):
+    return [(0, int(p)) if p.isdigit() else (1, p) for p in re.split(r"[.-]", x)]
+after = [e for e in entries if key(e) < key(v)]
+anchor = f'  "{after[-1]}".hash' if after else None
+if anchor:
+    i = s.index("\n", s.index(anchor)) + 1
+else:
+    i = s.index("{\n") + 2
+s = s[:i] + line + s[i:]
+open(path, "w").write(s)
+PY
+echo "added gradle $v ($hash), $(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' $G/modules/$v.json) modules"

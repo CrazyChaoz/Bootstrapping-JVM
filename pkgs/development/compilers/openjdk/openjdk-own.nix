@@ -1,6 +1,6 @@
-# OpenJDK versions that nixpkgs has no recipe for (9, 10, 12-16, 18-20),
+# OpenJDK versions that nixpkgs has no recipe for (9, 10, 12-16, 18-20, 22-24),
 # needed because each OpenJDK must be built with the previous (or same)
-# version.  After Guix' openjdk9 ... openjdk20.  Sources are the GA tags of
+# version.  After Guix' openjdk9 ... openjdk20 (22-24 like 18-20).  Sources are the GA tags of
 # the openjdk/jdk GitHub repository.
 {
   lib,
@@ -331,6 +331,33 @@ in
       tag = "jdk-20+36";
       hash = "sha256-qNIi0it85NXu92GI56otBHhU/napZVoGK3zLLy9OypY=";
       feature = 20;
+      inherit bootJdk;
+    };
+  openjdk22 =
+    bootJdk:
+    mkOpenjdk {
+      version = "22.36";
+      tag = "jdk-22+36";
+      hash = "sha256-ynM/silfhg9TH2sFJah2Y0VoNs7DhCgvqvRGv5uXY9I=";
+      feature = 22;
+      inherit bootJdk;
+    };
+  openjdk23 =
+    bootJdk:
+    mkOpenjdk {
+      version = "23.37";
+      tag = "jdk-23+37";
+      hash = "sha256-pNj94ACbrKazj+6+CstcLlyGUVMFv+NbtJUYWd4aZSY=";
+      feature = 23;
+      inherit bootJdk;
+    };
+  openjdk24 =
+    bootJdk:
+    mkOpenjdk {
+      version = "24.36";
+      tag = "jdk-24+36";
+      hash = "sha256-Q6FJaRubhIPCRnmpuvm63A+Yhfu7yR5gDfmiwBI2Xo8=";
+      feature = 24;
       inherit bootJdk;
     };
 }

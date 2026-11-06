@@ -50,10 +50,11 @@ in
       prefix ? defaultPrefix,
       packages ? defaultPackages,
       keep ? defaultKeep,
+      version ? "2.4.0",
     }:
     stdenv.mkDerivation {
       pname = name;
-      version = "2.4.0";
+      inherit version;
       dontUnpack = true;
       nativeBuildInputs = [
         jdk

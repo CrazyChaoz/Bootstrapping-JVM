@@ -53,7 +53,8 @@ def settings_modules():
 
 CONFS = ["api", "implementation", "compileOnly", "compileOnlyApi", "runtimeOnly",
          "annotationProcessor", "shadow", "manifestClasspath", "runtime",
-         "coreRuntimeOnly", "pluginsRuntimeOnly", "agentsRuntimeOnly"]
+         "coreRuntimeOnly", "pluginsRuntimeOnly", "agentsRuntimeOnly", "shadedImplementation",
+         "externalApi", "legacyExternalApi"]
 
 
 COORDS = {
@@ -251,7 +252,9 @@ if not os.path.isdir(os.path.join(root, "build-logic/kotlin-dsl-shared-runtime")
 out["kotlin-dsl-shared-runtime"] = {
     "dir": "build-logic/kotlin-dsl-shared-runtime",
     "plugins": [],
-    "deps": {"api": ["lib:kotlinStdlib", "lib:asmTree", "lib:jsr305", "lib:jspecify"]},
+    # (its build script: compileOnly only, so its registry entry has no dependencies; the
+    # graphs of 8.14.3, 9.8.0, 9.8.1 and 9.9.0-RC1 still say api, to keep their builds)
+    "deps": {"compileOnly": ["lib:kotlinStdlib", "lib:asmTree", "lib:jsr305", "lib:jspecify"]},
     "src": src_info("build-logic/kotlin-dsl-shared-runtime"),
     "runtimes": {},
     "main": {"targetJvmVersion": 8},

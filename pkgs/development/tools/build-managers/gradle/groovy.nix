@@ -21,6 +21,14 @@
   javacc,
   qdox-1_12,
   version ? "4.0.33",
+  # the Java sources with full debug info (javac -g, as Groovy's release build): javac takes the
+  # parameter names of a superclass constructor (an anonymous subclass') from them
+  javacDebug ? false,
+  # (Gradle 9.8.2's distribution has 3.27.1, the version of groovy-groovydoc's POM)
+  javaparser ? {
+    version = "3.28.0";
+    hash = "sha256-fzkYSAxN1ziFmDwSX77B/BLQv3xNOclWBsqJKzkFtDc=";
+  },
 }:
 
 let
@@ -108,7 +116,7 @@ let
           sort -o build/sources build/sources
           echo "compiling $(wc -l < build/sources) files"
           java -Xmx3g -cp "$CLASSPATH" org.codehaus.groovy.tools.FileSystemCompiler \
-            -cp "$CLASSPATH" -d build/classes -j -Jsource=8 -Jtarget=8 $(cat build/sources)
+            -cp "$CLASSPATH" -d build/classes -j -Jsource=8 -Jtarget=8${lib.optionalString javacDebug " -Fg"} $(cat build/sources)
           for d in ${lib.escapeShellArgs resourceDirs}; do
             [ -d "$d" ] && cp -r "$d"/. build/classes/
           done
@@ -156,15 +164,13 @@ let
 
     javaparser-core = mk {
       pname = "javaparser-core";
-      version = "3.28.0";
-      src =
-        gh "javaparser" "javaparser" "javaparser-parent-3.28.0"
-          "sha256-fzkYSAxN1ziFmDwSX77B/BLQv3xNOclWBsqJKzkFtDc=";
+      inherit (javaparser) version;
+      src = gh "javaparser" "javaparser" "javaparser-parent-${javaparser.version}" javaparser.hash;
       nativeBuildInputs = [ javacc ];
       preBuild = ''
         cd javaparser-core/src/main
         cp java-templates/com/github/javaparser/JavaParserBuild.java java/com/github/javaparser/
-        sed -i -e 's/''${project.version}/3.28.0/' -e 's/''${project.name}/javaparser/' \
+        sed -i -e 's/''${project.version}/${javaparser.version}/' -e 's/''${project.name}/javaparser/' \
                -e 's/''${project.build.finalName}/javaparser/; s/''${[a-z.]*}/unknown/g' \
                java/com/github/javaparser/JavaParserBuild.java
         # JavaCC 7.0.4 cannot parse diamonds in action code (upstream uses ph-javacc)
