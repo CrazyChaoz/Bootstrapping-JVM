@@ -7,6 +7,7 @@ kotlin-script-runtime, kotlin-test.
 
 | release | compiler (upstream's bootstrap) | result |
 |---|---|---|
+| 2.4.0 | chain 2.4.0 (2.4.0-dev-8449) | all 5 identical |
 | 2.4.10 | chain 2.4.0 (2.4.0-dev-8449) | all 5 identical |
 
 ## How

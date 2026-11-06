@@ -91,6 +91,19 @@ let
     };
 in
 lib.mapAttrs release {
+  "2.4.0" = {
+    # bootstrap 2.4.0-dev-8449
+    compiler = kotlin."2.4.0";
+    build = "281";
+    script = "runtime-2.4.sh";
+    hashes = {
+      kotlin-stdlib = "sha256-zLFP+D+ryxFFi3mNvJgkdIzN/+7HnJq6eJ5u0c2oaxw=";
+      kotlin-stdlib-jdk7 = "sha256-UHImVWS2sClvnHsh/uZe3udgxWl0NvWudCcDP6WPwDQ=";
+      kotlin-stdlib-jdk8 = "sha256-2WtOKXE2uKSyuIwa3Nxk2S6Q1SpBfkMVzc+WSt7eiqI=";
+      kotlin-script-runtime = "sha256-GW6Oy/Y9r0d+NOZ8L4ce4jKue/izd0Mth20bv50nPeM=";
+      kotlin-test = "sha256-OAmeONgfOU164+tzrQorY3limik7qM/lSF7n+DYSSUM=";
+    };
+  };
   "2.4.10" = {
     # bootstrap 2.4.0-dev-8449
     compiler = kotlin."2.4.0";
