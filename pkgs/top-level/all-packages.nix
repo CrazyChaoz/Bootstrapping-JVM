@@ -20,7 +20,10 @@ pkgs.lib.makeScope pkgs.newScope (self: {
 
   fetchKotlin = self.callPackage ../build-support/fetchkotlin { };
   kotlinSources = self.callPackage ../development/compilers/kotlin/sources.nix { };
-  kotlin = self.callPackage ../development/compilers/kotlin { };
+  kotlin = self.callPackage ../development/compilers/kotlin { } // {
+    # published runtime jars, bit for bit (kotlin/repro/README.md)
+    repro = self.callPackage ../development/compilers/kotlin/repro { };
+  };
   kotlinLibs = self.callPackage ../development/compilers/kotlin/libs.nix { };
 
   jdkBootstrap = self.callPackage ../development/compilers/openjdk/bootstrap.nix { };
