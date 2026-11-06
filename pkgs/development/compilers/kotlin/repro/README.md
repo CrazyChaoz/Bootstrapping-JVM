@@ -7,8 +7,25 @@ kotlin-script-runtime, kotlin-test.
 
 | release | compiler (upstream's bootstrap) | result |
 |---|---|---|
+| 2.3.0 | chain 2.3.0 (2.3.0-Beta2-130) | 3 identical; kotlin-stdlib (51 of 1041 entries) and kotlin-test (10 of 77) differ, see below |
 | 2.4.0 | chain 2.4.0 (2.4.0-dev-8449) | all 5 identical |
 | 2.4.10 | chain 2.4.0 (2.4.0-dev-8449) | all 5 identical |
+
+`check` fails unless all are identical; `runtime` builds the jars alone.
+
+## 2.3.0: the bootstrap compiler's
+
+Upstream compiled 2.3.0's runtime with 2.3.0-Beta2-130, and what remains comes from that
+compiler's behaviour, which the 2.3.0 release (the chain's) no longer has:
+
+- Parameters and locals of inline-class types in inline functions and lambdas are named
+  `$v$c$kotlin-UInt$-this$0` (756 such names in the stdlib); the release's compiler (and 2.4's,
+  matching 2.4's published jars) writes the plain names (`arg0`, `other`, `it`). The string is
+  nowhere in 2.3.0's tree. All of kotlin-test's differences and 50 of the stdlib's are this.
+- `SafeContinuation.Companion.RESULT`'s metadata: the AtomicReferenceFieldUpdater's second type
+  argument is `Any?` upstream, the flexible `Any!` with the release's compiler.
+
+Matching them needs 2.3.0-Beta2 in the chain.
 
 ## How
 

@@ -31,7 +31,6 @@ let
       # the release's build number (Implementation-Version: VERSION-release-BUILD), a fact of
       # JetBrains' CI
       build,
-      script,
       hashes,
       src ? kotlin.${version}.src,
     }:
@@ -58,7 +57,7 @@ let
         };
         buildPhase = ''
           runHook preBuild
-          WORK=$TMPDIR/work OUT=$out/share/java bash ${scripts}/scripts/${script}
+          WORK=$TMPDIR/work OUT=$out/share/java bash ${scripts}/scripts/runtime.sh
           runHook postBuild
         '';
         dontInstall = true;
@@ -91,11 +90,22 @@ let
     };
 in
 lib.mapAttrs release {
+  "2.3.0" = {
+    # bootstrap 2.3.0-Beta2-130
+    compiler = kotlin."2.3.0";
+    build = "356";
+    hashes = {
+      kotlin-stdlib = "sha256-iHWHyRcTJQrVL+FK2RZtBCwzg1BJiQ6UN/NV/8WhlbE=";
+      kotlin-stdlib-jdk7 = "sha256-WIaiOGXmhmiiNcJWRfTjZ+i0sZubEgmGM/sPdPGlVLE=";
+      kotlin-stdlib-jdk8 = "sha256-nBLOSJpR3UnfGhH0ORImMaTshtqM0Ina3GqaGHy32Iw=";
+      kotlin-script-runtime = "sha256-24JpYTcdZgUxjZxOS/zb+slMOgiSzcq9VSJIcP6tV/E=";
+      kotlin-test = "sha256-rimKBG6522+stEhoXLKfbKd6tSr/8RabP8UlGd502ig=";
+    };
+  };
   "2.4.0" = {
     # bootstrap 2.4.0-dev-8449
     compiler = kotlin."2.4.0";
     build = "281";
-    script = "runtime-2.4.sh";
     hashes = {
       kotlin-stdlib = "sha256-zLFP+D+ryxFFi3mNvJgkdIzN/+7HnJq6eJ5u0c2oaxw=";
       kotlin-stdlib-jdk7 = "sha256-UHImVWS2sClvnHsh/uZe3udgxWl0NvWudCcDP6WPwDQ=";
@@ -108,7 +118,6 @@ lib.mapAttrs release {
     # bootstrap 2.4.0-dev-8449
     compiler = kotlin."2.4.0";
     build = "377";
-    script = "runtime-2.4.sh";
     hashes = {
       kotlin-stdlib = "sha256-TsApO8N1FCOyA/HYSTJRxXxC5z62N3prhWDQl0/wpt8=";
       kotlin-stdlib-jdk7 = "sha256-56j+fKzzucg49rP8sm391B+ERVGjumf9P5WaDZ1cC+8=";

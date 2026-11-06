@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The JVM runtime jars of a Kotlin 2.4.x release as its Gradle build makes them, by kotlinc and javac
+# The JVM runtime jars of a Kotlin 2.3.x or 2.4.x release as its Gradle build makes them, by kotlinc and javac
 # run directly (README.md):
 #   kotlin-stdlib          libraries/stdlib/build.gradle.kts (jvm compilations main, mainJdk7, mainJdk8; java9)
 #   kotlin-stdlib-jdk7/8   libraries/stdlib/jdk7, jdk8 (module descriptors only)
@@ -13,6 +13,31 @@ S=$SRC/libraries/stdlib
 B=$WORK
 mkdir -p $B $OUT
 IMPL=$VERSION-release-$BUILD
+LINE=${VERSION%.*}
+
+# what changed between the release lines' build scripts
+case $LINE in
+2.3)
+  # mainCompilationOptions: languageVersion, apiVersion 2.3; the return value checker in main only
+  stdlibLV="-language-version 2.3 -api-version 2.3"
+  redundant=""
+  mainOnly="-Xcompile-builtins-as-part-of-stdlib -Xreturn-value-checker=full"
+  rvc=""
+  # the multiplatform plugin's default module name
+  testModule=kotlin-test
+  ;;
+2.4)
+  stdlibLV=""
+  redundant="-Xwarning-level=REDUNDANT_CLI_ARG:disabled"
+  mainOnly=""
+  rvc="-Xreturn-value-checker=full"
+  testModule=org.jetbrains.kotlin:kotlin-test
+  ;;
+*)
+  echo "unknown release line $LINE"
+  exit 1
+  ;;
+esac
 
 # kotlinc as the Gradle plugin runs it: on the toolchain JDK (11), against its class library
 kc() {
@@ -35,7 +60,7 @@ jar() {
   shift 2
   python3 $JARPY $OUT/$name.jar --attr 'Implementation-Vendor: JetBrains' --attr "Implementation-Title: $name" \
     --attr "Implementation-Version: $IMPL" --attr "Kotlin-Runtime-Component: $component" \
-    --attr "Kotlin-Version: ${VERSION%.*}" "$@"
+    --attr "Kotlin-Version: $LINE" "$@"
 }
 # the .kt (or EXT) files of source directories, as relative paths in the tree, sorted
 srcs() { (cd $SRC && for d in "$@"; do find $d -name "${EXT:-*.kt}" | LC_ALL=C sort; done); }
@@ -47,12 +72,11 @@ python3 $SCRIPTS/kotlin-version.py $S/src/kotlin/util/KotlinVersion.kt $VERSION 
 common=$(srcs libraries/stdlib/{common/src,src,unsigned/src} | sed "s|^libraries/stdlib/src/kotlin/util/KotlinVersion.kt$|$B/KotlinVersion.kt|")
 jvm=$(srcs libraries/stdlib/jvm/{src,runtime,builtins} | grep -v '^libraries/stdlib/jvm/[a-z]*/kotlin/internal/InternalAnnotations.kt$')
 jvmJava=$(EXT='*.java' srcs libraries/stdlib/jvm/{src,runtime,builtins})
-main="-Xstdlib-compilation -Xdont-warn-on-error-suppression -Xcontext-parameters -Werror
-  -Xwarning-level=REDUNDANT_CLI_ARG:disabled -Xreturn-value-checker=full
-  -opt-in=kotlin.ExperimentalMultiplatform -opt-in=kotlin.contracts.ExperimentalContracts"
+main="$stdlibLV -Xstdlib-compilation -Xdont-warn-on-error-suppression -Xcontext-parameters -Werror
+  $redundant $rvc -opt-in=kotlin.ExperimentalMultiplatform -opt-in=kotlin.contracts.ExperimentalContracts"
 # compileOnlyDeclarations
 kc -no-stdlib -no-reflect -module-name kotlin-stdlib_compileOnlyDeclarations -jvm-target 1.8 \
-  -Xallow-kotlin-package -Xsuppress-missing-builtins-error -Xwarning-level=REDUNDANT_CLI_ARG:disabled \
+  -Xallow-kotlin-package -Xsuppress-missing-builtins-error $redundant \
   -d $B/co $(srcs libraries/stdlib/jvm/compileOnly)
 # main: the commonMain and jvmMain fragments (and jvmMain's Java sources, for reference)
 fragments=$( { echo "$common" | sed 's|^|commonMain:|'; echo "$jvm" | sed 's|^|jvmMain:|'; } | paste -sd,)
@@ -60,7 +84,7 @@ kc -no-stdlib -no-reflect -module-name kotlin-stdlib -jvm-target 1.8 -Xmulti-pla
   -Xfragments=commonMain,jvmMain -Xfragment-refines=jvmMain:commonMain -Xfragment-sources="$fragments" \
   -Xjdk-release=6 -jvm-default=disable -Xallow-kotlin-package -Xexpect-actual-classes -Xmultifile-parts-inherit \
   -Xuse-14-inline-classes-mangling-scheme -Xno-new-java-annotation-targets -Xoutput-builtins-metadata \
-  $main -Xexplicit-api=strict -cp $B/co:$ANN -d $B/main $common $jvm $jvmJava
+  $main $mainOnly -Xexplicit-api=strict -cp $B/co:$ANN -d $B/main $common $jvm $jvmJava
 jc $JDK8/bin/javac -source 1.8 -target 1.8 -sourcepath "" -cp $B/main:$B/co:$ANN -d $B/mainjava $jvmJava
 kc -no-stdlib -no-reflect -module-name kotlin-stdlib-jdk7 -jvm-target 1.8 -Xjdk-release=7 -jvm-default=disable \
   -Xallow-kotlin-package -Xexpect-actual-classes -Xmultifile-parts-inherit -Xno-new-java-annotation-targets \
@@ -94,10 +118,10 @@ mkdir -p $B/test
 assertions=$(srcs $T/common/src/main/kotlin)
 testJvm=$(srcs $T/jvm/src/main/kotlin)
 fragments=$( { echo "$assertions" | sed 's|^|assertionsCommonMain:|'; echo "$testJvm" | sed 's|^|jvmMain:|'; } | paste -sd,)
-kc -no-stdlib -no-reflect -module-name org.jetbrains.kotlin:kotlin-test -jvm-target 1.8 -Xmulti-platform \
+kc -no-stdlib -no-reflect -module-name $testModule -jvm-target 1.8 -Xmulti-platform \
   -Xfragments=commonMain,assertionsCommonMain,jvmMain \
   -Xfragment-refines=assertionsCommonMain:commonMain,jvmMain:assertionsCommonMain -Xfragment-sources="$fragments" \
-  -language-version ${VERSION%.*} -api-version ${VERSION%.*} -Xdont-warn-on-error-suppression -Xreturn-value-checker=full \
+  -language-version $LINE -api-version $LINE -Xdont-warn-on-error-suppression -Xreturn-value-checker=full \
   -opt-in=kotlin.contracts.ExperimentalContracts -Xallow-kotlin-package -Xexpect-actual-classes \
   -Xexplicit-api=strict -Werror -cp $STDLIB -d $B/test $assertions $testJvm
 java9 $SRC/$T/jvm/src/java9/java kotlin-test $STDLIB kotlin.test=$B/test
